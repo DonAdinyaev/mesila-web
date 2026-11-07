@@ -16,6 +16,7 @@
     --chip-border: #E6E2D7;
     --text: #1A1A1C;
     --text-dim: #6B6B70;
+    --logo-b: #1F2852;
     --land: #FDFCFA; --outside: #F4F2ED; --sea: #EAF2F4; --sea-deep: #D6E5EA; --coast: #DCE8EC; --border: #ECE8E0;
     --sea-ink: #9DB6BF; --geo-ink: #C4BEB2; --region-ink: #EAE6DD; --city-ink: #8A857B;
   }
@@ -26,6 +27,7 @@
     --chip-border: #34363C;
     --text: #F3F1EC;
     --text-dim: #9A9AA1;
+    --logo-b: #5CAEE0;
     --land: #1C1D21; --outside: #17181B; --sea: #181E22; --sea-deep: #1F2B31; --coast: #1F2B31; --border: #25272B;
     --sea-ink: #4F6A75; --geo-ink: #46484D; --region-ink: #26282C; --city-ink: #7D7B76;
   }
@@ -102,11 +104,8 @@ function Header({ onClear, theme, lineFilter, setLineFilter, filterOpen, setFilt
           font:'700 17px var(--font)', letterSpacing:'-0.02em',
           color: 'var(--text)',
         }}>
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-            <path d="M3 11h16M11 3c3 2.5 3 13.5 0 16M11 3c-3 2.5-3 13.5 0 16"
-                  stroke="currentColor" strokeWidth="1.5" fill="none"/>
-          </svg>
+          {/* Mesila logo: the letter מ drawn as two rail lines */}
+          <svg width="27" height="28" viewBox="36 30 168 172" aria-hidden="true"><path d="M52.0 56.0 L82.3 86.3 Q94 98 94.0 114.6 L94 186" fill="none" stroke="var(--surface)" strokeWidth="25" strokeLinecap="round" strokeLinejoin="round"/><path d="M52.0 56.0 L82.3 86.3 Q94 98 94.0 114.6 L94 186" fill="none" stroke="#E3262D" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round"/><path d="M68.0 186.0 L68.0 166.6 Q68 150 79.7 138.3 L102.3 115.7 Q114 104 114.0 87.4 L114.0 75.0 Q114 46 143.0 46.0 L151.0 46.0 Q188 46 188.0 83.0 L188.0 163.0 Q188 186 165.0 186.0 L142 186" fill="none" stroke="var(--surface)" strokeWidth="25" strokeLinecap="round" strokeLinejoin="round"/><path d="M68.0 186.0 L68.0 166.6 Q68 150 79.7 138.3 L102.3 115.7 Q114 104 114.0 87.4 L114.0 75.0 Q114 46 143.0 46.0 L151.0 46.0 Q188 46 188.0 83.0 L188.0 163.0 Q188 186 165.0 186.0 L142 186" fill="none" stroke="var(--logo-b)" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round"/><line x1="68" y1="186" x2="94" y2="186" stroke="var(--surface)" strokeWidth="31" strokeLinecap="round"/><line x1="68" y1="186" x2="94" y2="186" stroke="#1A1A1C" strokeWidth="25" strokeLinecap="round"/><line x1="68" y1="186" x2="94" y2="186" stroke="#fff" strokeWidth="20.5" strokeLinecap="round"/><circle cx="68" cy="186" r="8.6" fill="var(--logo-b)"/><circle cx="94" cy="186" r="8.6" fill="#E3262D"/><line x1="52" y1="56" x2="52" y2="56" stroke="var(--surface)" strokeWidth="31" strokeLinecap="round"/><line x1="52" y1="56" x2="52" y2="56" stroke="#1A1A1C" strokeWidth="25" strokeLinecap="round"/><line x1="52" y1="56" x2="52" y2="56" stroke="#fff" strokeWidth="20.5" strokeLinecap="round"/><circle cx="52" cy="56" r="8.6" fill="#E3262D"/><line x1="142" y1="186" x2="142" y2="186" stroke="var(--surface)" strokeWidth="31" strokeLinecap="round"/><line x1="142" y1="186" x2="142" y2="186" stroke="#1A1A1C" strokeWidth="25" strokeLinecap="round"/><line x1="142" y1="186" x2="142" y2="186" stroke="#fff" strokeWidth="20.5" strokeLinecap="round"/><circle cx="142" cy="186" r="8.6" fill="var(--logo-b)"/></svg>
           {T.t('brand')}
         </div>
         <div style={{
