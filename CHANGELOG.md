@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-08 (timetable)
+
+- **Real timetable.** Trip times now come from the planned Israel Railways timetable (Ministry of Transport GTFS open data) instead of a formula. Each leg shows the train number, its departure and arrival, and the time at every stop; changes show both arrival and onward departure.
+- **Leave at:** plan for now or any date and time. Times are always Israel time, wherever you are. Shabbat and late-night gaps are handled: you get the next train that actually runs.
+- The map highlight follows the actual trains.
+- `tools/build_timetable.py` builds the data; a GitHub Action refreshes it twice a week and redeploys.
+- Not live yet: no delays or cancellations.
+
 ## 2026-11-08
 
 - New logo: the Hebrew letter מ drawn as two rail lines, in the map's own style. It's now in the top bar and in `assets/` (light icon, dark icon, transparent mark).

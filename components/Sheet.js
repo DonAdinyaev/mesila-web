@@ -263,8 +263,133 @@ function RouteTimeline({ it, sched, fmtClock }) {
   return <div style={{ borderTop:'1px solid var(--chip-border)', paddingTop: 14 }}>{rows}</div>;
 }
 
-function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, onClose, expanded, setExpanded }) {
-  const it = computeItinerary(route);
+// ---- Real timetable (window.SCHEDULE): times are minutes after midnight, Israel time,
+// of the search day j.day. Days other than today get a weekday prefix.
+function clockOf(j, m) {
+  const hh = String(Math.floor(m / 60) % 24).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
+  const today = window.SCHEDULE.israelNow().day;
+  const day = Date.parse(j.day) / 864e5 + Math.floor(m / 1440);
+  if (day === today) return `${hh}:${mm}`;
+  const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' });
+  return `${wd} ${hh}:${mm}`;
+}
+
+function JourneyTimeline({ j, live }) {
+  const [open, setOpen] = React.useState({});
+  const T = window.I18N;
+  const timeCol = { minWidth: 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
+  const rail = { width: 24, flexShrink: 0, display:'flex', flexDirection:'column', alignItems:'center', position:'relative' };
+  const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: '50%', width: 6, marginLeft: -3, borderRadius: 3, background: c });
+  const colorOf = (id) => (APP_LINES.find(l => l.id === id) || { color: '#888' }).color;
+  const rows = [];
+  j.legs.forEach((leg, i) => {
+    const color = colorOf(leg.line);
+    const ids = leg.stationIds, n = ids.length - 1;
+    const wait = i === 0 ? leg.depart - j.start : leg.depart - j.legs[i - 1].arrive;
+    rows.push(
+      <div key={'s'+i} style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
+        <div style={timeCol}>
+          {i > 0 && <div style={{ color:'var(--text-dim)', fontWeight: 500 }}>{clockOf(j, j.legs[i - 1].arrive)}</div>}
+          {clockOf(j, leg.depart)}
+        </div>
+        <div style={{ ...rail, paddingTop: 1 }}>
+          {i > 0 && <span style={{ ...bar(colorOf(j.legs[i-1].line)), bottom: '50%' }}></span>}
+          <span style={{ ...bar(color), top: 8 }}></span>
+          <TLNode kind={i === 0 ? 'start' : 'transfer'}/>
+        </div>
+        <div style={{ flex: 1, minWidth: 0, paddingBottom: 10 }}>
+          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[0])}</div>
+          {i > 0 && <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)', marginTop: 2 }}>{T.t('transferWait', wait)}</div>}
+        </div>
+      </div>
+    );
+    rows.push(
+      <div key={'r'+i} style={{ display:'flex', gap: 8, alignItems:'stretch' }}>
+        <div style={{ ...timeCol, color:'transparent' }}>{clockOf(j, leg.depart)}</div>
+        <div style={rail}><span style={bar(color)}></span></div>
+        <div style={{ flex: 1, minWidth: 0, padding: '2px 0 14px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
+            <LineBadge lineId={leg.line} size={24}/>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{T.t('toward', T.station(leg.terminus))}</div>
+              <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>
+                {T.t('train', leg.train)}{i === 0 && live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
+              </div>
+            </div>
+          </div>
+          <button onClick={() => setOpen(o => ({ ...o, [i]: !o[i] }))} style={{
+            marginTop: 8, display:'flex', alignItems:'center', gap: 6, border:'none', background:'transparent', padding: 0, cursor:'pointer',
+            font:'500 12px "JetBrains Mono", ui-monospace, monospace', color:'var(--text-dim)' }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" style={{ transform: open[i] ? 'rotate(90deg)' : (T.dir === 'rtl' ? 'scaleX(-1)' : 'none'), transition:'transform 150ms' }}><path d="M3 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>
+            <span>{T.t('stops', n, leg.arrive - leg.depart)}</span>
+          </button>
+          {open[i] && n > 1 && (
+            <div style={{ marginTop: 6, display:'flex', flexDirection:'column', gap: 6 }}>
+              {ids.slice(1, -1).map((id, k) => (
+                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -22 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: color, boxShadow:'0 0 0 2px var(--surface)', flexShrink: 0, position:'relative', zIndex: 1 }}></span>
+                  <span style={{ font:'500 12px "JetBrains Mono", ui-monospace, monospace', color:'var(--text-dim)', flexShrink: 0 }}>{clockOf(j, leg.times[k + 1]).slice(-5)}</span>
+                  <span style={{ font:'500 13px/1.3 var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{T.station(id)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+    if (i === j.legs.length - 1) rows.push(
+      <div key="end" style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
+        <div style={timeCol}>{clockOf(j, leg.arrive)}</div>
+        <div style={{ ...rail, paddingTop: 1 }}>
+          <span style={{ ...bar(color), bottom: '50%' }}></span>
+          <TLNode kind="end"/>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[n])}</div>
+          <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)', marginTop: 2 }}>{T.t('arrive')}</div>
+        </div>
+      </div>
+    );
+  });
+  return <div style={{ borderTop:'1px solid var(--chip-border)', paddingTop: 14 }}>{rows}</div>;
+}
+
+function TimetableNote({ borrowed }) {
+  const S = window.SCHEDULE;
+  return (
+    <div style={{ marginTop: 12, font: '500 11px/1.4 var(--font)', color: 'var(--text-dim)' }}>
+      {borrowed && <div style={{ marginBottom: 4 }}>{window.I18N.t('ttBorrowed')}</div>}
+      {window.I18N.t('ttNote', `${S.validFrom} – ${S.validTo}`)}
+    </div>
+  );
+}
+
+// "Leave: [Now] [date-time]" — the picked value is Israel wall-clock time
+function LeaveAt({ when, setWhen }) {
+  const T = window.I18N;
+  const pad = (x) => String(x).padStart(2, '0');
+  const cur = when || window.SCHEDULE.israelNow();
+  const d = new Date(cur.day * 864e5);
+  const value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(Math.floor(cur.min / 60))}:${pad(cur.min % 60)}`;
+  const onChange = (e) => {
+    const m = /^(\d+)-(\d+)-(\d+)T(\d+):(\d+)/.exec(e.target.value);
+    if (m) setWhen({ day: Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5, min: +m[4] * 60 + +m[5] });
+  };
+  const chip = (active) => ({ padding: '6px 12px', borderRadius: 999, cursor:'pointer', font:'600 12px var(--font)',
+    border: '1px solid var(--chip-border)', background: active ? 'var(--text)' : 'var(--chip-bg)', color: active ? 'var(--surface)' : 'var(--text)' });
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap: 8, marginTop: 10, flexWrap:'wrap' }}>
+      <span style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>{T.t('leave')}</span>
+      <button onClick={() => setWhen(null)} style={chip(!when)}>{T.t('now')}</button>
+      <input type="datetime-local" value={value} onChange={onChange} aria-label={T.t('leave')} style={{
+        ...chip(!!when), font:'500 12px "JetBrains Mono", ui-monospace, monospace', padding: '5px 10px', colorScheme: 'light dark' }}/>
+    </div>
+  );
+}
+
+function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, when, setWhen, onClose, expanded, setExpanded }) {
+  const real = !!window.SCHEDULE;
+  const it = real ? null : computeItinerary(route);
   const hasRoute = !!it;
   const now = new Date();
   const sched = hasRoute ? computeSchedule(it) : null;
@@ -313,9 +438,31 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, onClose, exp
             </svg>
           </button>
         </div>
+        {real && <LeaveAt when={when} setWhen={setWhen}/>}
       </div>
 
-      {/* Route summary + timeline */}
+      {/* Real timetable: summary + timeline */}
+      {real && journey && (
+        <div style={{ padding: '0 16px 16px' }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap: 12, marginBottom: 14, flexWrap:'wrap' }}>
+            <div style={{ font: '700 28px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(journey.arrive - journey.depart)}</div>
+            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}>{clockOf(journey, journey.depart)} → {clockOf(journey, journey.arrive)}</div>
+            <div style={{ marginInlineStart:'auto', font: '500 13px var(--font)', color: 'var(--text-dim)' }}>
+              {journey.transfers === 0 ? window.I18N.t('direct') : window.I18N.t('transfers', journey.transfers)}
+            </div>
+          </div>
+          <JourneyTimeline j={journey} live={!when}/>
+          <TimetableNote borrowed={journey.borrowed}/>
+        </div>
+      )}
+      {real && from && to && from !== to && !journey && (
+        <div style={{ padding: '4px 16px 20px', color: 'var(--text-dim)', font: '500 13px var(--font)' }}>
+          {window.I18N.t('noTrains')}
+          <TimetableNote/>
+        </div>
+      )}
+
+      {/* Simulated fallback (no timetable loaded): summary + timeline */}
       {hasRoute && sched && (
         <div style={{ padding: '0 16px 16px' }}>
           <div style={{ display:'flex', alignItems:'baseline', gap: 12, marginBottom: 14 }}>
@@ -329,7 +476,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, onClose, exp
         </div>
       )}
 
-      {!hasRoute && window.innerWidth >= 600 && (
+      {!hasRoute && !journey && !(real && from && to) && window.innerWidth >= 600 && (
         <div style={{ padding: '12px 16px 20px', color: 'var(--text-dim)', font: '500 13px var(--font)' }}>
           {window.I18N.t('hint')}
         </div>

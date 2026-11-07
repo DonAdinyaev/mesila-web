@@ -842,6 +842,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
           if (!line || !gl) return null;
           const path = PATHS[seg.line];
           const a = path.indexOf(seg.ids[0]), b = path.indexOf(seg.ids[seg.ids.length - 1]);
+          if (a < 0 || b < 0) return null;
           const lo = Math.min(a, b), hi = Math.max(a, b);
           const pts = gl.poly.slice(gl.stIdx[lo], gl.stIdx[hi] + 1);
           const d = polyD(pts, R, gl.rad.slice(gl.stIdx[lo], gl.stIdx[hi] + 1));

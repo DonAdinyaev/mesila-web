@@ -57,6 +57,10 @@ window.I18N = (() => {
       dur: (h, m) => (h > 0 ? `${h}h ${m}m` : `${m} min`), departHere: 'Depart from here', goHere: 'Go here', show: 'Show',
       tweaks: 'Tweaks', theme: 'Theme', light: 'Light', dark: 'Dark', density: 'Label density', sparse: 'Sparse',
       normal: 'Normal', dense: 'Dense', night: 'Show night lines', fontEn: 'English font', fontHe: 'Hebrew font',
+      train: (n) => `Train ${n}`, leave: 'Leave', now: 'Now', departsInOnly: (m) => `Departs in ${m} min`,
+      noTrains: 'No train on the shown lines in the next 30 hours.',
+      ttNote: (d) => `Planned Israel Railways timetable (open data, ${d}). Not live: check for delays.`,
+      ttBorrowed: 'Outside the loaded timetable: showing the same weekday from it.',
     },
     he: {
       brand: 'מסילה', operator: 'רכבת ישראל', filter: 'סינון קווים', zoomIn: 'הגדלה', zoomOut: 'הקטנה',
@@ -69,6 +73,10 @@ window.I18N = (() => {
       dur: (h, m) => (h > 0 ? `${h} ש׳ ${m} דק׳` : `${m} דק׳`), departHere: 'יציאה מכאן', goHere: 'נסיעה לכאן', show: 'הצגה',
       tweaks: 'התאמות', theme: 'ערכת נושא', light: 'בהירה', dark: 'כהה', density: 'צפיפות תוויות', sparse: 'דלילה',
       normal: 'רגילה', dense: 'צפופה', night: 'הצגת קווי לילה', fontEn: 'גופן אנגלית', fontHe: 'גופן עברית',
+      train: (n) => `רכבת ${n}`, leave: 'יציאה', now: 'עכשיו', departsInOnly: (m) => `יוצאת בעוד ${m} דק׳`,
+      noTrains: 'אין רכבת בקווים המוצגים ב־30 השעות הקרובות.',
+      ttNote: (d) => `לוח הזמנים המתוכנן של רכבת ישראל (מידע פתוח, ${d}). לא בזמן אמת: בדקו עיכובים.`,
+      ttBorrowed: 'התאריך מחוץ ללוח הזמנים שנטען: מוצג אותו יום בשבוע מתוכו.',
     },
   };
 
