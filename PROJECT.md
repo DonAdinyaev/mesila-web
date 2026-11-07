@@ -18,10 +18,11 @@ Non-goals for now: live train positions, ticketing, and accounts.
 | Network data (15 lines, Nov 2026 official map) | Done |
 | Desktop map | Done |
 | Phone map (vertical scroll) | Done |
-| Trip planner | Done (simulated times) |
+| Trip planner | Done (planned timetable) |
 | English / Hebrew | Done |
 | Logo and app icons | Done |
-| Real timetables | Not started |
+| Real timetables (planned, GTFS) | Done |
+| Live delays | Not started |
 | Offline / installable (PWA) | Not started |
 
 ## How it works
@@ -50,6 +51,20 @@ Desktop and phone share all of this. They differ only in coordinates and a small
 
 A shortest-path search over (station, line) pairs. Distance is the cost, and every change of line adds a fixed transfer penalty, so the planner prefers fewer changes unless a change saves real distance. It only uses the lines currently visible on the map, so every leg it suggests is drawn.
 
+### Timetable
+
+**Source.** The Israel Ministry of Transport publishes every operator's planned timetable as GTFS at <https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip>. Israel Railways is agency `2`; each GTFS "route" is a single train number, and the feed has no line numbers.
+
+**Build (`tools/build_timetable.py`).** Keeps the rail trips, maps GTFS `stop_code`s to station ids (`STOP_CODES`; the build fails loudly on an unknown rail stop, which is the signal that a station opened), expands the calendar to one flag per day, merges identical runs and writes `data/timetable.js` (~120 KB): a list of trains, each with its days, train number, and stations with minute offsets.
+
+**Line matching (`data/schedule.js`).** At load each train is matched to the map line whose stopping pattern contains its stops in order, preferring the line it skips the fewest stops of. Night lines only take trains that leave between 23:30 and 05:00. A train with stops off every line gets the line covering most of its length.
+
+**Planner.** A round-based connection scan: round *k* finds the earliest arrival at every station using at most *k* trains (up to 4), with a 3-minute minimum change. It returns the earliest arrival, with the fewest changes on a tie, then re-runs from later departures to leave as late as possible for the same arrival. It only uses trains on the lines shown on the map. Times are Israel wall-clock minutes from the search day's midnight, so the app is right in any viewer time zone; the search covers the previous day's after-midnight trains through the next day, 30 hours ahead (enough to span Shabbat).
+
+The map highlight is built from the planned trains. A hop between stations that the train's map line doesn't serve is drawn on another line that does.
+
+If `data/timetable.js` fails to load, the app falls back to the old distance-based route with simulated times.
+
 ### Languages (`data/i18n.js`)
 
 All interface text goes through `I18N.t(key)`, and names through `I18N.station(id)`, `I18N.line(id)` and `I18N.geo(label)`. The chosen language is remembered in the browser. Hebrew switches the page to right-to-left; the map itself stays left-to-right so geography doesn't flip.
@@ -63,14 +78,15 @@ All interface text goes through `I18N.t(key)`, and names through `I18N.station(i
 
 ## Known limitations
 
-- **Times are simulated.** Departures, intervals and journey times come from a fixed formula, not Israel Railways timetables or live data. Don't use the app to catch a real train.
-- No service patterns: the planner assumes every line runs all day, and night lines are treated like any other line when shown.
+- **Planned times only.** The timetable is what Israel Railways publishes in advance. Delays, cancellations and short-notice changes are not shown.
+- The feed covers about a month ahead. For a date outside it, the planner uses the same weekday from inside the feed and says so.
+- Some real services stop at stations their line on the map doesn't serve (for example Hadera – Netanya – Jerusalem trains, or Nahariya – Be'er Sheva trains calling at Atlit and Binyamina). They are shown in the colour of the closest map line.
 - Network data was transcribed by hand from the official line map (November 2026) and may lag behind service changes.
 - React and Babel load from a CDN at runtime, so the first load needs a network connection and is slower than a pre-built bundle would be.
 
 ## Roadmap ideas
 
-- Real timetables from Israel Railways open data (GTFS)
+- Live delays (Israel Railways real-time data / GTFS-RT)
 - Installable PWA with offline map
 - Accessibility pass: keyboard navigation, screen-reader station list
 - Pre-built bundle (drop in-browser Babel) for faster first load

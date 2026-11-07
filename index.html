@@ -53,9 +53,11 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script src="data/network.js?v=55"></script>
-<script src="data/i18n.js?v=2"></script>
-<script type="text/babel" src="components/MapSVG.js?v=78"></script>
-<script type="text/babel" src="components/Sheet.js?v=28"></script>
+<script src="data/i18n.js?v=3"></script>
+<script src="data/timetable.js?v=1"></script>
+<script src="data/schedule.js?v=1"></script>
+<script type="text/babel" src="components/MapSVG.js?v=79"></script>
+<script type="text/babel" src="components/Sheet.js?v=29"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -321,10 +323,22 @@ function App() {
     else setPopup(id);
   };
 
-  const route = React.useMemo(() => {
-    if (!from || !to || from === to) return null;
-    return window.findRoute(from, to, lineFilter);
-  }, [from, to, lineFilter]);
+  // Trip planning: real planned timetable when loaded (window.SCHEDULE), else the
+  // distance-based route. `when` is null for "now", or an Israel wall-clock {day, min}.
+  const [when, setWhen] = React.useState(null);
+  const [, setTick] = React.useState(0); // re-plan "now" as the minutes pass
+  React.useEffect(() => { const t = setInterval(() => setTick(c => c + 1), 30000); return () => clearInterval(t); }, []);
+  const nowKey = when ? 0 : Math.floor(Date.now() / 60000);
+  const journey = React.useMemo(() => {
+    if (!window.SCHEDULE || !from || !to || from === to) return null;
+    return window.SCHEDULE.plan(from, to, lineFilter, when || undefined);
+  }, [from, to, lineFilter, when, nowKey]);
+  // Map highlight; kept as the same object while its stations and lines don't change,
+  // so the minute tick doesn't re-zoom the map or re-open the sheet.
+  const routeRaw = !from || !to || from === to ? null
+    : window.SCHEDULE ? window.SCHEDULE.toPath(journey, lineFilter) : window.findRoute(from, to, lineFilter);
+  const routeKey = routeRaw ? routeRaw.map(r => r.id + ':' + r.line).join(',') : '';
+  const route = React.useMemo(() => routeRaw, [routeKey]);
 
   React.useEffect(() => {
     if (route) setExpanded(true);
@@ -397,6 +411,7 @@ function App() {
         onSetFrom={setFrom} onSetTo={setTo}
         onSwap={onSwap}
         route={route}
+        journey={journey} when={when} setWhen={setWhen}
         expanded={expanded}
         setExpanded={setExpanded}
       />
