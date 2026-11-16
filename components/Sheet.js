@@ -688,11 +688,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       background: 'var(--surface)',
       borderTopLeftRadius: 24, borderTopRightRadius: 24,
       boxShadow: '0 -8px 32px rgba(0,0,0,0.08)',
-      paddingBottom: 'calc(env(safe-area-inset-bottom, 12px) + var(--bar-overlap, 0px))', transition: 'padding-bottom 200ms',
+      paddingBottom: 'env(safe-area-inset-bottom, 12px)',
       zIndex: 5,
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
-      <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
+      {/* collapsed to just the card: keep it above Safari's floating address bar (--bar-overlap) */}
+      <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none',
+        paddingBottom: peek && !open ? 'var(--bar-overlap, 0px)' : 0, transition: 'padding-bottom 200ms' }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '8px 0 6px', cursor: peek ? 'pointer' : 'default' }}
           onClick={() => peek && setExpanded(e => !e)} role={peek ? 'button' : undefined}
           aria-label={peek ? T.t(open ? 'collapse' : 'expand') : undefined} aria-expanded={peek ? open : undefined}>
@@ -783,6 +785,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
               {T.t('hint')}
             </div>
           )}
+          {/* the details run on behind Safari's floating address bar (like page content);
+              this extra room lets the last row scroll up above it */}
+          <div aria-hidden="true" style={{ height: 'var(--bar-overlap, 0px)', transition: 'height 200ms' }}/>
         </div>
         </div>
       </div>
