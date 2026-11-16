@@ -473,7 +473,7 @@ function TimeWheel({ when, setWhen }) {
       {/* centre band */}
       <div aria-hidden="true" style={{ position:'absolute', left: 6, right: 6, top: '50%', height: ITEM_H, marginTop: -ITEM_H / 2,
         borderRadius: 8, background: 'var(--surface)', boxShadow: '0 0 0 1px var(--chip-border)' }}/>
-      <div ref={ref} role="listbox" aria-label={T.t('leave')} tabIndex={0}
+      <div ref={ref} role="listbox" aria-label={T.t('leave')} tabIndex={0} data-own-scroll="true"
         onScroll={onScroll}
         onTouchStart={(e) => { stop(e); userScroll.current = true; }} onTouchMove={stop} onTouchEnd={stop}
         onWheel={() => { userScroll.current = true; }}
@@ -653,7 +653,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   React.useEffect(() => {
     const el = bodyRef.current; if (!el || !peek) return;
     let sx = 0, sy = 0, atTop = false, mode = null;
-    const start = (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; atTop = el.scrollTop <= 0; mode = null; };
+    // touches on something that scrolls by itself (the time wheel) are left alone
+    const start = (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; atTop = el.scrollTop <= 0;
+      mode = e.target.closest && e.target.closest('[data-own-scroll]') ? 'own' : null; };
     const move = (e) => {
       const t = e.touches[0], dx = t.clientX - sx, ddy = t.clientY - sy;
       if (!mode && Math.max(Math.abs(dx), Math.abs(ddy)) > 8) mode = Math.abs(dx) > Math.abs(ddy) ? 'x' : (atTop && ddy > 0 ? 'panel' : 'scroll');
