@@ -2,6 +2,7 @@
 
 ## 2026-11-16
 
+- **Map scrolling feels native.** The map's edges are elastic: drag past the end of the network and it gives way with growing resistance, and a glide that reaches an edge overshoots slightly; both spring back smoothly. A touch that stops a glide only stops it (it no longer also taps a station), quick flicks in the same direction add up, and with the system's "Reduce motion" setting the map neither glides nor bounces.
 - **Easier flick:** the map now glides on slower flicks too, and a brief rest before lifting your finger (up to about a quarter of a second) just makes the glide gentler instead of cancelling it. Holding still longer than that still ends the drag in place.
 - **Trip timeline alignment:** the time column now has one width for the whole trip (wider when times carry a weekday, e.g. "Tue 00:56"), so the line and station markers stay in one straight column. A trip leaving the evening before the picked time shows its real time ("22:56") instead of a negative one, and earlier alternatives that have already left are no longer offered.
 - **Map keeps gliding after a flick.** Let go of the map while it's still moving and it carries on, slowing down smoothly like iPhone scrolling, and stops at the network's edges. Fast flicks glide too, even one too quick for the map to register as a drag (speed is measured from the moment the finger touches down to when it lifts, and capped so a violent flick doesn't fling the map away). A drag that stops before you lift doesn't glide, and touching the map stops a glide at once.
