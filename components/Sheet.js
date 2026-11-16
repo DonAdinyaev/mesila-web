@@ -688,7 +688,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       background: 'var(--surface)',
       borderTopLeftRadius: 24, borderTopRightRadius: 24,
       boxShadow: '0 -8px 32px rgba(0,0,0,0.08)',
-      paddingBottom: 'env(safe-area-inset-bottom, 12px)',
+      paddingBottom: 'calc(var(--below-ui, 0px) + env(safe-area-inset-bottom, 12px))',
       zIndex: 5,
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}

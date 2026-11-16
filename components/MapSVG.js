@@ -449,9 +449,10 @@ function distSeg(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
-// Region scrubber: a slim bar along the right edge that stands for the whole length
-// of the network. Region names sit at their true relative positions, a shaded band
-// shows the part on screen, and tapping or dragging the bar jumps the map there.
+// Region scroll indicator (iOS style): a thin track along the right edge standing for
+// the whole length of the network, a thumb for the part on screen, and beside the
+// thumb the name of the region in view, which switches as the map scrolls. Tap or
+// drag the track to jump; a light tick marks each new region while dragging.
 const REGIONS = [
   { id: 'galilee', en: 'Galilee', he: 'גליל', st: ['nahariya', 'akko', 'karmiel', 'ahihud', 'k_motzkin'] },
   { id: 'haifa', en: 'Haifa', he: 'חיפה', st: ['k_hayim', 'hutzot', 'merkazit', 'hashmona', 'bat_galim', 'hof_carmel'] },
@@ -465,7 +466,7 @@ const REGIONS = [
 ];
 function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
   const [box, setBox] = React.useState({ top: 120, bottom: 200 });
-  const [drag, setDrag] = React.useState(null);           // region name shown while dragging
+  const [dragging, setDragging] = React.useState(false);
   const trackRef = React.useRef(null), lastRegion = React.useRef(null);
   // stay between the map buttons and the bottom sheet
   React.useEffect(() => {
@@ -477,48 +478,42 @@ function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
   }, [ly.mobile]);
   const ys = ly.STATIONS.map(s => s.y), y0 = Math.min(...ys) - 30, y1 = Math.max(...ys) + 30, span = y1 - y0;
   const regions = REGIONS.map(r => { const p = r.st.map(id => ly.BY_ID[id]).filter(Boolean); return { ...r, y: p.reduce((a, q) => a + q.y, 0) / p.length }; });
-  const trackH = Math.max(80, innerHeight - box.top - box.bottom);
-  if (trackH < 150) return null;                            // too little room (sheet open wide)
-  // part of the network on screen
+  const trackH = innerHeight - box.top - box.bottom;
+  if (trackH < 120) return null;                            // too little room (sheet open wide)
+  // part of the network on screen, and the region at its centre
   const vb = visibleBox(), top = (vb.y - view.y) / view.k, bot = (vb.y + vb.h - view.y) / view.k;
   const f = (y) => Math.max(0, Math.min(1, (y - y0) / span));
-  const bandTop = f(top) * trackH, bandH = Math.max(14, (f(bot) - f(top)) * trackH);
-  // labels, skipping ones that would overlap the previous
-  let lastY = -1e9; const labels = [];
-  for (const r of regions) { const ty = f(r.y) * trackH; if (ty - lastY >= 26) { labels.push({ ...r, ty }); lastY = ty; } }
+  const thumbH = Math.max(28, (f(bot) - f(top)) * trackH), thumbTop = Math.min(f(top) * trackH, trackH - thumbH);
   const regionAt = (my) => regions.reduce((b, r) => Math.abs(r.y - my) < Math.abs(b.y - my) ? r : b);
+  const cur = regionAt((top + bot) / 2);
   const at = (clientY, animated) => {
     const rc = trackRef.current.getBoundingClientRect(), fy = Math.max(0, Math.min(1, (clientY - rc.top) / rc.height));
     const my = y0 + fy * span; jumpTo(my, animated);
     const r = regionAt(my);
     if (r.id !== lastRegion.current) { lastRegion.current = r.id; if (typeof haptic === 'function') haptic(); }
-    return r;
   };
   const he = lang === 'he';
   return (
     <div ref={trackRef} role="scrollbar" aria-orientation="vertical" aria-label={he ? 'אזורי המפה' : 'Map regions'}
-      onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); lastRegion.current = null; const r = at(e.clientY, true); setDrag({ r, y: e.clientY }); }}
-      onPointerMove={(e) => { if (!drag) return; const r = at(e.clientY, false); setDrag({ r, y: e.clientY }); }}
-      onPointerUp={() => setDrag(null)} onPointerCancel={() => setDrag(null)}
-      style={{ position: 'absolute', right: 8, top: box.top, height: trackH, width: 46, zIndex: 4, touchAction: 'none', cursor: 'pointer',
-        borderRadius: 23, background: 'color-mix(in srgb, var(--surface) 88%, transparent)', border: '1px solid var(--chip-border)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)', userSelect: 'none', WebkitUserSelect: 'none' }}>
-      {/* on-screen band */}
-      <div style={{ position: 'absolute', left: 3, right: 3, top: Math.min(bandTop, trackH - bandH), height: bandH, borderRadius: 18,
-        background: 'color-mix(in srgb, #1A73E8 16%, transparent)', border: '1px solid color-mix(in srgb, #1A73E8 45%, transparent)',
-        transition: drag ? 'none' : 'top 120ms, height 120ms' }}/>
-      {labels.map(l => (
-        <div key={l.id} style={{ position: 'absolute', left: 0, right: 0, top: l.ty, transform: 'translateY(-50%)', textAlign: 'center', pointerEvents: 'none',
-          font: '600 8.5px/10px var(--font)', letterSpacing: '-0.01em', color: 'var(--text-dim)', padding: '0 2px' }}>
-          {he ? l.he : l.en}
-        </div>
-      ))}
-      {drag && (
-        <div style={{ position: 'fixed', right: 64, top: drag.y - 18, height: 36, padding: '0 14px', borderRadius: 18, display: 'flex', alignItems: 'center',
-          background: 'var(--text)', color: 'var(--surface)', font: '700 15px var(--font)', boxShadow: '0 6px 18px rgba(0,0,0,0.2)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          {he ? drag.r.he : drag.r.en}
-        </div>
-      )}
+      aria-valuetext={he ? cur.he : cur.en}
+      onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); lastRegion.current = cur.id; setDragging(true); at(e.clientY, true); }}
+      onPointerMove={(e) => { if (dragging) at(e.clientY, false); }}
+      onPointerUp={() => setDragging(false)} onPointerCancel={() => setDragging(false)}
+      style={{ position: 'absolute', right: 0, top: box.top, height: trackH, width: 30, zIndex: 4, touchAction: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {/* track */}
+      <div style={{ position: 'absolute', right: 7, top: 0, bottom: 0, width: 3, borderRadius: 2, background: 'color-mix(in srgb, var(--text-dim) 22%, transparent)' }}/>
+      {/* thumb: the part on screen */}
+      <div style={{ position: 'absolute', right: dragging ? 5 : 6, top: thumbTop, height: thumbH, width: dragging ? 9 : 7, borderRadius: 5,
+        background: 'color-mix(in srgb, var(--text) ' + (dragging ? 70 : 45) + '%, transparent)',
+        transition: dragging ? 'width 120ms, right 120ms' : 'top 120ms, height 120ms, width 120ms, right 120ms' }}/>
+      {/* region in view, beside the thumb */}
+      <div key={cur.id} style={{ position: 'absolute', right: 20, top: thumbTop + thumbH / 2, transform: 'translateY(-50%)', pointerEvents: 'none',
+        padding: dragging ? '5px 11px' : '3px 9px', borderRadius: 999, whiteSpace: 'nowrap',
+        font: (dragging ? '700 14px' : '600 11px') + ' var(--font)', color: 'var(--text)',
+        background: 'color-mix(in srgb, var(--surface) 92%, transparent)', border: '1px solid var(--chip-border)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', animation: 'mesilaFade 160ms ease-out', transition: 'top 120ms' }}>
+        {he ? cur.he : cur.en}
+      </div>
     </div>
   );
 }
