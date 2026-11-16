@@ -2,6 +2,7 @@
 
 ## 2026-11-16
 
+- **iPhone:** the trip panel's contents stay above Safari's small floating address bar while you scroll (it used to cover the last row), and Safari's own scroll bar is hidden so only the region indicator shows.
 - **Phone map scrolls as the page:** on a phone the map is now the page itself and scrolls natively (iOS momentum, bounce and toolbar behaviour), so Safari draws it behind its status bar and toolbar like any scrolled page. The header, buttons, region indicator and trip panel are fixed on top. Everything that moved the map (opening at Tel Aviv or your location, the locate and map buttons, the region indicator, showing a trip) now scrolls the page. Desktop is unchanged. `viewport-test.html` is a diagnostic page that shows what the browser draws behind its bars.
 - **Smoother region indicator:** the thumb and region label follow instantly (no trailing animation), the thumb stays under your finger while dragging with the map catching up once per frame, and the label no longer flickers at a region border.
 - **Starts at Tel Aviv:** without your location the map now opens on Tel Aviv (on a computer zoomed to the Tel Aviv area, Herzliya to Holon and the airport) instead of the top of the network. With no trip and no location, the map button on a phone also returns to Tel Aviv; on a computer it still shows the whole network.
