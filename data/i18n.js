@@ -36,7 +36,6 @@ window.I18N = (() => {
     L5:'כרמיאל – באר שבע', L6:'נתניה – בית שמש', L7:'כרמיאל – חוף הכרמל', L8:'עתלית – בית שאן',
     L9:'בית שמש – ירושלים מלחה (סגור)', L10:'לוד – ראשון לציון הראשונים', L11:'באר שבע – דימונה',
     L12:'מודיעין – ירושלים', HS:'הרצליה – ירושלים', E:'חדרה מזרח – ראש העין (המסילה המזרחית)',
-    N1:'לילה: נהריה – מודיעין', N2:'לילה: הרצליה – ירושלים',
   };
   // Map geography labels
   const HE_GEO = {
@@ -56,7 +55,7 @@ window.I18N = (() => {
       stops: (n, m) => `${n} stop${n > 1 ? 's' : ''} · ${m} min`, arrive: 'Arrive',
       dur: (h, m) => (h > 0 ? `${h}h ${m}m` : `${m} min`), departHere: 'Depart from here', goHere: 'Go here', show: 'Show',
       tweaks: 'Tweaks', theme: 'Theme', light: 'Light', dark: 'Dark', density: 'Label density', sparse: 'Sparse',
-      normal: 'Normal', dense: 'Dense', night: 'Show night lines', fontEn: 'English font', fontHe: 'Hebrew font',
+      normal: 'Normal', dense: 'Dense', nightTrain: 'Night train', fontEn: 'English font', fontHe: 'Hebrew font',
       train: (n) => `Train ${n}`, leave: 'Leave', now: 'Now', departsInOnly: (m) => `Departs in ${m} min`,
       noTrains: 'No train on the shown lines in the next 30 hours.',
       ttNote: (d) => `Planned Israel Railways timetable (open data, ${d}). Not live: check for delays.`,
@@ -75,7 +74,7 @@ window.I18N = (() => {
       stops: (n, m) => `${n === 1 ? 'תחנה אחת' : `${n} תחנות`} · ${m} דק׳`, arrive: 'הגעה',
       dur: (h, m) => (h > 0 ? `${h} ש׳ ${m} דק׳` : `${m} דק׳`), departHere: 'יציאה מכאן', goHere: 'נסיעה לכאן', show: 'הצגה',
       tweaks: 'התאמות', theme: 'ערכת נושא', light: 'בהירה', dark: 'כהה', density: 'צפיפות תוויות', sparse: 'דלילה',
-      normal: 'רגילה', dense: 'צפופה', night: 'הצגת קווי לילה', fontEn: 'גופן אנגלית', fontHe: 'גופן עברית',
+      normal: 'רגילה', dense: 'צפופה', nightTrain: 'רכבת לילה', fontEn: 'גופן אנגלית', fontHe: 'גופן עברית',
       train: (n) => `רכבת ${n}`, leave: 'יציאה', now: 'עכשיו', departsInOnly: (m) => `יוצאת בעוד ${m} דק׳`,
       noTrains: 'אין רכבת בקווים המוצגים ב־30 השעות הקרובות.',
       ttNote: (d) => `לוח הזמנים המתוכנן של רכבת ישראל (מידע פתוח, ${d}). לא בזמן אמת: בדקו עיכובים.`,

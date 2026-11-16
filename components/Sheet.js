@@ -268,6 +268,16 @@ function clockOf(j, m) {
   return `${wd} ${hh}:${mm}`;
 }
 
+// Crescent moon marking night trains (overnight runs of line 3 and the high-speed
+// line that skip stops their day trains make)
+function Moon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M8.9 8.6A4.6 4.6 0 0 1 3.4 3.1 4.6 4.6 0 1 0 8.9 8.6z" fill="currentColor"/>
+    </svg>
+  );
+}
+
 function JourneyTimeline({ j, live }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
@@ -307,7 +317,9 @@ function JourneyTimeline({ j, live }) {
             <div style={{ minWidth: 0 }}>
               <div style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{T.t('toward', T.station(leg.terminus))}</div>
               <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>
-                {T.t('train', leg.train)}{i === 0 && live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
+                {T.t('train', leg.train)}
+                {leg.night && <> · <span style={{ display:'inline-flex', alignItems:'center', gap: 3, verticalAlign: '-1px' }}><Moon size={11}/>{T.t('nightTrain')}</span></>}
+                {i === 0 && live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
               </div>
             </div>
           </div>
@@ -462,8 +474,9 @@ function TimeWheel({ when, setWhen }) {
             <div key={i} role="option" aria-selected={on} style={{ height: ITEM_H, scrollSnapAlign: 'center', position: 'relative',
               display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', lineHeight: 1,
               color: on ? 'var(--text)' : 'var(--text-dim)', transition: 'color 120ms' }}>
-              <span style={{ font: `${on ? 700 : 500} ${i === 0 ? 13 : 14}px ${i === 0 ? 'var(--font)' : '"JetBrains Mono", ui-monospace, monospace'}` }}>{l.time}</span>
-              {l.day && <span style={{ font: '500 9px var(--font)', marginTop: 1, whiteSpace: 'nowrap' }}>{l.day}</span>}
+              {/* line-height after the font shorthand (which resets it), so time and day sit together */}
+              <span style={{ font: `${on ? 700 : 500} ${i === 0 ? 13 : 14}px ${i === 0 ? 'var(--font)' : '"JetBrains Mono", ui-monospace, monospace'}`, lineHeight: '14px' }}>{l.time}</span>
+              {l.day && <span style={{ font: '500 9px var(--font)', lineHeight: '10px', whiteSpace: 'nowrap' }}>{l.day}</span>}
             </div>
           );
         })}
@@ -537,6 +550,7 @@ function TripSummary({ j, live, index, count, onPrev, onNext }) {
               <React.Fragment key={k}>
                 {k > 0 && <span aria-hidden="true">›</span>}
                 <LineBadge lineId={l.line} size={18}/>
+                {l.night && <span title={T.t('nightTrain')} style={{ display:'inline-flex', color: 'var(--text-dim)' }}><Moon size={12}/></span>}
               </React.Fragment>
             ))}
             <span style={{ marginInlineStart: 4 }}>
@@ -610,6 +624,23 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
   const stripSwipe = useSwipe({ onDrag: (d) => peek && setDy(d), onEnd: (g) => onEnd(g, false) });
   const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => peek && top && setDy(Math.max(0, d)), onEnd: (g) => onEnd(g, true) });
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, open]);
+  // A downward drag that starts with the details scrolled to the top moves the
+  // panel. Stop the browser from also scrolling/bouncing the content (iOS rubber
+  // band), or the content would move twice as fast as the finger. React's touch
+  // handlers are passive, so this needs a native non-passive listener.
+  React.useEffect(() => {
+    const el = bodyRef.current; if (!el || !peek) return;
+    let sx = 0, sy = 0, atTop = false, mode = null;
+    const start = (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; atTop = el.scrollTop <= 0; mode = null; };
+    const move = (e) => {
+      const t = e.touches[0], dx = t.clientX - sx, ddy = t.clientY - sy;
+      if (!mode && Math.max(Math.abs(dx), Math.abs(ddy)) > 8) mode = Math.abs(dx) > Math.abs(ddy) ? 'x' : (atTop && ddy > 0 ? 'panel' : 'scroll');
+      if (mode === 'panel' && e.cancelable) e.preventDefault();
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    return () => { el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); };
+  }, [peek]);
   const ease = 'cubic-bezier(.2,.7,.2,1)';
 
   return (
@@ -646,8 +677,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
           pointerEvents: open ? 'auto' : 'none',
         } : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain',
-          ...(peek ? { height: full, transform: `translateY(${(1 - fade) * 24}px)`,
-                       transition: dy === null ? `transform 260ms ${ease}` : 'none' } : { flex: 1, minHeight: 0 }) }}>
+          ...(peek ? { height: full } : { flex: 1, minHeight: 0 }) }}>
         <div ref={contentRef}>
           {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
           <div style={{ padding: '10px 16px 10px' }}>

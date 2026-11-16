@@ -21,8 +21,6 @@ window.MESILA = (() => {
     { id:'L12', num:'12', name:'Modi’in – Jerusalem',          color:'#C2679F' },
     { id:'HS',  num:'HS', name:'Herzliya – Jerusalem',              color:'#F2A0C8', ink:'#1A1A1C' },
     { id:'E',   num:'E',  name:'Hadera East – Rosh Ha’Ayin (Eastern Railway)', color:'#0C7F63' },
-    { id:'N1',  num:'N1', name:'Night: Nahariya – Modi’in',    color:'#24A69A' },
-    { id:'N2',  num:'N2', name:'Night: Herzliya – Jerusalem',       color:'#24A69A' },
   ];
 
   const S = [];
@@ -169,9 +167,6 @@ window.MESILA = (() => {
     L12: ['modiin','paatei','yitzhak_nav'],
     HS:  ['herzliya', ...TLV,'bengurion','yitzhak_nav'],
     E:   ['hadera_e','shomron','tira','rosh_ayin'],
-    N1:  ['nahariya','akko','k_motzkin','hashmona','hof_carmel','binyamina','hadera','netanya','herzliya','savidor',
-          '~hashalom','~hahagana','bengurion','modiin'],
-    N2:  ['herzliya','savidor','~hashalom','~hahagana','bengurion','yitzhak_nav'],
   };
   // Geometry paths (passes stripped of "~") and the set of pass-through stations per line
   const GEO_PATHS = {}, PASS = {}, PATHS = {};
