@@ -449,6 +449,80 @@ function distSeg(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
+// Region scrubber: a slim bar along the right edge that stands for the whole length
+// of the network. Region names sit at their true relative positions, a shaded band
+// shows the part on screen, and tapping or dragging the bar jumps the map there.
+const REGIONS = [
+  { id: 'galilee', en: 'Galilee', he: 'גליל', st: ['nahariya', 'akko', 'karmiel', 'ahihud', 'k_motzkin'] },
+  { id: 'haifa', en: 'Haifa', he: 'חיפה', st: ['k_hayim', 'hutzot', 'merkazit', 'hashmona', 'bat_galim', 'hof_carmel'] },
+  { id: 'hadera', en: 'Hadera', he: 'חדרה', st: ['atlit', 'binyamina', 'caesarea', 'hadera', 'hadera_e'] },
+  { id: 'sharon', en: 'Sharon', he: 'השרון', st: ['netanya', 'sapir', 'beit_yh', 'herzliya', 'raanana_w', 'raanana_s', 'hod_hash', 'kfar_saba'] },
+  { id: 'tlv', en: 'Tel Aviv', he: 'תל אביב', st: ['university', 'savidor', 'hashalom', 'hahagana'] },
+  { id: 'jlm', en: 'Jerusalem', he: 'ירושלים', st: ['bengurion', 'paatei', 'modiin', 'yitzhak_nav'] },
+  { id: 'lod', en: 'Lod', he: 'לוד', st: ['lod', 'ramla', 'rehovot', 'beer_yaakov', 'beit_shem'] },
+  { id: 'south', en: 'South', he: 'דרום', st: ['ashdod', 'ashkelon', 'kgat', 'sderot', 'netivot', 'ofakim'] },
+  { id: 'bs', en: 'Be’er Sheva', he: 'באר שבע', st: ['bs_north', 'bs_center', 'dimona'] },
+];
+function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
+  const [box, setBox] = React.useState({ top: 120, bottom: 200 });
+  const [drag, setDrag] = React.useState(null);           // region name shown while dragging
+  const trackRef = React.useRef(null), lastRegion = React.useRef(null);
+  // stay between the map buttons and the bottom sheet
+  React.useEffect(() => {
+    const upd = () => { const sh = document.querySelector('[data-sheet]'); const st = sh ? sh.getBoundingClientRect().top : innerHeight;
+      // below the map buttons: phone has one (fit), desktop three (zoom in/out, fit)
+      setBox({ top: ly.mobile ? 124 : 236, bottom: Math.max(innerHeight - st + 14, 14) }); };
+    upd(); const sh = document.querySelector('[data-sheet]'); const ro = sh ? new ResizeObserver(upd) : null; if (ro) ro.observe(sh);
+    addEventListener('resize', upd); return () => { if (ro) ro.disconnect(); removeEventListener('resize', upd); };
+  }, [ly.mobile]);
+  const ys = ly.STATIONS.map(s => s.y), y0 = Math.min(...ys) - 30, y1 = Math.max(...ys) + 30, span = y1 - y0;
+  const regions = REGIONS.map(r => { const p = r.st.map(id => ly.BY_ID[id]).filter(Boolean); return { ...r, y: p.reduce((a, q) => a + q.y, 0) / p.length }; });
+  const trackH = Math.max(80, innerHeight - box.top - box.bottom);
+  if (trackH < 150) return null;                            // too little room (sheet open wide)
+  // part of the network on screen
+  const vb = visibleBox(), top = (vb.y - view.y) / view.k, bot = (vb.y + vb.h - view.y) / view.k;
+  const f = (y) => Math.max(0, Math.min(1, (y - y0) / span));
+  const bandTop = f(top) * trackH, bandH = Math.max(14, (f(bot) - f(top)) * trackH);
+  // labels, skipping ones that would overlap the previous
+  let lastY = -1e9; const labels = [];
+  for (const r of regions) { const ty = f(r.y) * trackH; if (ty - lastY >= 26) { labels.push({ ...r, ty }); lastY = ty; } }
+  const regionAt = (my) => regions.reduce((b, r) => Math.abs(r.y - my) < Math.abs(b.y - my) ? r : b);
+  const at = (clientY, animated) => {
+    const rc = trackRef.current.getBoundingClientRect(), fy = Math.max(0, Math.min(1, (clientY - rc.top) / rc.height));
+    const my = y0 + fy * span; jumpTo(my, animated);
+    const r = regionAt(my);
+    if (r.id !== lastRegion.current) { lastRegion.current = r.id; if (typeof haptic === 'function') haptic(); }
+    return r;
+  };
+  const he = lang === 'he';
+  return (
+    <div ref={trackRef} role="scrollbar" aria-orientation="vertical" aria-label={he ? 'אזורי המפה' : 'Map regions'}
+      onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); lastRegion.current = null; const r = at(e.clientY, true); setDrag({ r, y: e.clientY }); }}
+      onPointerMove={(e) => { if (!drag) return; const r = at(e.clientY, false); setDrag({ r, y: e.clientY }); }}
+      onPointerUp={() => setDrag(null)} onPointerCancel={() => setDrag(null)}
+      style={{ position: 'absolute', right: 8, top: box.top, height: trackH, width: 46, zIndex: 4, touchAction: 'none', cursor: 'pointer',
+        borderRadius: 23, background: 'color-mix(in srgb, var(--surface) 88%, transparent)', border: '1px solid var(--chip-border)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {/* on-screen band */}
+      <div style={{ position: 'absolute', left: 3, right: 3, top: Math.min(bandTop, trackH - bandH), height: bandH, borderRadius: 18,
+        background: 'color-mix(in srgb, #1A73E8 16%, transparent)', border: '1px solid color-mix(in srgb, #1A73E8 45%, transparent)',
+        transition: drag ? 'none' : 'top 120ms, height 120ms' }}/>
+      {labels.map(l => (
+        <div key={l.id} style={{ position: 'absolute', left: 0, right: 0, top: l.ty, transform: 'translateY(-50%)', textAlign: 'center', pointerEvents: 'none',
+          font: '600 8.5px/10px var(--font)', letterSpacing: '-0.01em', color: 'var(--text-dim)', padding: '0 2px' }}>
+          {he ? l.he : l.en}
+        </div>
+      ))}
+      {drag && (
+        <div style={{ position: 'fixed', right: 64, top: drag.y - 18, height: 36, padding: '0 14px', borderRadius: 18, display: 'flex', alignItems: 'center',
+          background: 'var(--text)', color: 'var(--surface)', font: '700 15px var(--font)', boxShadow: '0 6px 18px rgba(0,0,0,0.2)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          {he ? drag.r.he : drag.r.en}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here, centerHereTick, openCenterTick }) {
   const T = window.I18N, he = T.lang === 'he';
   const svgRef = React.useRef(null);
@@ -1139,6 +1213,11 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
         </g>
       </g>
     </svg>
+    {base && svgRef.current && (
+      <RegionScrubber ly={LY} view={view} visibleBox={visibleBox} lang={lang}
+        jumpTo={(my, animated) => { stopGlide(); const vb = visibleBox(), k = viewRef.current.k;
+          const v = { ...viewRef.current, y: vb.y + vb.h / 2 - my * k }; animated ? animateTo(v) : setView(v); }}/>
+    )}
     {selLineObj && (
       <div style={{ position:'absolute', left: 12, right: 64, top: 112, zIndex: 4, display:'flex', justifyContent:'flex-start', pointerEvents:'none' }}>
         <div style={{ pointerEvents:'auto', display:'flex', alignItems:'center', gap: 10, padding:'6px 6px 6px 6px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', animation:'fadeIn 180ms', maxWidth:'100%' }}>
