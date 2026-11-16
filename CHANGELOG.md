@@ -2,6 +2,8 @@
 
 ## 2026-11-16
 
+- **You are here.** Your position shows on the map as a blue dot, like in map apps. The map is a diagram, so the dot goes on the stretch of track you're closest to (by the stations' real positions), at the same point along it, or on the station itself within 300 m. It never floats in the background. When the position is approximate (weak GPS, or you're away from the track) a translucent circle shows how approximate. It follows you while the app is open.
+- **Fix:** stop dots in an opened stop list now sit exactly on the line (they were 2 px off).
 - **Fix:** the time wheel couldn't be scrolled back to earlier times while the trip details were scrolled to the top (the downward swipe was taken as dragging the panel). Swipes on the wheel now always scroll the wheel.
 - **Map scrolling feels native.** The map's edges are elastic: drag past the end of the network and it gives way with growing resistance, and a glide that reaches an edge overshoots slightly; both spring back smoothly. A touch that stops a glide only stops it (it no longer also taps a station), quick flicks in the same direction add up, and with the system's "Reduce motion" setting the map neither glides nor bounces.
 - **Easier flick:** the map now glides on slower flicks too, and a brief rest before lifting your finger (up to about a quarter of a second) just makes the glide gentler instead of cancelling it. Holding still longer than that still ends the drag in place.

@@ -62,8 +62,8 @@
 <script src="data/i18n.js?v=8"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=84"></script>
-<script type="text/babel" src="components/Sheet.js?v=39"></script>
+<script type="text/babel" src="components/MapSVG.js?v=85"></script>
+<script type="text/babel" src="components/Sheet.js?v=40"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -271,11 +271,14 @@ function App() {
   const [located, setLocated] = React.useState(null);
   const [locating, setLocating] = React.useState(false);
   const fromRef = React.useRef(null); fromRef.current = from;
+  // Live position for the map's "you are here" dot: { lat, lon, acc (m) }
+  const [here, setHere] = React.useState(null);
+  const toHere = (pos) => ({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy || 0 });
   const locate = React.useCallback((manual) => {
     if (!navigator.geolocation || !window.SCHEDULE || !window.SCHEDULE.nearest) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition((pos) => {
-      setLocating(false);
+      setLocating(false); setHere(toHere(pos));
       const n = window.SCHEDULE.nearest(pos.coords.latitude, pos.coords.longitude);
       if (!n || n.km > 25) return;
       setLocated(n);
@@ -285,7 +288,14 @@ function App() {
     // on open a recent fix is fine; a tap on the button asks for a fresh one
     { enableHighAccuracy: !!manual, timeout: 10000, maximumAge: manual ? 0 : 5 * 60000 });
   }, []);
-  React.useEffect(() => { locate(false); }, []);
+  React.useEffect(() => {
+    locate(false);
+    // keep the map dot following the user (only once location is allowed)
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition((pos) => setHere(toHere(pos)), () => {},
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 30000 });
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
   const [to, setTo] = React.useState(null);
   const [popup, setPopup] = React.useState(null);
   const [expanded, setExpanded] = React.useState(false);
@@ -396,7 +406,7 @@ function App() {
           from={from}
           to={to}
           onPickStation={pickStation}
-          visibleLines={lineFilter}
+          visibleLines={lineFilter} here={here}
           focusTick={focusTick}
           zoomCmd={zoomCmd}
           density={tweaks.labelDensity}

@@ -449,7 +449,7 @@ function distSeg(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
-function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey }) {
+function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here }) {
   const T = window.I18N, he = T.lang === 'he';
   const svgRef = React.useRef(null);
   const [mobile, setMobile] = React.useState(() => window.innerWidth < MOBILE_MAX);
@@ -506,6 +506,53 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const fs = LY.mobile ? 12.5 / e : clamp(14 / e, 2, 38);
   const visKey = [...visibleLines].sort().join(',');
   const geo = React.useMemo(() => buildGeometry(visibleLines, W, GAP, ms), [visKey, ms, mobile]);
+
+  // "You are here": the map is schematic, so a GPS fix can't be drawn where it is.
+  // Find the stretch of track (between two consecutive stations of a drawn line,
+  // using the stations' real positions) closest to the user, and put the dot the
+  // same fraction of the way along that stretch on the drawing; within 300 m of a
+  // station it sits on the station. The halo's radius is the uncertainty: the GPS
+  // accuracy or the distance from the track, whichever is larger (none under 150 m).
+  const herePt = React.useMemo(() => {
+    const TT = window.TIMETABLE;
+    if (!here || !TT || !TT.coords) return null;
+    const real = {}; TT.stations.forEach((id, i) => { real[id] = TT.coords[i]; });
+    const kx = 111.32 * Math.cos(here.lat * Math.PI / 180), ky = 110.57;      // km per degree
+    const P = (lat, lon) => ({ x: lon * kx, y: lat * ky }), me = P(here.lat, here.lon);
+    let best = null;
+    for (const id of Object.keys(geo.lines)) {
+      const path = PATHS[id];
+      for (let i = 0; i < path.length - 1; i++) {
+        const ra = real[path[i]], rb = real[path[i + 1]]; if (!ra || !rb) continue;
+        const A = P(ra[0], ra[1]), B = P(rb[0], rb[1]), dx = B.x - A.x, dy = B.y - A.y, L2 = dx * dx + dy * dy;
+        const t = L2 ? clamp(((me.x - A.x) * dx + (me.y - A.y) * dy) / L2, 0, 1) : 0;
+        const d = Math.hypot(me.x - (A.x + t * dx), me.y - (A.y + t * dy));
+        if (!best || d < best.d) best = { d, t, id, i, km: Math.sqrt(L2) };
+      }
+    }
+    if (!best || best.d > 25) return null;                   // not near the network
+    const gl = geo.lines[best.id], path = PATHS[best.id];
+    const pts = gl.poly.slice(gl.stIdx[best.i], gl.stIdx[best.i + 1] + 1);
+    const segLen = pts.slice(1).reduce((s, q, k) => s + Math.hypot(q.x - pts[k].x, q.y - pts[k].y), 0);
+    const unitsPerKm = best.km > 0 ? segLen / best.km : 0;
+    const uncKm = Math.max((here.acc || 0) / 1000, best.d);
+    const r = uncKm < 0.15 ? 0 : Math.min(uncKm * unitsPerKm, 400);
+    // at a station?
+    const alongKm = best.t * best.km;
+    const atSt = alongKm < 0.3 ? path[best.i] : best.km - alongKm < 0.3 ? path[best.i + 1] : null;
+    if (atSt && best.d < 0.3 && geo.markers[atSt]) return { x: geo.markers[atSt].cx, y: geo.markers[atSt].cy, r };
+    // walk the drawn polyline to the same fraction of its length
+    let want = best.t * segLen;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const l = Math.hypot(pts[k + 1].x - pts[k].x, pts[k + 1].y - pts[k].y);
+      if (want <= l || k === pts.length - 2) {
+        const f = l ? Math.min(1, want / l) : 0;
+        return { x: pts[k].x + (pts[k + 1].x - pts[k].x) * f, y: pts[k].y + (pts[k + 1].y - pts[k].y) * f, r };
+      }
+      want -= l;
+    }
+    return pts.length ? { x: pts[0].x, y: pts[0].y, r } : null;
+  }, [here, geo]);
 
   const toUser = (cx, cy) => {
     const svg = svgRef.current; const pt = svg.createSVGPoint();
@@ -988,6 +1035,19 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
             </g>
           );
         })}
+
+        {/* You are here: always on a line or a station, with a halo for uncertainty */}
+        {herePt && (
+          <g pointerEvents="none">
+            {herePt.r > 0 && <circle cx={herePt.x} cy={herePt.y} r={herePt.r} fill="#1A73E8" fillOpacity={0.14}
+              stroke="#1A73E8" strokeOpacity={0.35} strokeWidth={1.2 / e}/>}
+            <circle cx={herePt.x} cy={herePt.y} r={11 / e} fill="#1A73E8" opacity={0.25}>
+              <animate attributeName="r" values={`${9 / e};${15 / e};${9 / e}`} dur="2.4s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx={herePt.x} cy={herePt.y} r={8.5 / e} fill="#fff" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.35))' }}/>
+            <circle cx={herePt.x} cy={herePt.y} r={6 / e} fill="#1A73E8"/>
+          </g>
+        )}
 
         {/* Station labels (drawn above all markers) */}
         <g pointerEvents="none" style={{ fontFamily:'var(--font)' }}>
