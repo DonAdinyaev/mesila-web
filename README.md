@@ -19,7 +19,7 @@
   - **Phone (under 600 px wide):** a tall, narrow version that scrolls only up and down, so every station is reachable with one finger.
 - **English and Hebrew:** switch with the עב / EN button. Station names, line names and the whole interface are translated, and Hebrew runs right to left.
 - **Line filter:** hide lines you don't use. The trip planner only routes over the lines you can see.
-- **Night lines** (N1, N2): hidden by default, switched on in Tweaks.
+- **Night trains:** the overnight service runs as part of line 3 (Nahariya – Modi'in) and the high-speed line (Herzliya – Jerusalem) with fewer stops. It's always included in trip planning and marked with a moon.
 - **Light and dark themes**, plus a choice of English and Hebrew fonts.
 
 > Times come from the **planned Israel Railways timetable** (Ministry of Transport open data, GTFS), refreshed twice a week. They are not live: delays and last-minute changes are not shown. See [PROJECT.md](PROJECT.md#timetable).

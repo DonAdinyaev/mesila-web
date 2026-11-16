@@ -11,15 +11,15 @@ const DRAW_ORDER = [...LINE_ORDER.filter(id => id !== 'L1'), 'L1'];
 const GEO_LINES = {};
 for (const s of STATIONS_D) GEO_LINES[s.id] = LINE_ORDER.filter(id => PATHS[id].includes(s.id));
 // Cross-bundle ordering (west/south side first), as on the official map:
-// Tel Aviv W→E red, navy, green, orange, blue, lime, pink, night; Haifa W→E green, orange, maroon, lime, orchid.
-const BUNDLE_ORDER = ['L1','L10','L2','L4','L5','L7','L6','L3','HS','L8','N1','N2','L12','E','L9','L11'];
+// Tel Aviv W→E red, navy, green, orange, blue, lime, pink; Haifa W→E green, orange, maroon, lime, orchid.
+const BUNDLE_ORDER = ['L1','L10','L2','L4','L5','L7','L6','L3','HS','L8','L12','E','L9','L11'];
 // Pairs whose track order is never traded away for tighter packing: [west/south, east/north].
 // '*' means every other line; 'L1@herzliya' is line 1's run that starts at Herzliya.
 const FORCE_ORDER = [
   ['*','L1@herzliya'],          // Herzliya: the Sharon line leaves east, so it sits east-most
   ['L7@ahihud','L5@ahihud'],    // Ahihud–Karmiel: orange on top, maroon below
   // Airport – Pa'atei Modi'in: line 3 rides the bottom (south) track after the HaHagana curve
-  ['L3@bengurion','HS@bengurion'],['L3@bengurion','N1@bengurion'],['L3@bengurion','N2@bengurion'],
+  ['L3@bengurion','HS@bengurion'],
   ['L3@bengurion','L12@paatei'],
 ];
 const MAJOR = new Set(['nahariya','akko','karmiel','hashmona','hof_carmel','afula','beit_shean','binyamina','hadera','netanya','herzliya','kfar_saba','savidor','hahagana','bengurion','modiin','lod','rehovot','beit_shem','yitzhak_nav','malha','ashdod','ashkelon','sderot','kgat','bs_center','dimona']);
@@ -821,7 +821,6 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
         <g fill="none" strokeLinecap="round" strokeLinejoin="round">
           {DRAW_ORDER.filter(id => geo.lines[id]).map(id => {
             const line = LINES.find(l => l.id === id);
-            const night = id === 'N1' || id === 'N2';
             const dimmed = lineDim(id);
             const hot = hoverLine === id && !dimmed;
             const dd = polyD(geo.lines[id].poly, R, geo.lines[id].rad);
@@ -829,8 +828,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
               <g key={id}>
               <path d={dd} stroke="var(--land)" strokeWidth={W + 3 * ms} opacity={dimmed ? 0.16 : 1}/>
               <path d={dd} stroke={line.color}
-                strokeWidth={night ? W * 0.75 : (hot ? W + 1.5 * ms : W)}
-                strokeDasharray={night ? `${W * 0.9} ${W * 0.9}` : undefined}
+                strokeWidth={hot ? W + 1.5 * ms : W}
                 opacity={dimmed ? 0.16 : 1} style={{ transition: 'opacity 250ms' }}/>
               </g>
             );

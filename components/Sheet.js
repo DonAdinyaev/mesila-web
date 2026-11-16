@@ -268,6 +268,16 @@ function clockOf(j, m) {
   return `${wd} ${hh}:${mm}`;
 }
 
+// Crescent moon marking night trains (overnight runs of line 3 and the high-speed
+// line that skip stops their day trains make)
+function Moon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M8.9 8.6A4.6 4.6 0 0 1 3.4 3.1 4.6 4.6 0 1 0 8.9 8.6z" fill="currentColor"/>
+    </svg>
+  );
+}
+
 function JourneyTimeline({ j, live }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
@@ -307,7 +317,9 @@ function JourneyTimeline({ j, live }) {
             <div style={{ minWidth: 0 }}>
               <div style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{T.t('toward', T.station(leg.terminus))}</div>
               <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>
-                {T.t('train', leg.train)}{i === 0 && live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
+                {T.t('train', leg.train)}
+                {leg.night && <> · <span style={{ display:'inline-flex', alignItems:'center', gap: 3, verticalAlign: '-1px' }}><Moon size={11}/>{T.t('nightTrain')}</span></>}
+                {i === 0 && live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
               </div>
             </div>
           </div>
@@ -537,6 +549,7 @@ function TripSummary({ j, live, index, count, onPrev, onNext }) {
               <React.Fragment key={k}>
                 {k > 0 && <span aria-hidden="true">›</span>}
                 <LineBadge lineId={l.line} size={18}/>
+                {l.night && <span title={T.t('nightTrain')} style={{ display:'inline-flex', color: 'var(--text-dim)' }}><Moon size={12}/></span>}
               </React.Fragment>
             ))}
             <span style={{ marginInlineStart: 4 }}>

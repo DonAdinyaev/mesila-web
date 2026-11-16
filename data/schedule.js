@@ -29,15 +29,17 @@ window.SCHEDULE = (() => {
   // services stop at stations their map line doesn't show (e.g. Netanya – Jerusalem
   // trains, or Nahariya – Be'er Sheva trains calling at Atlit): those get the line
   // that covers most of the trip's length on the map.
-  // Night lines only take trains that run at night.
+  // Overnight trains (the former night lines N1/N2) belong to their day line: they
+  // run the same route with fewer stops. Such a train gets `night` = it is on one
+  // of those lines, leaves between 23:45 and 05:00 and skips 3+ of the line's
+  // stops (or calls where the line doesn't), so the trip view can say so. Early
+  // day trains that skip one or two stops are not marked.
+  const NIGHT_LINES = new Set(['L3', 'HS']);   // the day lines the night service runs on
   const hop = (a, b) => { const p = M.BY_ID[a], q = M.BY_ID[b]; return Math.hypot(p.x - q.x, p.y - q.y); };
   function classify(trip) {
     let best = null;
-    const runsAtNight = trip.t[0] % 1440 < 300 || trip.t[0] >= 1410;
     for (const L of M.LINES) {
       const stops = M.PATHS[L.id];
-      const night = L.id[0] === 'N';
-      if (night && !runsAtNight) continue;
       for (const seq of [stops, [...stops].reverse()]) {
         // walk the trip; hops between two consecutive stops both on the line (in order) are covered
         let j = -1, a = -1, matched = 0, off = 0, prevOn = false;
@@ -49,11 +51,15 @@ window.SCHEDULE = (() => {
         });
         if (matched < 2) continue;
         const skipped = (j - a + 1) - matched;
-        const score = off + skipped * 10 + (stops.length - matched) * 0.01 - (night ? 5 : 0);
-        if (!best || score < best.score) best = { id: L.id, score, exact: matched === trip.st.length };
+        const score = off + skipped * 10 + (stops.length - matched) * 0.01;
+        if (!best || score < best.score) best = { id: L.id, score, exact: matched === trip.st.length, skipped };
       }
     }
-    if (best) trip.exact = best.exact;
+    if (best) {
+      const dep = trip.t[0] % 1440;
+      trip.exact = best.exact;
+      trip.night = NIGHT_LINES.has(best.id) && (dep >= 1425 || dep < 300) && (best.skipped >= 3 || !best.exact);
+    }
     return best ? best.id : null;
   }
   for (const tr of trips) tr.line = classify(tr);
@@ -143,7 +149,7 @@ window.SCHEDULE = (() => {
   function legInfo(l) {
     const tr = l.trip;
     return {
-      line: tr.line, train: tr.train,
+      line: tr.line, train: tr.train, night: !!tr.night,
       stationIds: tr.st.slice(l.from, l.to + 1),
       times: tr.t.slice(l.from, l.to + 1).map(x => x + l.shift),
       depart: tr.t[l.from] + l.shift, arrive: tr.t[l.to] + l.shift,

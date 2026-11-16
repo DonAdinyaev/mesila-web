@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17
+
+- **Night lines merged into their day lines.** N1 ran line 3's route (Nahariya – Modi'in) and N2 the high-speed line's (Herzliya – Jerusalem) overnight, hourly, with fewer stops. Their trains now belong to line 3 and the high-speed line, are always included in trip planning (a 1 a.m. search finds the next night train instead of the first morning one) and are marked "Night train" with a moon. The "Show night lines" setting and the dashed night lines on the map are gone.
+
 ## 2026-11-16
 
 - **Time wheel:** the departure time now sits at the start of the station card as a scroll wheel: "Now", then 15-minute steps for the next week (later days are labelled, e.g. "Tomorrow"). It snaps to each step with a light vibration (Android; iPhone with iOS 18+ where Safari allows it) and re-plans when it stops. Tap the selected time to pick any other date and time.
