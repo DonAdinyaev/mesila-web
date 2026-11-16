@@ -796,7 +796,7 @@ function StationPopup({ stationId, onClose, onSetFrom, onSetTo }) {
   if (!s) return null;
   return (
     <div style={{
-      position:'absolute', left: 12, right: 12, top: 68,
+      position:'absolute', left: 12, right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)',
       background: 'var(--surface)', borderRadius: 16,
       boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
       border: '1px solid var(--chip-border)',

@@ -2,6 +2,8 @@
 
 ## 2026-11-16
 
+- **Map edge to edge on iPhone:** the map now runs behind Safari's status bar and bottom toolbar, like ordinary web pages do (iOS 26 Safari clips fixed layers to the area between its bars, so the app is no longer one). The header and map buttons sit below the status bar, and the trip panel keeps its contents above the toolbar. `viewport-test.html` is a small diagnostic page that shows what the browser draws behind its bars.
+- **Smoother region indicator:** the thumb and region label follow instantly (no trailing animation), the thumb stays under your finger while dragging with the map catching up once per frame, and the label no longer flickers at a region border.
 - **Starts at Tel Aviv:** without your location the map now opens on Tel Aviv (on a computer zoomed to the Tel Aviv area, Herzliya to Holon and the airport) instead of the top of the network. With no trip and no location, the map button on a phone also returns to Tel Aviv; on a computer it still shows the whole network.
 - **Opens at your location:** when the app opens and your location arrives, the map scrolls to your blue dot. It does this once, and not if you've already moved the map by then.
 - **Line filter removed.** Every line is always shown and used for planning.
