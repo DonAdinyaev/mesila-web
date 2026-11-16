@@ -9,6 +9,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"/>
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png"/>
 <meta name="apple-mobile-web-app-title" content="Mesila"/>
+<!-- colour of the browser's own bars (iPhone status bar area): the map's land colour, kept in sync with the theme -->
+<meta name="theme-color" id="theme-color" content="#FDFCFA"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
@@ -40,7 +42,14 @@
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden;
                font-family: var(--font);
                background: var(--outside); color: var(--text); }
-  #root { position: absolute; inset: 0; }
+  /* Full screen: the app is as tall as the whole screen (100lvh), so the map also runs
+     behind Safari's bottom address bar; --below-ui is how much of it that bar covers,
+     and the bottom sheet pads its content by that much (its background still reaches
+     the screen edge). Browsers without these units get plain 100vh and 0. */
+  :root { --below-ui: 0px; }
+  @supports (height: 100lvh) { :root { --below-ui: calc(100lvh - 100dvh); } }
+  #root { position: fixed; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh; }
+  @keyframes mesilaFade { from { opacity: 0; } to { opacity: 1; } }
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   input, textarea { -webkit-user-select: text; user-select: text; }
@@ -62,8 +71,8 @@
 <script src="data/i18n.js?v=11"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=91"></script>
-<script type="text/babel" src="components/Sheet.js?v=42"></script>
+<script type="text/babel" src="components/MapSVG.js?v=95"></script>
+<script type="text/babel" src="components/Sheet.js?v=43"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -293,6 +302,7 @@ function App() {
 
   React.useEffect(() => {
     document.documentElement.dataset.theme = tweaks.theme;
+    { const m = document.getElementById('theme-color'); if (m) m.setAttribute('content', tweaks.theme === 'dark' ? '#1C1D21' : '#FDFCFA'); }
   }, [tweaks.theme]);
 
   // Edit-mode hook
