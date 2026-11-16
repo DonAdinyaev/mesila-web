@@ -682,19 +682,19 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
 
   return (
     <div data-sheet="" style={{
-      position:'fixed', left: 0, right: 0, bottom: 0,
+      // an island: floats 8px from the sides and from the bottom of the visible area
+      // (above the home indicator), all corners rounded, the map showing around it
+      position:'fixed', left: 8, right: 8, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
       display:'flex', flexDirection:'column',
       maxHeight: '75vh',
       background: 'var(--surface)',
-      borderTopLeftRadius: 24, borderTopRightRadius: 24,
-      boxShadow: '0 -8px 32px rgba(0,0,0,0.08)',
-      paddingBottom: 'env(safe-area-inset-bottom, 12px)',
+      borderRadius: 24, overflow: 'hidden',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.14)', border: '1px solid var(--chip-border)',
+      paddingBottom: 6,
       zIndex: 5,
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
-      {/* collapsed to just the card: keep it above Safari's floating address bar (--bar-overlap) */}
-      <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none',
-        paddingBottom: peek && !open ? 'var(--bar-overlap, 0px)' : 0, transition: 'padding-bottom 200ms' }}>
+      <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '8px 0 6px', cursor: peek ? 'pointer' : 'default' }}
           onClick={() => peek && setExpanded(e => !e)} role={peek ? 'button' : undefined}
           aria-label={peek ? T.t(open ? 'collapse' : 'expand') : undefined} aria-expanded={peek ? open : undefined}>
@@ -785,9 +785,6 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
               {T.t('hint')}
             </div>
           )}
-          {/* the details run on behind Safari's floating address bar (like page content);
-              this extra room lets the last row scroll up above it */}
-          <div aria-hidden="true" style={{ height: 'var(--bar-overlap, 0px)', transition: 'height 200ms' }}/>
         </div>
         </div>
       </div>
