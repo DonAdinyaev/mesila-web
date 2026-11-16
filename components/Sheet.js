@@ -70,7 +70,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
 
   return (
     <div style={{ position: 'relative', flex: 1 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 6px 0 12px', height: 42 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingInlineStart: 12, paddingInlineEnd: 6, height: 42 }}>
         <span style={{
           width: 10, height: 10, borderRadius: 10, position: 'relative', zIndex: 1,
           background: label === 'from' ? '#1A1A1C' : 'transparent',
@@ -576,8 +576,12 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
           <div style={{ padding: '10px 16px 10px' }}>
             <div style={{ position:'relative', display:'flex', alignItems:'center',
               background: 'var(--chip-bg)', border: '1px solid var(--chip-border)', borderRadius: 14 }}>
-              <span aria-hidden="true" style={{ position:'absolute', insetInlineStart: 16, top: 26, bottom: 26, width: 2,
-                background: 'repeating-linear-gradient(to bottom, var(--text-dim) 0 3px, transparent 3px 6px)', opacity: 0.5 }}/>
+              {/* route line: three dots spread evenly between the two station markers
+                  (marker centres sit 21px from the card's top and bottom; 5px radius) */}
+              <span aria-hidden="true" style={{ position:'absolute', insetInlineStart: 12, width: 10, top: 26, bottom: 26,
+                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-evenly' }}>
+                {[0, 1, 2].map(k => <span key={k} style={{ width: 3, height: 3, borderRadius: 2, background: 'var(--text-dim)', opacity: 0.7 }}/>)}
+              </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   onChange={onSetFrom} onPick={onSetFrom}/>
