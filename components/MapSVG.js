@@ -640,15 +640,22 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   // switching between phone and desktop layouts starts again from the top of the network
   const lastMobile = React.useRef(mobile);
   React.useEffect(() => { if (lastMobile.current !== mobile) { lastMobile.current = mobile; setView(homeView()); } }, [mobile, base]);
-  React.useEffect(() => { if (focusTick) animateTo(homeView()); }, [focusTick]);
-  // Locate button: bring the "you are here" dot to the middle of the free map area
-  // (desktop also zooms in to at least 2.5x, like map apps).
-  React.useEffect(() => {
-    if (!centerHereTick || !herePt) return;
+  // Bring the "you are here" dot to the middle of the free map area (desktop also
+  // zooms in to at least 2.5x, like map apps).
+  const centerOnHere = () => {
     const vb = visibleBox(), k = LY.mobile ? viewRef.current.k : Math.max(viewRef.current.k, 2.5);
     const kk = clampK(k), cxu = vb.x + vb.w / 2, cyu = vb.y + vb.h / 2;   // screen-space centre (svg units)
     animateTo({ k: kk, x: cxu - herePt.x * kk, y: cyu - herePt.y * kk });
-  }, [centerHereTick]);
+  };
+  // Map button: show the planned trip; with none, the user's position; else the overview
+  React.useEffect(() => {
+    if (!focusTick) return;
+    if (route && route.length > 1) fitIds(route.map(r => r.id));
+    else if (herePt) centerOnHere();
+    else animateTo(homeView());
+  }, [focusTick]);
+  // Locate button in the From field
+  React.useEffect(() => { if (centerHereTick && herePt) centerOnHere(); }, [centerHereTick]);
   React.useEffect(() => {
     if (!zoomCmd || !zoomCmd.n || LY.mobile) return;
     const vb = visibleBox();

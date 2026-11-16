@@ -2,6 +2,8 @@
 
 ## 2026-11-16
 
+- **Line filter removed.** Every line is always shown and used for planning.
+- **Smarter map button:** the ⛶ button next to the zoom controls now shows your planned trip; with no trip, it brings your blue dot into view; only without either does it go back to the overview.
 - **Locate scrolls to you:** the locate button now also brings your blue dot to the middle of the visible map (on a computer it zooms in a little too). It acts at once with the position the app already has, then refines it with a fresh fix. When From already holds your nearest station, the "Nearest station · …" line under the name is the locate button, so the name keeps its full width. Distances under 50 m show as 50 m instead of 0 m.
 - **Smooth "you are here":** on a moving train the dot now glides to each new position (and its circle grows or shrinks with it) instead of jumping. Zooming moves it at once so it never trails the map, and with "Reduce motion" it doesn't animate.
 - **Fix:** the "you are here" dot could land at the wrong station (e.g. next to Netanya – Sapir while you were in central Netanya). It was being placed along an express stretch drawn as one hop (Hof HaCarmel → Herzliya), whose in-between stations aren't spaced as in reality. Such hops are now skipped whenever a local stretch is drawn.
