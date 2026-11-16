@@ -2,7 +2,7 @@
 
 ## 2026-11-16
 
-- **Map keeps gliding after a flick.** Let go of the map while it's still moving and it carries on, slowing down smoothly like iPhone scrolling, and stops at the network's edges. A drag that stops before you lift doesn't glide, and touching the map stops a glide at once.
+- **Map keeps gliding after a flick.** Let go of the map while it's still moving and it carries on, slowing down smoothly like iPhone scrolling, and stops at the network's edges. Fast flicks glide too, even one too quick for the map to register as a drag (speed is measured from the moment the finger touches down to when it lifts, and capped so a violent flick doesn't fling the map away). A drag that stops before you lift doesn't glide, and touching the map stops a glide at once.
 - **Nearest station as departure.** When the app opens with From empty, it asks for your location and fills From with the closest station, with "Nearest station · 200 m" under the name. Only stations within 25 km count, so nothing is filled in from abroad, and a station you've already picked is never overwritten. The locate button in the From field finds it again (with a fresh position). Station positions come from the official GTFS feed and refresh with the timetable.
 - **Tab title and icon:** the browser tab now reads like the header, "Mesila · Israel Railways" ("מסילה · רכבת ישראל" in Hebrew), with the Mesila logo as its icon (a dark version in dark mode). Adding the app to an iPhone home screen uses the logo too.
 - **Smoother panel drag from the details:** dragging the trip details down no longer jumps. The content used to move faster than the finger: an extra slide added to the fade, plus the iPhone's own elastic scroll. Now it follows the finger exactly, and only the fade remains.
