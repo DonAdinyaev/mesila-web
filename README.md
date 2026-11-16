@@ -13,6 +13,7 @@
 ## What it does
 
 - **Schematic network map:** all passenger lines drawn in metro-map style, with straight runs, 45° and 90° bends, parallel tracks through shared corridors, and interchange markers.
+- **Nearest station:** when the app opens it asks for your location (once; the browser remembers) and fills From with the closest station, showing how far it is. The locate button in the From field does it again.
 - **Trip planner:** tap two stations, or type them in the From/To boxes. The planner finds the earliest-arriving trains in the real timetable (fewest changes on a tie), highlights them on the map and lists each train with its number, departure, arrival and every stop's time. Leave now or pick a date and time.
 - **Two layouts:**
   - **Desktop:** the full map with pan and zoom.

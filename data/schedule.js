@@ -237,8 +237,25 @@ window.SCHEDULE = (() => {
     return path;
   }
 
+  // Nearest station to a position, by straight-line distance over the real station
+  // coordinates from the GTFS feed. Returns { id, km } or null without coordinates.
+  function nearest(lat, lon) {
+    if (!TT.coords) return null;
+    const R = 6371, rad = Math.PI / 180;
+    let best = null;
+    TT.stations.forEach((id, i) => {
+      if (!M.BY_ID[id]) return;
+      const [la, lo] = TT.coords[i];
+      const dLa = (la - lat) * rad, dLo = (lo - lon) * rad;
+      const h = Math.sin(dLa / 2) ** 2 + Math.cos(lat * rad) * Math.cos(la * rad) * Math.sin(dLo / 2) ** 2;
+      const km = 2 * R * Math.asin(Math.sqrt(h));
+      if (!best || km < best.km) best = { id, km };
+    });
+    return best;
+  }
+
   return {
-    plan, alternatives, toPath, israelNow, dayLabel, trips, unmatched, inexact,
+    plan, alternatives, nearest, toPath, israelNow, dayLabel, trips, unmatched, inexact,
     feedDate: TT.feedDate, validFrom: TT.start, validTo: dayLabel(startDay + TT.days - 1),
   };
 })();

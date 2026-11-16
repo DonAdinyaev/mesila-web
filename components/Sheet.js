@@ -53,7 +53,7 @@ function nextDepartures(lineId, baseMins = 0) {
 }
 
 // One row of the search card. 16px text so iPhones don't zoom the page on focus.
-function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, autoFocus }) {
+function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, autoFocus, note, onLocate, locating }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
   const inputRef = React.useRef(null);
@@ -77,20 +77,36 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
           border: label === 'from' ? 'none' : '2px solid #1A1A1C',
           flexShrink: 0,
         }}/>
-        <input
-          ref={inputRef}
-          value={open ? q : display}
-          onChange={e => { setQ(e.target.value); setOpen(true); }}
-          onFocus={() => { setOpen(true); setQ(''); onFocus?.(); }}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={placeholder}
-          style={{
-            flex: 1, border: 'none', outline: 'none', background: 'transparent',
-            font: '500 16px var(--font)',
-            color: 'var(--text)',
-            minWidth: 0, height: '100%', padding: 0,
-          }}
-        />
+        {/* station name, with an optional small note (distance) underneath so the name keeps the full width */}
+        <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <input
+            ref={inputRef}
+            value={open ? q : display}
+            onChange={e => { setQ(e.target.value); setOpen(true); }}
+            onFocus={() => { setOpen(true); setQ(''); onFocus?.(); }}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            placeholder={placeholder}
+            style={{
+              width: '100%', border: 'none', outline: 'none', background: 'transparent',
+              font: '500 16px var(--font)', lineHeight: '20px',
+              color: 'var(--text)',
+              minWidth: 0, height: note && !open ? 20 : '100%', padding: 0,
+            }}
+          />
+          {note && !open && <span style={{ font: '500 11px var(--font)', lineHeight: '13px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{note}</span>}
+        </div>
+        {onLocate && !note && (
+          <button onClick={onLocate} title={window.I18N.t('locate')} aria-label={window.I18N.t('locate')} style={{
+            border:'none', background:'transparent', cursor:'pointer', color: note ? 'var(--text)' : 'var(--text-dim)',
+            width: 30, height: 30, flexShrink: 0, padding: 0, display:'flex', alignItems:'center', justifyContent:'center',
+            animation: locating ? 'mesilaPulse 1s ease-in-out infinite' : 'none' }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="4.6" stroke="currentColor" strokeWidth="1.5"/>
+              <circle cx="8" cy="8" r="1.6" fill="currentColor"/>
+              <path d="M8 0.8v2.4M8 12.8v2.4M0.8 8h2.4M12.8 8h2.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
         {value && (
           <button onClick={() => onChange(null)} style={{
             border:'none', background:'transparent', cursor:'pointer',
@@ -573,7 +589,7 @@ function TripSummary({ j, live, index, count, onPrev, onNext }) {
   );
 }
 
-function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, when, setWhen, trips = [], tripIndex = 0, onSelectTrip, onClose, expanded, setExpanded }) {
+function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, onLocate, route, journey, when, setWhen, trips = [], tripIndex = 0, onSelectTrip, onClose, expanded, setExpanded }) {
   const T = window.I18N;
   const real = !!window.SCHEDULE;
   const it = real ? null : computeItinerary(route);
@@ -693,6 +709,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
                   {[0, 1, 2].map(k => <span key={k} style={{ width: 3, height: 3, borderRadius: 2, background: 'var(--text-dim)', opacity: 0.7 }}/>)}
                 </span>
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
+                  note={located && from === located.id ? T.t('kmAway', located.km) : null}
+                  onLocate={real && navigator.geolocation ? onLocate : null} locating={locating}
                   onChange={onSetFrom} onPick={onSetFrom}/>
                 <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
