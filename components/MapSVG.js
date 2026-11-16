@@ -449,7 +449,7 @@ function distSeg(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
-function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here, centerHereTick }) {
+function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here, centerHereTick, openCenterTick }) {
   const T = window.I18N, he = T.lang === 'he';
   const svgRef = React.useRef(null);
   const [mobile, setMobile] = React.useState(() => window.innerWidth < MOBILE_MAX);
@@ -599,6 +599,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const animTimer = React.useRef(null);
   const animateTo = (v) => { stopGlide(); setAnim(true); setView(v); clearTimeout(animTimer.current); animTimer.current = setTimeout(() => setAnim(false), 450); };
   const zoomAt = (m, factor, animated) => {
+    touched.current = true;
     if (LY.mobile) return;
     const v = viewRef.current, nk = clampK(v.k * factor), r = nk / v.k;
     const nv = { x: m.x - (m.x - v.x) * r, y: m.y - (m.y - v.y) * r, k: nk };
@@ -628,6 +629,22 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     fitBox({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
   };
 
+  // Default view: Tel Aviv. Phone: scroll its stations to the middle of the free area;
+  // desktop: fit the Tel Aviv area (Herzliya - Holon - airport).
+  const TLV_AREA = ['herzliya', 'bnei_brak', 'university', 'savidor', 'hashalom', 'hahagana', 'holon_jct', 'bengurion', 'kfar_habad'];
+  const cityView = () => {
+    const vb = visibleBox();
+    if (LY.mobile) {
+      // the phone map's zoom is pinned to the screen width (as in clampView)
+      const r = svgRef.current.getBoundingClientRect(), l = toUser(r.left, 0), rr = toUser(r.right, 0), k = (rr.x - l.x) / LY.VB.w;
+      const ys = ['university', 'hahagana'].map(id => LY.BY_ID[id].y), cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      return { k, x: l.x - LY.VB.x * k, y: vb.y + vb.h / 2 - cy * k };
+    }
+    const ps = TLV_AREA.map(id => LY.BY_ID[id]).filter(Boolean), xs = ps.map(p => p.x), ys = ps.map(p => p.y);
+    const bx = { x: Math.min(...xs) - 120, y: Math.min(...ys) - 40, w: Math.max(...xs) - Math.min(...xs) + 240, h: Math.max(...ys) - Math.min(...ys) + 80 };
+    const k = clampK(Math.min(vb.w / bx.w, vb.h / bx.h));
+    return { k, x: vb.x + vb.w / 2 - (bx.x + bx.w / 2) * k, y: vb.y + vb.h / 2 - (bx.y + bx.h / 2) * k };
+  };
   const homeView = () => {
     if (LY.mobile) return { k: 1, x: 0, y: 1e9 };   // clamped to: top of the network under the toolbar
     const rect = svgRef.current.getBoundingClientRect();
@@ -636,10 +653,10 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     return { k, x: a.x - 60 * k, y: a.y + 10 * k };
   };
   const homed = React.useRef(false);
-  React.useEffect(() => { if (!homed.current && base) { homed.current = true; setView(homeView()); } }, [base]);
+  React.useEffect(() => { if (!homed.current && base) { homed.current = true; setView(cityView()); } }, [base]);
   // switching between phone and desktop layouts starts again from the top of the network
   const lastMobile = React.useRef(mobile);
-  React.useEffect(() => { if (lastMobile.current !== mobile) { lastMobile.current = mobile; setView(homeView()); } }, [mobile, base]);
+  React.useEffect(() => { if (lastMobile.current !== mobile) { lastMobile.current = mobile; setView(cityView()); } }, [mobile, base]);
   // Bring the "you are here" dot to the middle of the free map area (desktop also
   // zooms in to at least 2.5x, like map apps).
   const centerOnHere = () => {
@@ -652,10 +669,15 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     if (!focusTick) return;
     if (route && route.length > 1) fitIds(route.map(r => r.id));
     else if (herePt) centerOnHere();
-    else animateTo(homeView());
+    else animateTo(LY.mobile ? cityView() : homeView());   // phone: Tel Aviv; desktop: whole network
   }, [focusTick]);
   // Locate button in the From field
   React.useEffect(() => { if (centerHereTick && herePt) centerOnHere(); }, [centerHereTick]);
+  // On opening: go to the user's dot, unless they've already moved the map or a trip is shown
+  const touched = React.useRef(false);
+  React.useEffect(() => {
+    if (openCenterTick && herePt && !touched.current && !(route && route.length > 1)) centerOnHere();
+  }, [openCenterTick]);
   React.useEffect(() => {
     if (!zoomCmd || !zoomCmd.n || LY.mobile) return;
     const vb = visibleBox();
@@ -745,6 +767,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   };
   const caught = React.useRef(null);         // { vx, vy, t } of a glide this touch stopped
   const onPD = (e) => {
+    touched.current = true;
     caught.current = glide.current ? { ...(glideVel.current || { vx: 0, vy: 0 }), t: e.timeStamp } : null;
     stopGlide(); samples.current = [{ t: e.timeStamp, x: e.clientX, y: e.clientY }];
     // keep receiving moves even when the finger/mouse slides over the toolbar or sheet
@@ -840,6 +863,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const svg = svgRef.current;
     // Pinch (trackpad, sent as ctrl+wheel) or ctrl/cmd+wheel zooms; plain scroll pans.
     const onWheel = (ev) => {
+      touched.current = true;
       ev.preventDefault(); setAnim(false); stopGlide();
       const unitPx = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1;
       if ((ev.ctrlKey || ev.metaKey) && !LY.mobile) {

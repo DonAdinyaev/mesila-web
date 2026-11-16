@@ -59,10 +59,10 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script src="data/network.js?v=56"></script>
-<script src="data/i18n.js?v=10"></script>
+<script src="data/i18n.js?v=11"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=89"></script>
+<script type="text/babel" src="components/MapSVG.js?v=91"></script>
 <script type="text/babel" src="components/Sheet.js?v=42"></script>
 
 <script type="text/babel">
@@ -223,6 +223,10 @@ function App() {
   // Live position for the map's "you are here" dot: { lat, lon, acc (m) }
   const [here, setHere] = React.useState(null);
   const [centerTick, setCenterTick] = React.useState(0);   // bump: scroll the map to the dot
+  // On opening, the first location fix scrolls the map to the dot once (the map skips
+  // it if the user has already moved the map meanwhile)
+  const [openCenter, setOpenCenter] = React.useState(0), openCentred = React.useRef(false);
+  const firstFix = () => { if (!openCentred.current) { openCentred.current = true; setOpenCenter(1); } };
   const toHere = (pos) => ({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy || 0 });
   const hereRef = React.useRef(null); hereRef.current = here;
   const locate = React.useCallback((manual) => {
@@ -243,6 +247,7 @@ function App() {
       setLocating(false);
       const h = toHere(pos); setHere(h);
       if (manual && !centred) setCenterTick(t => t + 1);
+      if (!manual) firstFix();
       // on open, don't overwrite a station the user picked meanwhile
       useFix(h, manual || !fromRef.current);
     }, () => setLocating(false),
@@ -253,7 +258,7 @@ function App() {
     locate(false);
     // keep the map dot following the user (only once location is allowed)
     if (!navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition((pos) => setHere(toHere(pos)), () => {},
+    const id = navigator.geolocation.watchPosition((pos) => { setHere(toHere(pos)); firstFix(); }, () => {},
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 30000 });
     return () => navigator.geolocation.clearWatch(id);
   }, []);
@@ -361,7 +366,7 @@ function App() {
           from={from}
           to={to}
           onPickStation={pickStation}
-          visibleLines={lineFilter} here={here} centerHereTick={centerTick}
+          visibleLines={lineFilter} here={here} centerHereTick={centerTick} openCenterTick={openCenter}
           focusTick={focusTick}
           zoomCmd={zoomCmd}
           density={tweaks.labelDensity}
@@ -382,7 +387,7 @@ function App() {
           </button>
         </div>
         )}
-        <button onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : 'whole')} style={{ width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
+        <button onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M2 6V2h4M12 2h4v4M16 12v4h-4M6 16H2v-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
