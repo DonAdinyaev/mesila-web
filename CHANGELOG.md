@@ -2,6 +2,7 @@
 
 ## 2026-11-16
 
+- **Starts at Tel Aviv:** without your location the map now opens on Tel Aviv (on a computer zoomed to the Tel Aviv area, Herzliya to Holon and the airport) instead of the top of the network. With no trip and no location, the map button on a phone also returns to Tel Aviv; on a computer it still shows the whole network.
 - **Opens at your location:** when the app opens and your location arrives, the map scrolls to your blue dot. It does this once, and not if you've already moved the map by then.
 - **Line filter removed.** Every line is always shown and used for planning.
 - **Smarter map button:** the ⛶ button next to the zoom controls now shows your planned trip; with no trip, it brings your blue dot into view; only without either does it go back to the overview.

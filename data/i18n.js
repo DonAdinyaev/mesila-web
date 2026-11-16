@@ -47,7 +47,7 @@ window.I18N = (() => {
   const STR = {
     en: {
       brand: 'Mesila', operator: 'Israel Railways', zoomIn: 'Zoom in', zoomOut: 'Zoom out',
-      whole: 'Show whole network', showTrip: 'Show the trip', showMe: 'Show my location', tapStart: 'Tap a station to start', tapDest: 'Now tap your destination',
+      whole: 'Show whole network', showTrip: 'Show the trip', showMe: 'Show my location', showTelAviv: 'Show Tel Aviv', tapStart: 'Tap a station to start', tapDest: 'Now tap your destination',
       langBtn: 'עב', langTitle: 'עברית', from: 'From', to: 'To', swap: 'Swap', clear: 'Clear',
       hint: 'Tap two stations on the map, or type above to plan a trip.', direct: 'Direct',
       transfers: (n) => `${n} transfer${n > 1 ? 's' : ''}`, transferWait: (m) => `Transfer · ${m} min to next train`,
@@ -67,7 +67,7 @@ window.I18N = (() => {
     },
     he: {
       brand: 'מסילה', operator: 'רכבת ישראל', zoomIn: 'הגדלה', zoomOut: 'הקטנה',
-      whole: 'הצגת כל הרשת', showTrip: 'הצגת הנסיעה', showMe: 'הצגת המיקום שלי', tapStart: 'הקישו על תחנה כדי להתחיל', tapDest: 'עכשיו הקישו על היעד',
+      whole: 'הצגת כל הרשת', showTrip: 'הצגת הנסיעה', showMe: 'הצגת המיקום שלי', showTelAviv: 'הצגת תל אביב', tapStart: 'הקישו על תחנה כדי להתחיל', tapDest: 'עכשיו הקישו על היעד',
       langBtn: 'EN', langTitle: 'English', from: 'מ־', to: 'אל', swap: 'החלפת כיוון', clear: 'ניקוי',
       hint: 'הקישו על שתי תחנות במפה, או הקלידו למעלה כדי לתכנן נסיעה.', direct: 'ישיר',
       transfers: (n) => (n === 1 ? 'החלפה אחת' : `${n} החלפות`), transferWait: (m) => `החלפה · ${m} דק׳ לרכבת הבאה`,

@@ -629,6 +629,22 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     fitBox({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
   };
 
+  // Default view: Tel Aviv. Phone: scroll its stations to the middle of the free area;
+  // desktop: fit the Tel Aviv area (Herzliya - Holon - airport).
+  const TLV_AREA = ['herzliya', 'bnei_brak', 'university', 'savidor', 'hashalom', 'hahagana', 'holon_jct', 'bengurion', 'kfar_habad'];
+  const cityView = () => {
+    const vb = visibleBox();
+    if (LY.mobile) {
+      // the phone map's zoom is pinned to the screen width (as in clampView)
+      const r = svgRef.current.getBoundingClientRect(), l = toUser(r.left, 0), rr = toUser(r.right, 0), k = (rr.x - l.x) / LY.VB.w;
+      const ys = ['university', 'hahagana'].map(id => LY.BY_ID[id].y), cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      return { k, x: l.x - LY.VB.x * k, y: vb.y + vb.h / 2 - cy * k };
+    }
+    const ps = TLV_AREA.map(id => LY.BY_ID[id]).filter(Boolean), xs = ps.map(p => p.x), ys = ps.map(p => p.y);
+    const bx = { x: Math.min(...xs) - 120, y: Math.min(...ys) - 40, w: Math.max(...xs) - Math.min(...xs) + 240, h: Math.max(...ys) - Math.min(...ys) + 80 };
+    const k = clampK(Math.min(vb.w / bx.w, vb.h / bx.h));
+    return { k, x: vb.x + vb.w / 2 - (bx.x + bx.w / 2) * k, y: vb.y + vb.h / 2 - (bx.y + bx.h / 2) * k };
+  };
   const homeView = () => {
     if (LY.mobile) return { k: 1, x: 0, y: 1e9 };   // clamped to: top of the network under the toolbar
     const rect = svgRef.current.getBoundingClientRect();
@@ -637,10 +653,10 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     return { k, x: a.x - 60 * k, y: a.y + 10 * k };
   };
   const homed = React.useRef(false);
-  React.useEffect(() => { if (!homed.current && base) { homed.current = true; setView(homeView()); } }, [base]);
+  React.useEffect(() => { if (!homed.current && base) { homed.current = true; setView(cityView()); } }, [base]);
   // switching between phone and desktop layouts starts again from the top of the network
   const lastMobile = React.useRef(mobile);
-  React.useEffect(() => { if (lastMobile.current !== mobile) { lastMobile.current = mobile; setView(homeView()); } }, [mobile, base]);
+  React.useEffect(() => { if (lastMobile.current !== mobile) { lastMobile.current = mobile; setView(cityView()); } }, [mobile, base]);
   // Bring the "you are here" dot to the middle of the free map area (desktop also
   // zooms in to at least 2.5x, like map apps).
   const centerOnHere = () => {
@@ -653,7 +669,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     if (!focusTick) return;
     if (route && route.length > 1) fitIds(route.map(r => r.id));
     else if (herePt) centerOnHere();
-    else animateTo(homeView());
+    else animateTo(LY.mobile ? cityView() : homeView());   // phone: Tel Aviv; desktop: whole network
   }, [focusTick]);
   // Locate button in the From field
   React.useEffect(() => { if (centerHereTick && herePt) centerOnHere(); }, [centerHereTick]);
