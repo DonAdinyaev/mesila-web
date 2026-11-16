@@ -607,7 +607,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       if (Math.abs(next.y - cur.y) < 1e-6) vy = 0;
       cur = next; setViewRaw(next);
       const decay = Math.exp(-dt / 325); vx *= decay; vy *= decay;
-      glide.current = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : 0;
+      glide.current = Math.hypot(vx, vy) > 0.01 ? requestAnimationFrame(step) : 0;
     };
     glide.current = requestAnimationFrame(step);
   };
@@ -654,7 +654,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     if (g0 && g0.type === 'pan' && activePointers.current.size === 1 && e.type === 'pointerup' && sm.length) {
       const prev = sm[sm.length - 1];
       // the lift point, unless the finger rested before lifting (then it adds no speed)
-      if (e.timeStamp - prev.t < 80 && (e.clientX !== prev.x || e.clientY !== prev.y))
+      if (e.timeStamp - prev.t < 250 && (e.clientX !== prev.x || e.clientY !== prev.y))
         sm.push({ t: Math.max(e.timeStamp, prev.t + 1), x: e.clientX, y: e.clientY });
       const lastS = sm[sm.length - 1];
       const recent = sm.filter(q => q.t >= lastS.t - 100), firstS = recent[0];
@@ -667,11 +667,15 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
         setViewRaw(from);
         movedRef.current = true;
       }
-      if (movedRef.current && dt > 0 && e.timeStamp - lastS.t < 80) {
-        let vx = (lastS.x - firstS.x) / dt, vy = (lastS.y - firstS.y) / dt;
+      // Forgiving release: a short rest before lifting (up to 250 ms) only softens
+      // the glide instead of cancelling it, and slow flicks (from 0.08 px/ms) glide too.
+      const rest = e.timeStamp - lastS.t;
+      if (movedRef.current && dt > 0 && rest < 250) {
+        const soften = Math.exp(-rest / 200);
+        let vx = (lastS.x - firstS.x) / dt * soften, vy = (lastS.y - firstS.y) / dt * soften;
         const sp = Math.hypot(vx, vy), MAX = 6;             // px/ms; caps a violent flick
         if (sp > MAX) { vx *= MAX / sp; vy *= MAX / sp; }
-        if (sp > 0.15) startGlide(vx, vy, from);
+        if (sp > 0.08) startGlide(vx, vy, from);
       }
     }
     samples.current = [];
