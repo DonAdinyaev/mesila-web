@@ -242,7 +242,7 @@ function RouteTimeline({ it, sched, fmtClock }) {
           {open[i] && mid.length > 0 && (
             <div style={{ marginTop: 6, display:'flex', flexDirection:'column', gap: 6 }}>
               {mid.map((n, j) => (
-                <div key={j} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -22 }}>
+                <div key={j} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -24 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 4, background: line.color, boxShadow:'0 0 0 2px var(--surface)', flexShrink: 0, position:'relative', zIndex: 1 }}></span>
                   <span style={{ font:'500 13px/1.3 var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{n}</span>
                 </div>
@@ -354,7 +354,7 @@ function JourneyTimeline({ j, live }) {
           {open[i] && n > 1 && (
             <div style={{ marginTop: 6, display:'flex', flexDirection:'column', gap: 6 }}>
               {ids.slice(1, -1).map((id, k) => (
-                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -22 }}>
+                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -24 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 4, background: color, boxShadow:'0 0 0 2px var(--surface)', flexShrink: 0, position:'relative', zIndex: 1 }}></span>
                   <span style={{ font:'500 12px "JetBrains Mono", ui-monospace, monospace', color:'var(--text-dim)', flexShrink: 0 }}>{clockOf(j, leg.times[k + 1]).slice(-5)}</span>
                   <span style={{ font:'500 13px/1.3 var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{T.station(id)}</span>
