@@ -515,7 +515,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const toMap = (cx, cy) => { const u = toUser(cx, cy), v = viewRef.current; return { x: (u.x - v.x) / v.k, y: (u.y - v.y) / v.k }; };
   const clampK = (k) => clamp(k, 0.8, 7);
   const animTimer = React.useRef(null);
-  const animateTo = (v) => { setAnim(true); setView(v); clearTimeout(animTimer.current); animTimer.current = setTimeout(() => setAnim(false), 450); };
+  const animateTo = (v) => { stopGlide(); setAnim(true); setView(v); clearTimeout(animTimer.current); animTimer.current = setTimeout(() => setAnim(false), 450); };
   const zoomAt = (m, factor, animated) => {
     if (LY.mobile) return;
     const v = viewRef.current, nk = clampK(v.k * factor), r = nk / v.k;
@@ -590,7 +590,29 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   };
 
   const activePointers = React.useRef(new Map());
+  // Inertia: a drag that is still moving when the finger lifts keeps gliding and
+  // slows down (about like iOS scrolling), stopping at the map's edges. Speed comes
+  // from the last ~100 ms of pointer moves; any new touch, wheel or zoom stops it.
+  const samples = React.useRef([]), glide = React.useRef(0);
+  const stopGlide = () => { cancelAnimationFrame(glide.current); glide.current = 0; };
+  React.useEffect(() => stopGlide, []);
+  const startGlide = (vx, vy) => {           // screen px per ms
+    stopGlide();
+    const a = toUser(0, 0), b = toUser(1, 1), ux = b.x - a.x, uy = b.y - a.y;   // user units per px
+    let last = performance.now(), cur = viewRef.current;
+    const step = (now) => {
+      const dt = Math.min(32, now - last); last = now;
+      const next = clampView({ ...cur, x: cur.x + vx * dt * ux, y: cur.y + vy * dt * uy });
+      if (Math.abs(next.x - cur.x) < 1e-6) vx = 0;    // hit an edge (or phone: no sideways)
+      if (Math.abs(next.y - cur.y) < 1e-6) vy = 0;
+      cur = next; setViewRaw(next);
+      const decay = Math.exp(-dt / 325); vx *= decay; vy *= decay;
+      glide.current = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : 0;
+    };
+    glide.current = requestAnimationFrame(step);
+  };
   const onPD = (e) => {
+    stopGlide(); samples.current = [];
     // keep receiving moves even when the finger/mouse slides over the toolbar or sheet
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -616,6 +638,8 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       if (!movedRef.current) return;
       const p = toUser(e.clientX, e.clientY);
       setView({ ...g.view, x: g.view.x + p.x - g.start.x, y: g.view.y + p.y - g.start.y });
+      samples.current.push({ t: e.timeStamp, x: e.clientX, y: e.clientY });
+      if (samples.current.length > 8) samples.current.shift();
     } else if (g.type === 'pinch' && activePointers.current.size === 2) {
       const [a, b] = [...activePointers.current.values()];
       const m = toUser((a.x+b.x)/2, (a.y+b.y)/2);
@@ -625,6 +649,17 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   };
   const onPU = (e) => {
     const wasTap = activePointers.current.size === 1 && !movedRef.current && e.type === 'pointerup';
+    // a one-finger pan released while still moving: glide on
+    const g0 = gestureRef.current, sm = samples.current;
+    if (g0 && g0.type === 'pan' && movedRef.current && activePointers.current.size === 1 && e.type === 'pointerup' && sm.length > 1) {
+      const lastS = sm[sm.length - 1], recent = sm.filter(q => q.t >= lastS.t - 100), firstS = recent[0];
+      const dt = lastS.t - firstS.t;
+      if (dt > 0 && e.timeStamp - lastS.t < 80) {
+        const vx = (lastS.x - firstS.x) / dt, vy = (lastS.y - firstS.y) / dt;
+        if (Math.hypot(vx, vy) > 0.15) startGlide(vx, vy);
+      }
+    }
+    samples.current = [];
     activePointers.current.delete(e.pointerId);
     if (activePointers.current.size < 2) gestureRef.current = null;
     if (activePointers.current.size === 1) {
@@ -642,7 +677,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const svg = svgRef.current;
     // Pinch (trackpad, sent as ctrl+wheel) or ctrl/cmd+wheel zooms; plain scroll pans.
     const onWheel = (ev) => {
-      ev.preventDefault(); setAnim(false);
+      ev.preventDefault(); setAnim(false); stopGlide();
       const unitPx = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1;
       if ((ev.ctrlKey || ev.metaKey) && !LY.mobile) {
         zoomAt(toUser(ev.clientX, ev.clientY), Math.exp(-ev.deltaY * unitPx * 0.01), false);
