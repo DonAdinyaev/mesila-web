@@ -471,6 +471,13 @@ function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
   const trackRef = React.useRef(null), lastRegion = React.useRef(null), shown = React.useRef(null);
   const pending = React.useRef(null), raf = React.useRef(0);
   React.useEffect(() => () => cancelAnimationFrame(raf.current), []);
+  // phone: the page scrolls the map, so follow scrolling here (cheap) rather than
+  // re-rendering the whole map on every scroll event
+  const [, setScrollTick] = React.useState(0);
+  React.useEffect(() => {
+    let r = 0; const on = () => { if (!r) r = requestAnimationFrame(() => { r = 0; setScrollTick(t => t + 1); }); };
+    addEventListener('scroll', on, { passive: true }); return () => { removeEventListener('scroll', on); cancelAnimationFrame(r); };
+  }, []);
   // stay between the map buttons and the bottom sheet
   React.useEffect(() => {
     const upd = () => { const sh = document.querySelector('[data-sheet]'); const st = sh ? sh.getBoundingClientRect().top : innerHeight;
@@ -517,7 +524,7 @@ function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
       onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); lastRegion.current = cur.id; setDragging(true); at(e.clientY, true); }}
       onPointerMove={(e) => { if (dragging) at(e.clientY, false); }}
       onPointerUp={end} onPointerCancel={end}
-      style={{ position: 'absolute', right: 0, top: box.top, height: trackH, width: 30, zIndex: 4, touchAction: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      style={{ position: 'fixed', right: 0, top: box.top, height: trackH, width: 30, zIndex: 4, touchAction: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}>
       {/* track */}
       <div style={{ position: 'absolute', right: 7, top: 0, bottom: 0, width: 3, borderRadius: 2, background: 'color-mix(in srgb, var(--text-dim) 22%, transparent)' }}/>
       {/* thumb: the part on screen */}
@@ -565,9 +572,19 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     }
     return { k: v.k, x: ax(LY.BOUNDS.x0, LY.BOUNDS.x1, v.x, a.x, b.x), y: ax(LY.BOUNDS.y0, LY.BOUNDS.y1, v.y, a.y, b.y) };
   };
-  const setView = (v) => setViewRaw(prev => clampView(typeof v === 'function' ? v(prev) : v));
+  // Phone: the map is a tall element in the page and the page scrolls it, so the view
+  // stays { k: 1, x: 0, y: 0 } (map units = svg user units) and "moving the view" means
+  // scrolling the page: a target view with y = Y shows map y at the screen position
+  // where (current) user y + Y would be, i.e. scroll by -Y user units.
+  const pageScroll = (v, smooth) => {
+    const nv = typeof v === 'function' ? v(viewRef.current) : v;
+    const dy = -(nv.y - viewRef.current.y) * base;
+    if (Math.abs(dy) > 0.5) window.scrollBy({ top: dy, behavior: smooth ? 'smooth' : 'instant' });
+  };
+  const setView = (v) => LY.mobile ? pageScroll(v, false) : setViewRaw(prev => clampView(typeof v === 'function' ? v(prev) : v));
   const [anim, setAnim] = React.useState(false);
   const [base, setBase] = React.useState(0.4);
+  const [measured, setMeasured] = React.useState(false);   // base reflects the real size
   const [hoverId, setHoverId] = React.useState(null);
   const [selLine, setSelLine] = React.useState(null);
   const viewRef = React.useRef(view); viewRef.current = view;
@@ -579,11 +596,20 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const ro = new ResizeObserver(() => {
       const r = svg.getBoundingClientRect(), mob = r.width < MOBILE_MAX, L = mob ? LAYOUT_M : LAYOUT_D;
       setMobile(mob);
-      setBase(Math.min(r.width / L.VB.w, r.height / L.VB.h) || 0.4);
+      // phone: the map's width is the screen width (its height follows); desktop: fit
+      setBase((mob ? r.width / L.VB.w : Math.min(r.width / L.VB.w, r.height / L.VB.h)) || 0.4);
+      setMeasured(true);
     });
     ro.observe(svg); return () => ro.disconnect();
   }, []);
   React.useEffect(() => { if (route) setSelLine(null); }, [route]);
+  // Phone: the bottom sheet's height, so the end of the network can scroll up above it
+  const [sheetH, setSheetH] = React.useState(0);
+  React.useEffect(() => {
+    const sh = document.querySelector('[data-sheet]'); if (!sh) return;
+    const upd = () => setSheetH(Math.round(sh.getBoundingClientRect().height));
+    upd(); const ro = new ResizeObserver(upd); ro.observe(sh); return () => ro.disconnect();
+  }, []);
 
   // Effective screen px per map unit drives line weight, marker and label size
   const e = base * view.k;
@@ -684,7 +710,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const toMap = (cx, cy) => { const u = toUser(cx, cy), v = viewRef.current; return { x: (u.x - v.x) / v.k, y: (u.y - v.y) / v.k }; };
   const clampK = (k) => clamp(k, 0.8, 7);
   const animTimer = React.useRef(null);
-  const animateTo = (v) => { stopGlide(); setAnim(true); setView(v); clearTimeout(animTimer.current); animTimer.current = setTimeout(() => setAnim(false), 450); };
+  const animateTo = (v) => { if (LY.mobile) return pageScroll(v, true); stopGlide(); setAnim(true); setView(v); clearTimeout(animTimer.current); animTimer.current = setTimeout(() => setAnim(false), 450); };
   const zoomAt = (m, factor, animated) => {
     touched.current = true;
     if (LY.mobile) return;
@@ -693,6 +719,11 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     animated ? animateTo(nv) : setView(nv);
   };
   const visibleBox = () => {
+    if (LY.mobile) {
+      const sheet = document.querySelector('[data-sheet]'), sh = sheet ? sheet.getBoundingClientRect().height : 0;
+      const a = toUser(16, 110 + (window.safeTop ? window.safeTop() : 0)), b = toUser(innerWidth - 64, innerHeight - sh - 16);
+      return { x: a.x, y: a.y, w: Math.max(50, b.x - a.x), h: Math.max(50, b.y - a.y) };
+    }
     const rect = svgRef.current.getBoundingClientRect();
     const sheet = document.querySelector('[data-sheet]');
     const sh = sheet ? sheet.getBoundingClientRect().height : 0;
@@ -740,7 +771,12 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     return { k, x: a.x - 60 * k, y: a.y + 10 * k };
   };
   const homed = React.useRef(false);
-  React.useEffect(() => { if (!homed.current && base) { homed.current = true; setView(cityView()); } }, [base]);
+  // first view once the map has its real size (on the phone the page must be full length
+  // before it can scroll there); a frame later so the new size is laid out
+  React.useEffect(() => {
+    if (homed.current || !measured) return;
+    homed.current = true; requestAnimationFrame(() => setView(cityView()));
+  }, [measured, base]);
   // switching between phone and desktop layouts starts again from the top of the network
   const lastMobile = React.useRef(mobile);
   React.useEffect(() => { if (lastMobile.current !== mobile) { lastMobile.current = mobile; setView(cityView()); } }, [mobile, base]);
@@ -853,8 +889,11 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     glide.current = requestAnimationFrame(step);
   };
   const caught = React.useRef(null);         // { vx, vy, t } of a glide this touch stopped
+  // Phone: dragging is native page scrolling; the handlers only recognise taps.
+  const tapRef = React.useRef(null);
   const onPD = (e) => {
     touched.current = true;
+    if (LY.mobile) { tapRef.current = { x: e.clientX, y: e.clientY, id: e.pointerId }; return; }
     caught.current = glide.current ? { ...(glideVel.current || { vx: 0, vy: 0 }), t: e.timeStamp } : null;
     stopGlide(); samples.current = [{ t: e.timeStamp, x: e.clientX, y: e.clientY }];
     // keep receiving moves even when the finger/mouse slides over the toolbar or sheet
@@ -871,6 +910,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     }
   };
   const onPM = (e) => {
+    if (LY.mobile) { const t = tapRef.current; if (t && Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8) tapRef.current = null; return; }
     if (!activePointers.current.has(e.pointerId)) {
       if (e.pointerType === 'mouse') { const h = hitTest(e.clientX, e.clientY); setHoverId(h.station || (h.line ? 'line:' + h.line : null)); }
       return;
@@ -892,6 +932,16 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     }
   };
   const onPU = (e) => {
+    if (LY.mobile) {
+      const t = tapRef.current; tapRef.current = null;
+      if (t && e.type === 'pointerup' && t.id === e.pointerId) {
+        const h = hitTest(e.clientX, e.clientY);
+        if (h.station) onPickStation(h.station);
+        else if (h.line && !route) setSelLine(s => s === h.line ? null : h.line);
+        else setSelLine(null);
+      }
+      return;
+    }
     const wasTap = activePointers.current.size === 1 && !movedRef.current && e.type === 'pointerup';
     // a one-finger pan released while still moving: glide on
     const g0 = gestureRef.current, sm = samples.current;
@@ -951,6 +1001,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     // Pinch (trackpad, sent as ctrl+wheel) or ctrl/cmd+wheel zooms; plain scroll pans.
     const onWheel = (ev) => {
       touched.current = true;
+      if (LY.mobile) return;                  // phone: the page scrolls natively
       ev.preventDefault(); setAnim(false); stopGlide();
       const unitPx = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1;
       if ((ev.ctrlKey || ev.metaKey) && !LY.mobile) {
@@ -1084,12 +1135,20 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     return out;
   };
 
+  // Phone: the whole network as one tall drawing, with room above it for the top bar
+  // and below it for the bottom sheet, so both ends can scroll fully into view.
+  const padTopU = (110 + (window.safeTop ? window.safeTop() : 0)) / base, padBotU = sheetH / base;
+  const mobileVB = `${LY.VB.x} ${LY.VB.y - padTopU} ${LY.VB.w} ${LY.VB.h + padTopU + padBotU}`;
+  const mobileH = Math.round((LY.VB.h + padTopU + padBotU) * base);
+
   return (
     <>
     <svg ref={svgRef}
-      viewBox={`${LY.VB.x} ${LY.VB.y} ${LY.VB.w} ${LY.VB.h}`}
+      viewBox={LY.mobile ? mobileVB : `${LY.VB.x} ${LY.VB.y} ${LY.VB.w} ${LY.VB.h}`}
       preserveAspectRatio="xMidYMid meet"
-      style={{ direction:'ltr', width:'100%', height:'100%', display:'block', touchAction:'none', background:'var(--outside)', cursor: hoverId ? 'pointer' : 'grab' }}
+      style={LY.mobile
+        ? { direction:'ltr', width:'100%', height: mobileH, display:'block', touchAction:'pan-y', background:'var(--outside)' }
+        : { direction:'ltr', width:'100%', height:'100%', display:'block', touchAction:'none', background:'var(--outside)', cursor: hoverId ? 'pointer' : 'grab' }}
       onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
       onPointerLeave={() => setHoverId(null)}>
       <g style={{ transform:`translate(${view.x}px, ${view.y}px) scale(${view.k})`, transformOrigin:'0 0', transition: anim ? 'transform 420ms cubic-bezier(.2,.7,.2,1)' : 'none' }}>
@@ -1232,7 +1291,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
           const v = { ...viewRef.current, y: vb.y + vb.h / 2 - my * k }; animated ? animateTo(v) : setView(v); }}/>
     )}
     {selLineObj && (
-      <div style={{ position:'absolute', left: 12, right: 64, top: 'calc(env(safe-area-inset-top, 0px) + 112px)', zIndex: 4, display:'flex', justifyContent:'flex-start', pointerEvents:'none' }}>
+      <div style={{ position:'fixed', left: 12, right: 64, top: 'calc(env(safe-area-inset-top, 0px) + 112px)', zIndex: 4, display:'flex', justifyContent:'flex-start', pointerEvents:'none' }}>
         <div style={{ pointerEvents:'auto', display:'flex', alignItems:'center', gap: 10, padding:'6px 6px 6px 6px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', animation:'fadeIn 180ms', maxWidth:'100%' }}>
           <span style={{ minWidth: 26, height: 26, padding:'0 6px', borderRadius: 13, background: selLineObj.color, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', font:'700 12px var(--font)', flexShrink: 0 }}>{selLineObj.num}</span>
           <span style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{T.line(selLineObj.id)}</span>

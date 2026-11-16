@@ -21,6 +21,12 @@
     padding: 12px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
   #panel b { font-weight: 700; } #panel table { width: 100%; border-collapse: collapse; } #panel td { padding: 2px 0; } #panel td:last-child { text-align: right; font-family: ui-monospace, monospace; }
   .probe { position: absolute; left: -10px; width: 1px; visibility: hidden; }
+  /* "scrolled" mode: the page is taller than the screen and scrolled down 100px, to see
+     whether Safari then draws page content behind its status bar (as on scrolled pages) */
+  html.scrolled, html.scrolled body { overflow: auto; height: auto; }
+  html.scrolled body { height: calc(100lvh + 200px); }
+  html.scrolled #abs { height: calc(100lvh + 200px); }
+  #panel button { margin-top: 8px; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ccc; background: #f4f4f4; font: 600 14px system-ui; }
 </style>
 </head>
 <body>
@@ -38,6 +44,7 @@
   <b>Mesila viewport test</b> — please screenshot this whole screen.
   <div style="margin:6px 0 8px;color:#555">Blue stripes = page layer (one line every 50px). Red frame = fixed layer. Green = safe areas. Yellow = page background.</div>
   <table id="t"></table>
+  <button id="mode">Switch to scrolled mode</button>
 </div>
 <script>
   const h = (id) => document.getElementById(id).getBoundingClientRect().height;
@@ -49,9 +56,16 @@
       ['screen.height', screen.height], ['100vh / svh', h('p-vh') + ' / ' + h('p-svh')], ['100lvh / dvh', h('p-lvh') + ' / ' + h('p-dvh')],
       ['safe area top / bottom', h('p-sat') + ' / ' + h('p-sab')], ['blue layer top / h', absR.top.toFixed(0) + ' / ' + absR.height.toFixed(0)],
       ['red frame top / h', fixR.top.toFixed(0) + ' / ' + fixR.height.toFixed(0)], ['devicePixelRatio', devicePixelRatio],
+      ['mode / scrollY', (document.documentElement.classList.contains('scrolled') ? 'scrolled' : 'normal') + ' / ' + Math.round(scrollY)],
     ];
     document.getElementById('t').innerHTML = data.map(([k, v]) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>').join('');
   };
+  document.getElementById('mode').onclick = () => {
+    const on = document.documentElement.classList.toggle('scrolled');
+    document.getElementById('mode').textContent = on ? 'Back to normal mode' : 'Switch to scrolled mode';
+    if (on) setTimeout(() => { scrollTo(0, 100); rows(); }, 50); else { scrollTo(0, 0); rows(); }
+  };
+  addEventListener('scroll', rows);
   rows(); addEventListener('resize', rows); if (window.visualViewport) visualViewport.addEventListener('resize', rows);
 </script>
 </body>
