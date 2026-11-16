@@ -62,7 +62,7 @@
 <script src="data/i18n.js?v=10"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=89"></script>
+<script type="text/babel" src="components/MapSVG.js?v=90"></script>
 <script type="text/babel" src="components/Sheet.js?v=42"></script>
 
 <script type="text/babel">
@@ -223,6 +223,10 @@ function App() {
   // Live position for the map's "you are here" dot: { lat, lon, acc (m) }
   const [here, setHere] = React.useState(null);
   const [centerTick, setCenterTick] = React.useState(0);   // bump: scroll the map to the dot
+  // On opening, the first location fix scrolls the map to the dot once (the map skips
+  // it if the user has already moved the map meanwhile)
+  const [openCenter, setOpenCenter] = React.useState(0), openCentred = React.useRef(false);
+  const firstFix = () => { if (!openCentred.current) { openCentred.current = true; setOpenCenter(1); } };
   const toHere = (pos) => ({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy || 0 });
   const hereRef = React.useRef(null); hereRef.current = here;
   const locate = React.useCallback((manual) => {
@@ -243,6 +247,7 @@ function App() {
       setLocating(false);
       const h = toHere(pos); setHere(h);
       if (manual && !centred) setCenterTick(t => t + 1);
+      if (!manual) firstFix();
       // on open, don't overwrite a station the user picked meanwhile
       useFix(h, manual || !fromRef.current);
     }, () => setLocating(false),
@@ -253,7 +258,7 @@ function App() {
     locate(false);
     // keep the map dot following the user (only once location is allowed)
     if (!navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition((pos) => setHere(toHere(pos)), () => {},
+    const id = navigator.geolocation.watchPosition((pos) => { setHere(toHere(pos)); firstFix(); }, () => {},
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 30000 });
     return () => navigator.geolocation.clearWatch(id);
   }, []);
@@ -361,7 +366,7 @@ function App() {
           from={from}
           to={to}
           onPickStation={pickStation}
-          visibleLines={lineFilter} here={here} centerHereTick={centerTick}
+          visibleLines={lineFilter} here={here} centerHereTick={centerTick} openCenterTick={openCenter}
           focusTick={focusTick}
           zoomCmd={zoomCmd}
           density={tweaks.labelDensity}

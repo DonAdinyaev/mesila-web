@@ -449,7 +449,7 @@ function distSeg(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
-function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here, centerHereTick }) {
+function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here, centerHereTick, openCenterTick }) {
   const T = window.I18N, he = T.lang === 'he';
   const svgRef = React.useRef(null);
   const [mobile, setMobile] = React.useState(() => window.innerWidth < MOBILE_MAX);
@@ -599,6 +599,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const animTimer = React.useRef(null);
   const animateTo = (v) => { stopGlide(); setAnim(true); setView(v); clearTimeout(animTimer.current); animTimer.current = setTimeout(() => setAnim(false), 450); };
   const zoomAt = (m, factor, animated) => {
+    touched.current = true;
     if (LY.mobile) return;
     const v = viewRef.current, nk = clampK(v.k * factor), r = nk / v.k;
     const nv = { x: m.x - (m.x - v.x) * r, y: m.y - (m.y - v.y) * r, k: nk };
@@ -656,6 +657,11 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   }, [focusTick]);
   // Locate button in the From field
   React.useEffect(() => { if (centerHereTick && herePt) centerOnHere(); }, [centerHereTick]);
+  // On opening: go to the user's dot, unless they've already moved the map or a trip is shown
+  const touched = React.useRef(false);
+  React.useEffect(() => {
+    if (openCenterTick && herePt && !touched.current && !(route && route.length > 1)) centerOnHere();
+  }, [openCenterTick]);
   React.useEffect(() => {
     if (!zoomCmd || !zoomCmd.n || LY.mobile) return;
     const vb = visibleBox();
@@ -745,6 +751,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   };
   const caught = React.useRef(null);         // { vx, vy, t } of a glide this touch stopped
   const onPD = (e) => {
+    touched.current = true;
     caught.current = glide.current ? { ...(glideVel.current || { vx: 0, vy: 0 }), t: e.timeStamp } : null;
     stopGlide(); samples.current = [{ t: e.timeStamp, x: e.clientX, y: e.clientY }];
     // keep receiving moves even when the finger/mouse slides over the toolbar or sheet
@@ -840,6 +847,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const svg = svgRef.current;
     // Pinch (trackpad, sent as ctrl+wheel) or ctrl/cmd+wheel zooms; plain scroll pans.
     const onWheel = (ev) => {
+      touched.current = true;
       ev.preventDefault(); setAnim(false); stopGlide();
       const unitPx = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1;
       if ((ev.ctrlKey || ev.metaKey) && !LY.mobile) {
