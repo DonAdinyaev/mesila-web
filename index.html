@@ -41,7 +41,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden;
                font-family: var(--font);
-               background: var(--outside); color: var(--text); }
+               background: var(--land); color: var(--text); }
   /* Full screen: the app is as tall as the whole screen (100lvh), so the map also runs
      behind Safari's bottom address bar; --below-ui is how much of it that bar covers,
      and the bottom sheet pads its content by that much (its background still reaches
@@ -50,6 +50,13 @@
   @supports (height: 100lvh) { :root { --below-ui: calc(100lvh - 100dvh); } }
   #root { position: fixed; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh; }
   @keyframes mesilaFade { from { opacity: 0; } to { opacity: 1; } }
+  /* iOS 26 Safari ignores theme-color and tints its status bar and bottom toolbar from
+     full-width fixed elements touching the screen edges (else the page background).
+     These two strips give it the exact colours: the map's at the top, the bottom
+     sheet's at the bottom (through the home-indicator safe area). */
+  .edge-tint { position: fixed; left: 0; right: 0; pointer-events: none; z-index: 1; }
+  .edge-tint.top { top: 0; height: max(2px, env(safe-area-inset-top)); background: var(--land); }
+  .edge-tint.bottom { bottom: 0; height: max(4px, env(safe-area-inset-bottom)); background: var(--surface); }
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   input, textarea { -webkit-user-select: text; user-select: text; }
@@ -62,6 +69,8 @@
 </head>
 <body>
 <div id="root"></div>
+<div class="edge-tint top" aria-hidden="true"></div>
+<div class="edge-tint bottom" aria-hidden="true"></div>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
@@ -71,7 +80,7 @@
 <script src="data/i18n.js?v=11"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=95"></script>
+<script type="text/babel" src="components/MapSVG.js?v=96"></script>
 <script type="text/babel" src="components/Sheet.js?v=43"></script>
 
 <script type="text/babel">

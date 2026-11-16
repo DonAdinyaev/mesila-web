@@ -2,6 +2,8 @@
 
 ## 2026-11-16
 
+- **iPhone bars:** Safari on iOS 26 ignores the theme colour and tints its status bar and bottom toolbar from the page. The page background is now the map colour (it was grey), and two thin edge strips give it the exact colours: the map's at the top, the trip panel's white at the bottom.
+- **Smoother region indicator:** the thumb and region label follow instantly (no trailing animation), the thumb stays under your finger while dragging with the map catching up once per frame, and the label no longer flickers at a region border.
 - **Starts at Tel Aviv:** without your location the map now opens on Tel Aviv (on a computer zoomed to the Tel Aviv area, Herzliya to Holon and the airport) instead of the top of the network. With no trip and no location, the map button on a phone also returns to Tel Aviv; on a computer it still shows the whole network.
 - **Opens at your location:** when the app opens and your location arrives, the map scrolls to your blue dot. It does this once, and not if you've already moved the map by then.
 - **Line filter removed.** Every line is always shown and used for planning.

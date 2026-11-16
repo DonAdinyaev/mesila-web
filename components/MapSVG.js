@@ -467,7 +467,10 @@ const REGIONS = [
 function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
   const [box, setBox] = React.useState({ top: 120, bottom: 200 });
   const [dragging, setDragging] = React.useState(false);
-  const trackRef = React.useRef(null), lastRegion = React.useRef(null);
+  const [fingerY, setFingerY] = React.useState(null);      // while dragging: thumb follows the finger directly
+  const trackRef = React.useRef(null), lastRegion = React.useRef(null), shown = React.useRef(null);
+  const pending = React.useRef(null), raf = React.useRef(0);
+  React.useEffect(() => () => cancelAnimationFrame(raf.current), []);
   // stay between the map buttons and the bottom sheet
   React.useEffect(() => {
     const upd = () => { const sh = document.querySelector('[data-sheet]'); const st = sh ? sh.getBoundingClientRect().top : innerHeight;
@@ -483,35 +486,50 @@ function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
   // part of the network on screen, and the region at its centre
   const vb = visibleBox(), top = (vb.y - view.y) / view.k, bot = (vb.y + vb.h - view.y) / view.k;
   const f = (y) => Math.max(0, Math.min(1, (y - y0) / span));
-  const thumbH = Math.max(28, (f(bot) - f(top)) * trackH), thumbTop = Math.min(f(top) * trackH, trackH - thumbH);
+  const thumbH = Math.max(28, (f(bot) - f(top)) * trackH);
+  const thumbTop = fingerY !== null
+    ? Math.max(0, Math.min(trackH - thumbH, fingerY - thumbH / 2))      // dragging: under the finger, no waiting for the map
+    : Math.min(f(top) * trackH, trackH - thumbH);
   const regionAt = (my) => regions.reduce((b, r) => Math.abs(r.y - my) < Math.abs(b.y - my) ? r : b);
-  const cur = regionAt((top + bot) / 2);
+  // Region in view, with hysteresis: only switch once clearly closer to the next region,
+  // so the label doesn't flicker at a border.
+  const centreY = fingerY !== null ? y0 + (thumbTop + thumbH / 2) / trackH * span : (top + bot) / 2;
+  let cur = regions.find(r => r.id === shown.current) || regionAt(centreY);
+  const near = regionAt(centreY);
+  if (near.id !== cur.id && Math.abs(near.y - centreY) < Math.abs(cur.y - centreY) - 0.15 * Math.abs(near.y - cur.y)) cur = near;
+  shown.current = cur.id;
   const at = (clientY, animated) => {
-    const rc = trackRef.current.getBoundingClientRect(), fy = Math.max(0, Math.min(1, (clientY - rc.top) / rc.height));
-    const my = y0 + fy * span; jumpTo(my, animated);
+    const rc = trackRef.current.getBoundingClientRect(), py = Math.max(0, Math.min(rc.height, clientY - rc.top));
+    setFingerY(py);
+    const my = y0 + (py / rc.height) * span;
     const r = regionAt(my);
     if (r.id !== lastRegion.current) { lastRegion.current = r.id; if (typeof haptic === 'function') haptic(); }
+    if (animated) { jumpTo(my, true); return; }
+    // move the map at most once per frame, with the latest finger position
+    pending.current = my;
+    if (!raf.current) raf.current = requestAnimationFrame(() => { raf.current = 0; jumpTo(pending.current, false); });
   };
+  const end = () => { setDragging(false); setFingerY(null); };
   const he = lang === 'he';
   return (
     <div ref={trackRef} role="scrollbar" aria-orientation="vertical" aria-label={he ? 'אזורי המפה' : 'Map regions'}
       aria-valuetext={he ? cur.he : cur.en}
       onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); lastRegion.current = cur.id; setDragging(true); at(e.clientY, true); }}
       onPointerMove={(e) => { if (dragging) at(e.clientY, false); }}
-      onPointerUp={() => setDragging(false)} onPointerCancel={() => setDragging(false)}
+      onPointerUp={end} onPointerCancel={end}
       style={{ position: 'absolute', right: 0, top: box.top, height: trackH, width: 30, zIndex: 4, touchAction: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}>
       {/* track */}
       <div style={{ position: 'absolute', right: 7, top: 0, bottom: 0, width: 3, borderRadius: 2, background: 'color-mix(in srgb, var(--text-dim) 22%, transparent)' }}/>
       {/* thumb: the part on screen */}
       <div style={{ position: 'absolute', right: dragging ? 5 : 6, top: thumbTop, height: thumbH, width: dragging ? 9 : 7, borderRadius: 5,
         background: 'color-mix(in srgb, var(--text) ' + (dragging ? 70 : 45) + '%, transparent)',
-        transition: dragging ? 'width 120ms, right 120ms' : 'top 120ms, height 120ms, width 120ms, right 120ms' }}/>
+        transition: 'width 120ms, right 120ms' }}/>
       {/* region in view, beside the thumb */}
       <div key={cur.id} style={{ position: 'absolute', right: 20, top: thumbTop + thumbH / 2, transform: 'translateY(-50%)', pointerEvents: 'none',
         padding: dragging ? '5px 11px' : '3px 9px', borderRadius: 999, whiteSpace: 'nowrap',
         font: (dragging ? '700 14px' : '600 11px') + ' var(--font)', color: 'var(--text)',
         background: 'color-mix(in srgb, var(--surface) 92%, transparent)', border: '1px solid var(--chip-border)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', animation: 'mesilaFade 160ms ease-out', transition: 'top 120ms' }}>
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', animation: 'mesilaFade 120ms ease-out' }}>
         {he ? cur.he : cur.en}
       </div>
     </div>
