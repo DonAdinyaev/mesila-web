@@ -2,6 +2,8 @@
 
 ## 2026-11-16
 
+- **Smooth "you are here":** on a moving train the dot now glides to each new position (and its circle grows or shrinks with it) instead of jumping. Zooming moves it at once so it never trails the map, and with "Reduce motion" it doesn't animate.
+- **Fix:** the "you are here" dot could land at the wrong station (e.g. next to Netanya – Sapir while you were in central Netanya). It was being placed along an express stretch drawn as one hop (Hof HaCarmel → Herzliya), whose in-between stations aren't spaced as in reality. Such hops are now skipped whenever a local stretch is drawn.
 - **You are here.** Your position shows on the map as a blue dot, like in map apps. The map is a diagram, so the dot goes on the stretch of track you're closest to (by the stations' real positions), at the same point along it, or on the station itself within 300 m. It never floats in the background. When the position is approximate (weak GPS, or you're away from the track) a translucent circle shows how approximate. It follows you while the app is open.
 - **Fix:** stop dots in an opened stop list now sit exactly on the line (they were 2 px off).
 - **Fix:** the time wheel couldn't be scrolled back to earlier times while the trip details were scrolled to the top (the downward swipe was taken as dragging the panel). Swipes on the wheel now always scroll the wheel.
