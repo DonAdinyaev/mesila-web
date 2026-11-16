@@ -1,17 +1,11 @@
 # Changelog
 
-## 2026-11-18
+## 2026-11-16
 
 - **Nearest station as departure.** When the app opens with From empty, it asks for your location and fills From with the closest station, with "Nearest station · 200 m" under the name. Only stations within 25 km count, so nothing is filled in from abroad, and a station you've already picked is never overwritten. The locate button in the From field finds it again (with a fresh position). Station positions come from the official GTFS feed and refresh with the timetable.
-
-## 2026-11-17
-
 - **Tab title and icon:** the browser tab now reads like the header, "Mesila · Israel Railways" ("מסילה · רכבת ישראל" in Hebrew), with the Mesila logo as its icon (a dark version in dark mode). Adding the app to an iPhone home screen uses the logo too.
 - **Smoother panel drag from the details:** dragging the trip details down no longer jumps. The content used to move faster than the finger: an extra slide added to the fade, plus the iPhone's own elastic scroll. Now it follows the finger exactly, and only the fade remains.
 - **Night lines merged into their day lines.** N1 ran line 3's route (Nahariya – Modi'in) and N2 the high-speed line's (Herzliya – Jerusalem) overnight, hourly, with fewer stops. Their trains now belong to line 3 and the high-speed line, are always included in trip planning (a 1 a.m. search finds the next night train instead of the first morning one) and are marked "Night train" with a moon. The "Show night lines" setting and the dashed night lines on the map are gone.
-
-## 2026-11-16
-
 - **Time wheel:** the departure time now sits at the start of the station card as a scroll wheel: "Now", then 15-minute steps for the next week (later days are labelled, e.g. "Tomorrow"). It snaps to each step with a light vibration (Android; iPhone with iOS 18+ where Safari allows it) and re-plans when it stops. Tap the selected time to pick any other date and time.
 - **Compact search:** From and To share one card (two slim rows joined by a route line, swap button inside), and the departure time is a single chip, "Leave now" or the picked time, that opens the phone's own date-time picker; "Now" resets it. The section is less than half its old height, and fields no longer make iPhones zoom in.
 - Hebrew: the trip card's time range now reads right to left with the arrow pointing to the arrival.
