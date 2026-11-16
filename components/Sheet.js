@@ -358,43 +358,120 @@ function TimetableNote({ borrowed }) {
   );
 }
 
-// Departure time: one chip ("Leave now" or the picked time). Tapping it opens the
-// phone's own date-time picker; "Now" appears to reset a picked time. The picked
-// value is Israel wall-clock time.
-function LeaveAt({ when, setWhen }) {
+// A light tick for each step of the time wheel. Android: the Vibration API.
+// iPhone Safari has no Vibration API; toggling a hidden switch control plays the
+// system haptic on iOS 18+ (best effort; silently does nothing elsewhere).
+const haptic = (() => {
+  let sw = null;
+  return () => {
+    try {
+      if (navigator.vibrate) { navigator.vibrate(8); return; }
+      if (!sw) {
+        sw = document.createElement('label');
+        sw.setAttribute('aria-hidden', 'true');
+        sw.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';
+        const input = document.createElement('input');
+        input.type = 'checkbox'; input.setAttribute('switch', ''); input.tabIndex = -1;
+        sw.appendChild(input); document.body.appendChild(sw);
+      }
+      sw.click();
+    } catch (e) { /* no haptics available */ }
+  };
+})();
+
+// Departure time as a scroll wheel: "Now", then 15-minute slots for the next week.
+// It snaps to each slot with a light tick; the trip is re-planned once scrolling
+// stops. Tapping the selected time opens the phone's own date-time picker for any
+// other moment (rounded to the nearest 15 minutes). Times are Israel wall-clock.
+const SLOT = 15, ITEM_H = 28, WHEEL_DAYS = 7;
+function TimeWheel({ when, setWhen }) {
   const T = window.I18N;
   const pad = (x) => String(x).padStart(2, '0');
-  const today = window.SCHEDULE.israelNow();
-  const cur = when || today;
-  const d = new Date(cur.day * 864e5);
-  const value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(Math.floor(cur.min / 60))}:${pad(cur.min % 60)}`;
-  const hhmm = `${pad(Math.floor(cur.min / 60))}:${pad(cur.min % 60)}`;
-  const dayText = cur.day === today.day ? T.t('today')
-    : d.toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-  const inputRef = React.useRef(null);
-  const onChange = (e) => {
-    const m = /^(\d+)-(\d+)-(\d+)T(\d+):(\d+)/.exec(e.target.value);
-    if (m) setWhen({ day: Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5, min: +m[4] * 60 + +m[5] });
+  const now = window.SCHEDULE.israelNow();
+  const abs = (w) => w.day * 1440 + w.min;                       // minutes since 1970, Israel wall clock
+  const nowAbs = abs(now);
+  const firstSlot = Math.min(Math.ceil((nowAbs + 1) / SLOT) * SLOT, when ? abs(when) : Infinity);
+  const count = 1 + (WHEEL_DAYS * 1440) / SLOT;
+  const slotAt = (i) => firstSlot + (i - 1) * SLOT;             // i >= 1
+  const indexOf = (w) => !w ? 0 : Math.max(1, Math.min(count - 1, 1 + Math.round((abs(w) - firstSlot) / SLOT)));
+  const selected = indexOf(when);
+
+  const ref = React.useRef(null), inputRef = React.useRef(null);
+  const [live, setLive] = React.useState(selected);            // index under the centre line while scrolling
+  const settle = React.useRef(null), userScroll = React.useRef(false);
+  // keep the wheel on the chosen slot when it changes from outside (picker, "now" tick)
+  React.useLayoutEffect(() => {
+    if (userScroll.current || !ref.current) return;
+    ref.current.scrollTop = selected * ITEM_H; setLive(selected);
+  }, [selected, firstSlot]);
+  const commit = (i) => {
+    userScroll.current = false;
+    if (i === selected) return;
+    if (i === 0) setWhen(null);
+    else { const m = slotAt(i); setWhen({ day: Math.floor(m / 1440), min: m % 1440 }); }
   };
-  const chip = { display:'inline-flex', alignItems:'center', gap: 6, height: 30, padding: '0 12px', borderRadius: 999,
-    border: '1px solid var(--chip-border)', background: 'var(--chip-bg)', color: 'var(--text)',
-    font: '600 13px var(--font)', cursor: 'pointer', whiteSpace: 'nowrap' };
+  const onScroll = () => {
+    const el = ref.current; if (!el) return;
+    const i = Math.max(0, Math.min(count - 1, Math.round(el.scrollTop / ITEM_H)));
+    if (i !== live) { setLive(i); if (userScroll.current) haptic(); }
+    clearTimeout(settle.current);
+    settle.current = setTimeout(() => commit(i), 220);
+  };
+  const label = (i) => {
+    if (i === 0) return { time: T.t('now'), day: '' };
+    const m = slotAt(i), day = Math.floor(m / 1440);
+    const d = day === now.day ? '' : day === now.day + 1 ? T.t('tomorrow')
+      : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+    return { time: `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}`, day: d };
+  };
+  // only render the slots near the centre; spacers keep the scroll length right
+  const lo = Math.max(0, live - 40), hi = Math.min(count - 1, live + 40);
+  const cur = when || now, d0 = new Date(cur.day * 864e5);
+  const inputValue = `${d0.getUTCFullYear()}-${pad(d0.getUTCMonth() + 1)}-${pad(d0.getUTCDate())}T${pad(Math.floor(cur.min / 60))}:${pad(cur.min % 60)}`;
+  const onPicked = (e) => {
+    const m = /^(\d+)-(\d+)-(\d+)T(\d+):(\d+)/.exec(e.target.value); if (!m) return;
+    const total = Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5 * 1440 + +m[4] * 60 + +m[5]) / SLOT) * SLOT;
+    setWhen({ day: Math.floor(total / 1440), min: total % 1440 });
+  };
+  const stop = (e) => e.stopPropagation();   // the sheet's own swipe handling must not see wheel drags
   return (
-    <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 8 }}>
-      <label style={{ ...chip, position: 'relative' }}
-        onClick={() => { try { inputRef.current.showPicker(); } catch (e) { /* the tap reached the input itself */ } }}>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <circle cx="7" cy="7" r="5.6" stroke="currentColor" strokeWidth="1.4"/>
-          <path d="M7 4v3.2l2 1.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-        </svg>
-        <span>{when ? T.t('leaveAt', `${dayText} ${hhmm}`) : T.t('leaveNow')}</span>
-        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>
-        <input ref={inputRef} type="datetime-local" value={value} onChange={onChange} aria-label={T.t('leave')}
-          style={{ position:'absolute', inset: 0, width:'100%', height:'100%', opacity: 0, border: 0, padding: 0, fontSize: 16, cursor:'pointer' }}/>
-      </label>
-      {when && (
-        <button onClick={() => setWhen(null)} style={{ ...chip, background: 'transparent', color: 'var(--text-dim)' }}>{T.t('now')}</button>
-      )}
+    <div style={{ position:'relative', width: 74, flexShrink: 0, alignSelf: 'stretch' }}>
+      {/* centre band */}
+      <div aria-hidden="true" style={{ position:'absolute', left: 6, right: 6, top: '50%', height: ITEM_H, marginTop: -ITEM_H / 2,
+        borderRadius: 8, background: 'var(--surface)', boxShadow: '0 0 0 1px var(--chip-border)' }}/>
+      <div ref={ref} role="listbox" aria-label={T.t('leave')} tabIndex={0}
+        onScroll={onScroll}
+        onTouchStart={(e) => { stop(e); userScroll.current = true; }} onTouchMove={stop} onTouchEnd={stop}
+        onWheel={() => { userScroll.current = true; }}
+        onKeyDown={(e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); userScroll.current = true;
+          ref.current.scrollBy({ top: e.key === 'ArrowDown' ? ITEM_H : -ITEM_H, behavior: 'smooth' }); } }}
+        onClick={(e) => { // tap on the centre slot: open the full date-time picker
+          const r = ref.current.getBoundingClientRect();
+          if (Math.abs(e.clientY - (r.top + r.height / 2)) <= ITEM_H / 2) { try { inputRef.current.showPicker(); } catch (err) { inputRef.current.focus(); } }
+          else ref.current.scrollBy({ top: e.clientY < r.top + r.height / 2 ? -ITEM_H : ITEM_H, behavior: 'smooth' });
+        }}
+        style={{ position:'absolute', inset: 0, overflowY: 'auto', scrollSnapType: 'y mandatory', overscrollBehavior: 'contain',
+          scrollbarWidth: 'none', cursor: 'pointer', outline: 'none', touchAction: 'pan-y',
+          maskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)' }}>
+        <div style={{ height: `calc(50% - ${ITEM_H / 2}px)` }}/>
+        <div style={{ height: lo * ITEM_H }}/>
+        {Array.from({ length: hi - lo + 1 }, (_, k) => {
+          const i = lo + k, l = label(i), on = i === live;
+          return (
+            <div key={i} role="option" aria-selected={on} style={{ height: ITEM_H, scrollSnapAlign: 'center', position: 'relative',
+              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', lineHeight: 1,
+              color: on ? 'var(--text)' : 'var(--text-dim)', transition: 'color 120ms' }}>
+              <span style={{ font: `${on ? 700 : 500} ${i === 0 ? 13 : 14}px ${i === 0 ? 'var(--font)' : '"JetBrains Mono", ui-monospace, monospace'}` }}>{l.time}</span>
+              {l.day && <span style={{ font: '500 9px var(--font)', marginTop: 1, whiteSpace: 'nowrap' }}>{l.day}</span>}
+            </div>
+          );
+        })}
+        <div style={{ height: (count - 1 - hi) * ITEM_H }}/>
+        <div style={{ height: `calc(50% - ${ITEM_H / 2}px)` }}/>
+      </div>
+      <input ref={inputRef} type="datetime-local" value={inputValue} onChange={onPicked} tabIndex={-1} aria-hidden="true"
+        style={{ position:'absolute', left: 0, bottom: 0, width: 1, height: 1, opacity: 0, border: 0, padding: 0, pointerEvents: 'none' }}/>
     </div>
   );
 }
@@ -572,17 +649,19 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
           ...(peek ? { height: full, transform: `translateY(${(1 - fade) * 24}px)`,
                        transition: dy === null ? `transform 260ms ${ease}` : 'none' } : { flex: 1, minHeight: 0 }) }}>
         <div ref={contentRef}>
-          {/* From/To: one card, two rows joined by a route line, swap inside */}
+          {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
           <div style={{ padding: '10px 16px 10px' }}>
             <div style={{ position:'relative', display:'flex', alignItems:'center',
               background: 'var(--chip-bg)', border: '1px solid var(--chip-border)', borderRadius: 14 }}>
-              {/* route line: three dots spread evenly between the two station markers
-                  (marker centres sit 21px from the card's top and bottom; 5px radius) */}
-              <span aria-hidden="true" style={{ position:'absolute', insetInlineStart: 12, width: 10, top: 26, bottom: 26,
-                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-evenly' }}>
-                {[0, 1, 2].map(k => <span key={k} style={{ width: 3, height: 3, borderRadius: 2, background: 'var(--text-dim)', opacity: 0.7 }}/>)}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              {real && <TimeWheel when={when} setWhen={setWhen}/>}
+              {real && <div aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', margin: '8px 0', background: 'var(--chip-border)' }}/>}
+              <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                {/* route line: three dots spread evenly between the two station markers
+                    (marker centres sit 21px from the rows' top and bottom; 5px radius) */}
+                <span aria-hidden="true" style={{ position:'absolute', insetInlineStart: 12, width: 10, top: 26, bottom: 26,
+                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-evenly' }}>
+                  {[0, 1, 2].map(k => <span key={k} style={{ width: 3, height: 3, borderRadius: 2, background: 'var(--text-dim)', opacity: 0.7 }}/>)}
+                </span>
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   onChange={onSetFrom} onPick={onSetFrom}/>
                 <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
@@ -600,7 +679,6 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
                 </svg>
               </button>
             </div>
-            {real && <LeaveAt when={when} setWhen={setWhen}/>}
           </div>
 
           {/* Real timetable: the selected trip's timeline */}
