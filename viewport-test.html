@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Viewport test</title>
+<!-- Diagnostic page for Mesila: shows what the browser draws behind its own bars and
+     how big it reports the screen. Open it on the phone and send a screenshot. -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #FDE68A; font: 14px/1.35 system-ui, sans-serif; }
+  /* blue: an absolute layer as tall as the whole screen (how the app is built now) */
+  #abs { position: absolute; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh;
+    background: repeating-linear-gradient(0deg, #93C5FD 0 49px, #1D4ED8 49px 50px); }
+  /* red outline: a fixed layer (how the app was built before) */
+  #fix { position: fixed; inset: 0; border: 4px solid #DC2626; pointer-events: none; }
+  /* green bars: the safe-area insets */
+  .ins { position: absolute; left: 0; right: 0; background: rgba(22,163,74,.55); }
+  #top { top: 0; height: env(safe-area-inset-top, 0px); }
+  #bot { bottom: 0; height: env(safe-area-inset-bottom, 0px); }
+  #panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 86%; background: #fff; border-radius: 14px;
+    padding: 12px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+  #panel b { font-weight: 700; } #panel table { width: 100%; border-collapse: collapse; } #panel td { padding: 2px 0; } #panel td:last-child { text-align: right; font-family: ui-monospace, monospace; }
+  .probe { position: absolute; left: -10px; width: 1px; visibility: hidden; }
+</style>
+</head>
+<body>
+<div id="abs"></div>
+<div class="ins" id="top"></div>
+<div class="ins" id="bot"></div>
+<div id="fix"></div>
+<div class="probe" id="p-vh" style="height:100vh"></div>
+<div class="probe" id="p-svh" style="height:100svh"></div>
+<div class="probe" id="p-lvh" style="height:100lvh"></div>
+<div class="probe" id="p-dvh" style="height:100dvh"></div>
+<div class="probe" id="p-sat" style="height:env(safe-area-inset-top,0px)"></div>
+<div class="probe" id="p-sab" style="height:env(safe-area-inset-bottom,0px)"></div>
+<div id="panel">
+  <b>Mesila viewport test</b> — please screenshot this whole screen.
+  <div style="margin:6px 0 8px;color:#555">Blue stripes = page layer (one line every 50px). Red frame = fixed layer. Green = safe areas. Yellow = page background.</div>
+  <table id="t"></table>
+</div>
+<script>
+  const h = (id) => document.getElementById(id).getBoundingClientRect().height;
+  const rows = () => {
+    const vv = window.visualViewport;
+    const absR = document.getElementById('abs').getBoundingClientRect(), fixR = document.getElementById('fix').getBoundingClientRect();
+    const data = [
+      ['innerHeight', innerHeight], ['visualViewport h / top', vv ? vv.height.toFixed(1) + ' / ' + vv.offsetTop.toFixed(1) : '-'],
+      ['screen.height', screen.height], ['100vh / svh', h('p-vh') + ' / ' + h('p-svh')], ['100lvh / dvh', h('p-lvh') + ' / ' + h('p-dvh')],
+      ['safe area top / bottom', h('p-sat') + ' / ' + h('p-sab')], ['blue layer top / h', absR.top.toFixed(0) + ' / ' + absR.height.toFixed(0)],
+      ['red frame top / h', fixR.top.toFixed(0) + ' / ' + fixR.height.toFixed(0)], ['devicePixelRatio', devicePixelRatio],
+    ];
+    document.getElementById('t').innerHTML = data.map(([k, v]) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>').join('');
+  };
+  rows(); addEventListener('resize', rows); if (window.visualViewport) visualViewport.addEventListener('resize', rows);
+</script>
+</body>
+</html>

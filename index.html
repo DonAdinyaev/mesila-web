@@ -42,21 +42,16 @@
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden;
                font-family: var(--font);
                background: var(--land); color: var(--text); }
-  /* Full screen: the app is as tall as the whole screen (100lvh), so the map also runs
-     behind Safari's bottom address bar; --below-ui is how much of it that bar covers,
-     and the bottom sheet pads its content by that much (its background still reaches
-     the screen edge). Browsers without these units get plain 100vh and 0. */
+  /* Edge to edge: iOS 26 Safari draws ordinary page content behind its status bar and
+     bottom toolbar, but clips position:fixed layers to the area between them. So the
+     app is an absolute (not fixed) layer as tall as the whole screen (100lvh); the top
+     controls sit below env(safe-area-inset-top), and the bottom sheet pads its content
+     by --below-ui (the part the toolbar covers) plus the home-indicator inset, while its
+     background still reaches the screen edge. Older browsers: 100vh and 0. */
   :root { --below-ui: 0px; }
   @supports (height: 100lvh) { :root { --below-ui: calc(100lvh - 100dvh); } }
-  #root { position: fixed; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh; }
+  #root { position: absolute; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh; }
   @keyframes mesilaFade { from { opacity: 0; } to { opacity: 1; } }
-  /* iOS 26 Safari ignores theme-color and tints its status bar and bottom toolbar from
-     full-width fixed elements touching the screen edges (else the page background).
-     These two strips give it the exact colours: the map's at the top, the bottom
-     sheet's at the bottom (through the home-indicator safe area). */
-  .edge-tint { position: fixed; left: 0; right: 0; pointer-events: none; z-index: 1; }
-  .edge-tint.top { top: 0; height: max(2px, env(safe-area-inset-top)); background: var(--land); }
-  .edge-tint.bottom { bottom: 0; height: max(4px, env(safe-area-inset-bottom)); background: var(--surface); }
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   input, textarea { -webkit-user-select: text; user-select: text; }
@@ -69,8 +64,9 @@
 </head>
 <body>
 <div id="root"></div>
-<div class="edge-tint top" aria-hidden="true"></div>
-<div class="edge-tint bottom" aria-hidden="true"></div>
+<script>window.safeTop = () => { const p = document.getElementById('sat-probe'); return p ? p.offsetHeight : 0; };</script>
+<!-- measures env(safe-area-inset-top) for code that positions things below the status bar -->
+<div id="sat-probe" aria-hidden="true" style="position:absolute;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none"></div>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
@@ -80,8 +76,8 @@
 <script src="data/i18n.js?v=11"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=96"></script>
-<script type="text/babel" src="components/Sheet.js?v=43"></script>
+<script type="text/babel" src="components/MapSVG.js?v=97"></script>
+<script type="text/babel" src="components/Sheet.js?v=44"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -112,7 +108,7 @@ function Header({ onClear, theme, lang, onToggleLang }) {
   return (
     <div style={{
       position: 'absolute', top: 0, left: 0, right: 0,
-      padding: '12px 12px 0',
+      padding: '12px 12px 0', paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
       zIndex: 7,
       pointerEvents: 'none',
     }}>
@@ -394,7 +390,7 @@ function App() {
         />
       </div>
 
-      <div style={{ position:'absolute', right: 12, top: 68, zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
+      <div style={{ position:'absolute', right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
         {!narrow && (
         <div style={{ display:'flex', flexDirection:'column', background:'var(--surface)', border:'1px solid var(--chip-border)', borderRadius: 14, boxShadow:'0 4px 12px rgba(0,0,0,0.08)', overflow:'hidden' }}>
           <button onClick={() => zoom(1)} title={T.t('zoomIn')} aria-label={T.t('zoomIn')} style={{ width: 40, height: 40, border:'none', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
@@ -414,7 +410,7 @@ function App() {
       </div>
 
       {!popup && (!from || !to) && (
-        <div style={{ position:'absolute', left: 12, top: 68, zIndex: 4, maxWidth:'calc(100% - 80px)', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap: 8, padding:'8px 12px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', font:'500 13px var(--font)', color:'var(--text)', animation:'fadeIn 200ms', pointerEvents:'none' }}>
+        <div style={{ position:'absolute', left: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, maxWidth:'calc(100% - 80px)', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap: 8, padding:'8px 12px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', font:'500 13px var(--font)', color:'var(--text)', animation:'fadeIn 200ms', pointerEvents:'none' }}>
           <span style={{ width: 10, height: 10, borderRadius: 10, flexShrink: 0, background: !from ? '#1A1A1C' : 'transparent', border: !from ? 'none' : '2px solid #1A1A1C' }}></span>
           <span style={{ flexShrink: 0 }}>{!from ? T.t('tapStart') : T.t('tapDest')}</span>
         </div>
