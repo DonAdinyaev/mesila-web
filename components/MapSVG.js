@@ -590,28 +590,65 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   };
 
   const activePointers = React.useRef(new Map());
-  // Inertia: a drag that is still moving when the finger lifts keeps gliding and
-  // slows down (about like iOS scrolling), stopping at the map's edges. Speed comes
-  // from the last ~100 ms of pointer moves; any new touch, wheel or zoom stops it.
-  const samples = React.useRef([]), glide = React.useRef(0);
-  const stopGlide = () => { cancelAnimationFrame(glide.current); glide.current = 0; };
+  // Inertia, following the usual platform conventions:
+  //  - release speed from the last ~100 ms of moves; exponential slow-down, tau 325 ms
+  //  - speed limits 0.08..6 px/ms (12 px/ms when flicks add up)
+  //  - edges are elastic: dragging past an edge meets growing resistance (iOS-style
+  //    rubber band) and a glide that reaches an edge overshoots a little; both spring
+  //    back with a critically damped spring
+  //  - a touch during a glide only catches it (it is not a tap); a flick made while
+  //    still gliding the same way adds to the speed
+  //  - "Reduce motion": no glide, no bounce
+  const samples = React.useRef([]), glide = React.useRef(0), glideVel = React.useRef(null);
+  const reduceMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  const stopGlide = () => { cancelAnimationFrame(glide.current); glide.current = 0; glideVel.current = null; };
   React.useEffect(() => stopGlide, []);
-  const startGlide = (vx, vy, from) => {     // screen px per ms; `from` = view to start at
+  const userPerPx = () => { const a = toUser(0, 0), b = toUser(1, 1); return { ux: b.x - a.x, uy: b.y - a.y }; };
+  // Rubber band: a pull of d (user units) past an edge shows as this much; dim = screen size in user units
+  const rubber = (d, dim) => Math.sign(d) * (1 - 1 / (Math.abs(d) * 0.55 / dim + 1)) * dim;
+  const elastic = (raw) => {                 // clamp, but let the edges give way elastically
+    const c = clampView(raw);
+    if (reduceMotion()) return c;
+    const r = svgRef.current.getBoundingClientRect(), { ux, uy } = userPerPx();
+    return { k: c.k,
+      x: LY.mobile ? c.x : c.x + rubber(raw.x - c.x, r.width * ux),
+      y: c.y + rubber(raw.y - c.y, r.height * uy) };
+  };
+  // Glide with speed (vx, vy) in screen px/ms from view `from` (default: current). Inside
+  // the bounds speed decays; past an edge a spring pulls the map back. With zero speed
+  // this just springs an over-pulled map back into place.
+  const startGlide = (vx, vy, from) => {
     stopGlide();
-    const a = toUser(0, 0), b = toUser(1, 1), ux = b.x - a.x, uy = b.y - a.y;   // user units per px
-    let last = performance.now(), cur = from || viewRef.current;
+    const { ux, uy } = userPerPx(), W = 0.02, K = W * W, D = 2 * W;   // spring: settles in ~0.3 s
+    let cur = { ...(from || viewRef.current) }, vX = vx * ux, vY = vy * uy, last = performance.now();
+    if (LY.mobile) vX = 0;
+    const axis = (pos, vel, target, dt) => {
+      const o = pos - target;
+      if (Math.abs(o) < 1e-9) return [pos + vel * dt, vel * Math.exp(-dt / 325)];
+      const acc = -K * o - D * vel, v2 = vel + acc * dt;   // spring past the edge
+      return [pos + v2 * dt, v2];
+    };
     const step = (now) => {
       const dt = Math.min(32, now - last); last = now;
-      const next = clampView({ ...cur, x: cur.x + vx * dt * ux, y: cur.y + vy * dt * uy });
-      if (Math.abs(next.x - cur.x) < 1e-6) vx = 0;    // hit an edge (or phone: no sideways)
-      if (Math.abs(next.y - cur.y) < 1e-6) vy = 0;
-      cur = next; setViewRaw(next);
-      const decay = Math.exp(-dt / 325); vx *= decay; vy *= decay;
-      glide.current = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : 0;
+      const c = clampView(cur);
+      let [x, nvx] = axis(cur.x, vX, c.x, dt), [y, nvy] = axis(cur.y, vY, c.y, dt);
+      // entering the bounds while springing back: land exactly on the edge
+      const c2 = clampView({ ...cur, x, y });
+      if (Math.abs(cur.x - c.x) > 1e-9 && Math.sign(x - c2.x) !== Math.sign(cur.x - c.x)) { x = c2.x; nvx = 0; }
+      if (Math.abs(cur.y - c.y) > 1e-9 && Math.sign(y - c2.y) !== Math.sign(cur.y - c.y)) { y = c2.y; nvy = 0; }
+      if (LY.mobile) x = c2.x;
+      vX = nvx; vY = nvy; cur = { k: c.k, x, y }; setViewRaw(cur);
+      glideVel.current = { vx: vX / ux, vy: vY / uy };
+      const out = Math.abs(x - c2.x) + Math.abs(y - c2.y);
+      const moving = Math.hypot(vX / ux, vY / uy) > 0.01;
+      if (moving || out > 0.5 * Math.abs(uy)) glide.current = requestAnimationFrame(step);
+      else { glide.current = 0; glideVel.current = null; setViewRaw(clampView(cur)); }
     };
     glide.current = requestAnimationFrame(step);
   };
+  const caught = React.useRef(null);         // { vx, vy, t } of a glide this touch stopped
   const onPD = (e) => {
+    caught.current = glide.current ? { ...(glideVel.current || { vx: 0, vy: 0 }), t: e.timeStamp } : null;
     stopGlide(); samples.current = [{ t: e.timeStamp, x: e.clientX, y: e.clientY }];
     // keep receiving moves even when the finger/mouse slides over the toolbar or sheet
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
@@ -639,7 +676,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       if (Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) movedRef.current = true;
       if (!movedRef.current) return;
       const p = toUser(e.clientX, e.clientY);
-      setView({ ...g.view, x: g.view.x + p.x - g.start.x, y: g.view.y + p.y - g.start.y });
+      setViewRaw(elastic({ ...g.view, x: g.view.x + p.x - g.start.x, y: g.view.y + p.y - g.start.y }));
     } else if (g.type === 'pinch' && activePointers.current.size === 2) {
       const [a, b] = [...activePointers.current.values()];
       const m = toUser((a.x+b.x)/2, (a.y+b.y)/2);
@@ -654,7 +691,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     if (g0 && g0.type === 'pan' && activePointers.current.size === 1 && e.type === 'pointerup' && sm.length) {
       const prev = sm[sm.length - 1];
       // the lift point, unless the finger rested before lifting (then it adds no speed)
-      if (e.timeStamp - prev.t < 80 && (e.clientX !== prev.x || e.clientY !== prev.y))
+      if (e.timeStamp - prev.t < 250 && (e.clientX !== prev.x || e.clientY !== prev.y))
         sm.push({ t: Math.max(e.timeStamp, prev.t + 1), x: e.clientX, y: e.clientY });
       const lastS = sm[sm.length - 1];
       const recent = sm.filter(q => q.t >= lastS.t - 100), firstS = recent[0];
@@ -663,16 +700,29 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       let from = null;
       if (!movedRef.current && dist > 6) {
         const p = toUser(lastS.x, lastS.y);
-        from = clampView({ ...g0.view, x: g0.view.x + p.x - g0.start.x, y: g0.view.y + p.y - g0.start.y });
+        from = elastic({ ...g0.view, x: g0.view.x + p.x - g0.start.x, y: g0.view.y + p.y - g0.start.y });
         setViewRaw(from);
         movedRef.current = true;
       }
-      if (movedRef.current && dt > 0 && e.timeStamp - lastS.t < 80) {
-        let vx = (lastS.x - firstS.x) / dt, vy = (lastS.y - firstS.y) / dt;
-        const sp = Math.hypot(vx, vy), MAX = 6;             // px/ms; caps a violent flick
+      // Forgiving release: a short rest before lifting (up to 250 ms) only softens
+      // the glide instead of cancelling it, and slow flicks (from 0.08 px/ms) glide too.
+      const rest = e.timeStamp - lastS.t;
+      let vx = 0, vy = 0;
+      if (movedRef.current && dt > 0 && rest < 250 && !reduceMotion()) {
+        const soften = Math.exp(-rest / 200);
+        vx = (lastS.x - firstS.x) / dt * soften; vy = (lastS.y - firstS.y) / dt * soften;
+        // a flick made while still gliding the same way (caught < 400 ms ago) adds up
+        const cg = caught.current, stack = cg && e.timeStamp - cg.t < 400 && cg.vx * vx + cg.vy * vy > 0;
+        if (stack) { vx += cg.vx; vy += cg.vy; }
+        const sp = Math.hypot(vx, vy), MAX = stack ? 12 : 6;   // px/ms; caps a violent flick
         if (sp > MAX) { vx *= MAX / sp; vy *= MAX / sp; }
-        if (sp > 0.15) startGlide(vx, vy, from);
+        if (sp <= 0.08) vx = vy = 0;
       }
+      // glide on, or (no speed) spring back if the map was pulled past an edge
+      if (vx || vy) startGlide(vx, vy, from);
+      else if (movedRef.current) startGlide(0, 0, from);
+    } else if (g0 && g0.type === 'pan' && e.type !== 'pointerup' && activePointers.current.size === 1) {
+      startGlide(0, 0);                      // cancelled touch: settle back inside the edges
     }
     samples.current = [];
     activePointers.current.delete(e.pointerId);
@@ -681,7 +731,8 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       const [a] = [...activePointers.current.values()];
       gestureRef.current = { type:'pan', sx: a.x, sy: a.y, start: toUser(a.x, a.y), view: { ...viewRef.current } };
     }
-    if (wasTap && !movedRef.current) {   // a quick flick (moved only at release) is not a tap
+    // not a tap: a quick flick (moved only at release), or a touch that caught a glide
+    if (wasTap && !movedRef.current && !caught.current) {
       const h = hitTest(e.clientX, e.clientY);
       if (h.station) onPickStation(h.station);
       else if (h.line && !route) setSelLine(s => s === h.line ? null : h.line);

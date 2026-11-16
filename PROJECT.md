@@ -69,6 +69,10 @@ If `data/timetable.js` fails to load, the app falls back to the old distance-bas
 
 All interface text goes through `I18N.t(key)`, and names through `I18N.station(id)`, `I18N.line(id)` and `I18N.geo(label)`. The chosen language is remembered in the browser. Hebrew switches the page to right-to-left; the map itself stays left-to-right so geography doesn't flip.
 
+### Map scrolling (`components/MapSVG.js`)
+
+Panning follows common platform conventions for inertia: release speed from the last ~100 ms of moves (a rest of up to 250 ms before lifting softens rather than cancels it); exponential slow-down with a 325 ms time constant; speed limits 0.08–6 px/ms (12 px/ms when flicks add up); elastic edges (iOS-style rubber band while dragging, overshoot when gliding, critically damped spring back); a touch during a glide only catches it; same-direction flicks within 400 ms add up; `prefers-reduced-motion` turns gliding and bouncing off.
+
 ## Conventions
 
 - **Adding a station:** add it to the station list with desktop coordinates, add `MOBILE` coordinates, add its Hebrew name in `i18n.js`, and insert it into the relevant line paths. Check both layouts, since crowded spots may need a label side or axis override.
