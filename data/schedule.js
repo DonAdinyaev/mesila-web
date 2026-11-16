@@ -203,10 +203,12 @@ window.SCHEDULE = (() => {
     }
     const before = [];
     if (when && earlier > 0) {
-      for (let t = first.start - 180, n = 0; n < 20; n++) {
+      // earlier trips, but never ones that have already left
+      const now = israelNow(), nowMin = (now.day - base) * 1440 + now.min;
+      for (let t = Math.max(first.start - 180, nowMin), n = 0; n < 20; n++) {
         const j = at(t);
         if (!j || j.depart >= first.depart) break;
-        if (!seen.has(key(j))) { seen.add(key(j)); before.push(j); }
+        if (j.depart >= nowMin && !seen.has(key(j))) { seen.add(key(j)); before.push(j); }
         t = j.depart + 1;
       }
     }

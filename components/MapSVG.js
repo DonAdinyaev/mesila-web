@@ -596,10 +596,10 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const samples = React.useRef([]), glide = React.useRef(0);
   const stopGlide = () => { cancelAnimationFrame(glide.current); glide.current = 0; };
   React.useEffect(() => stopGlide, []);
-  const startGlide = (vx, vy) => {           // screen px per ms
+  const startGlide = (vx, vy, from) => {     // screen px per ms; `from` = view to start at
     stopGlide();
     const a = toUser(0, 0), b = toUser(1, 1), ux = b.x - a.x, uy = b.y - a.y;   // user units per px
-    let last = performance.now(), cur = viewRef.current;
+    let last = performance.now(), cur = from || viewRef.current;
     const step = (now) => {
       const dt = Math.min(32, now - last); last = now;
       const next = clampView({ ...cur, x: cur.x + vx * dt * ux, y: cur.y + vy * dt * uy });
@@ -612,7 +612,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     glide.current = requestAnimationFrame(step);
   };
   const onPD = (e) => {
-    stopGlide(); samples.current = [];
+    stopGlide(); samples.current = [{ t: e.timeStamp, x: e.clientX, y: e.clientY }];
     // keep receiving moves even when the finger/mouse slides over the toolbar or sheet
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -634,12 +634,12 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const g = gestureRef.current; if (!g) return;
     if (g.type === 'pan' && activePointers.current.size === 1) {
+      samples.current.push({ t: e.timeStamp, x: e.clientX, y: e.clientY });
+      if (samples.current.length > 12) samples.current.shift();
       if (Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) movedRef.current = true;
       if (!movedRef.current) return;
       const p = toUser(e.clientX, e.clientY);
       setView({ ...g.view, x: g.view.x + p.x - g.start.x, y: g.view.y + p.y - g.start.y });
-      samples.current.push({ t: e.timeStamp, x: e.clientX, y: e.clientY });
-      if (samples.current.length > 8) samples.current.shift();
     } else if (g.type === 'pinch' && activePointers.current.size === 2) {
       const [a, b] = [...activePointers.current.values()];
       const m = toUser((a.x+b.x)/2, (a.y+b.y)/2);
@@ -651,12 +651,27 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const wasTap = activePointers.current.size === 1 && !movedRef.current && e.type === 'pointerup';
     // a one-finger pan released while still moving: glide on
     const g0 = gestureRef.current, sm = samples.current;
-    if (g0 && g0.type === 'pan' && movedRef.current && activePointers.current.size === 1 && e.type === 'pointerup' && sm.length > 1) {
-      const lastS = sm[sm.length - 1], recent = sm.filter(q => q.t >= lastS.t - 100), firstS = recent[0];
-      const dt = lastS.t - firstS.t;
-      if (dt > 0 && e.timeStamp - lastS.t < 80) {
-        const vx = (lastS.x - firstS.x) / dt, vy = (lastS.y - firstS.y) / dt;
-        if (Math.hypot(vx, vy) > 0.15) startGlide(vx, vy);
+    if (g0 && g0.type === 'pan' && activePointers.current.size === 1 && e.type === 'pointerup' && sm.length) {
+      const prev = sm[sm.length - 1];
+      // the lift point, unless the finger rested before lifting (then it adds no speed)
+      if (e.timeStamp - prev.t < 80 && (e.clientX !== prev.x || e.clientY !== prev.y))
+        sm.push({ t: Math.max(e.timeStamp, prev.t + 1), x: e.clientX, y: e.clientY });
+      const lastS = sm[sm.length - 1];
+      const recent = sm.filter(q => q.t >= lastS.t - 100), firstS = recent[0];
+      const dt = lastS.t - firstS.t, dist = Math.hypot(lastS.x - firstS.x, lastS.y - firstS.y);
+      // a quick flick can be over before the drag threshold: apply its movement first
+      let from = null;
+      if (!movedRef.current && dist > 6) {
+        const p = toUser(lastS.x, lastS.y);
+        from = clampView({ ...g0.view, x: g0.view.x + p.x - g0.start.x, y: g0.view.y + p.y - g0.start.y });
+        setViewRaw(from);
+        movedRef.current = true;
+      }
+      if (movedRef.current && dt > 0 && e.timeStamp - lastS.t < 80) {
+        let vx = (lastS.x - firstS.x) / dt, vy = (lastS.y - firstS.y) / dt;
+        const sp = Math.hypot(vx, vy), MAX = 6;             // px/ms; caps a violent flick
+        if (sp > MAX) { vx *= MAX / sp; vy *= MAX / sp; }
+        if (sp > 0.15) startGlide(vx, vy, from);
       }
     }
     samples.current = [];
@@ -666,7 +681,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       const [a] = [...activePointers.current.values()];
       gestureRef.current = { type:'pan', sx: a.x, sy: a.y, start: toUser(a.x, a.y), view: { ...viewRef.current } };
     }
-    if (wasTap) {
+    if (wasTap && !movedRef.current) {   // a quick flick (moved only at release) is not a tap
       const h = hitTest(e.clientX, e.clientY);
       if (h.station) onPickStation(h.station);
       else if (h.line && !route) setSelLine(s => s === h.line ? null : h.line);

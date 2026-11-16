@@ -275,10 +275,12 @@ function RouteTimeline({ it, sched, fmtClock }) {
 
 // ---- Real timetable (window.SCHEDULE): times are minutes after midnight, Israel time,
 // of the search day j.day. Days other than today get a weekday prefix.
+// m may be negative (a trip from the evening before the search day) or past 1440.
 function clockOf(j, m) {
-  const hh = String(Math.floor(m / 60) % 24).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
+  const off = Math.floor(m / 1440), r = m - off * 1440;      // whole days + minutes into that day
+  const hh = String(Math.floor(r / 60)).padStart(2, '0'), mm = String(r % 60).padStart(2, '0');
   const today = window.SCHEDULE.israelNow().day;
-  const day = Date.parse(j.day) / 864e5 + Math.floor(m / 1440);
+  const day = Date.parse(j.day) / 864e5 + off;
   if (day === today) return `${hh}:${mm}`;
   const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' });
   return `${wd} ${hh}:${mm}`;
@@ -297,7 +299,11 @@ function Moon({ size = 12 }) {
 function JourneyTimeline({ j, live }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
-  const timeCol = { minWidth: 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
+  // One width for the whole trip, so the line and markers stay in one straight column:
+  // wider when any time carries a weekday ("Tue 00:56" / "יום ג׳ 00:56").
+  const allTimes = j.legs.flatMap(l => l.times);
+  const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
+  const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
   const rail = { width: 24, flexShrink: 0, display:'flex', flexDirection:'column', alignItems:'center', position:'relative' };
   const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: '50%', width: 6, marginLeft: -3, borderRadius: 3, background: c });
   const colorOf = (id) => (APP_LINES.find(l => l.id === id) || { color: '#888' }).color;
