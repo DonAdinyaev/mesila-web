@@ -449,7 +449,7 @@ function distSeg(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
-function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here }) {
+function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here, centerHereTick }) {
   const T = window.I18N, he = T.lang === 'he';
   const svgRef = React.useRef(null);
   const [mobile, setMobile] = React.useState(() => window.innerWidth < MOBILE_MAX);
@@ -641,6 +641,14 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const lastMobile = React.useRef(mobile);
   React.useEffect(() => { if (lastMobile.current !== mobile) { lastMobile.current = mobile; setView(homeView()); } }, [mobile, base]);
   React.useEffect(() => { if (focusTick) animateTo(homeView()); }, [focusTick]);
+  // Locate button: bring the "you are here" dot to the middle of the free map area
+  // (desktop also zooms in to at least 2.5x, like map apps).
+  React.useEffect(() => {
+    if (!centerHereTick || !herePt) return;
+    const vb = visibleBox(), k = LY.mobile ? viewRef.current.k : Math.max(viewRef.current.k, 2.5);
+    const kk = clampK(k), cxu = vb.x + vb.w / 2, cyu = vb.y + vb.h / 2;   // screen-space centre (svg units)
+    animateTo({ k: kk, x: cxu - herePt.x * kk, y: cyu - herePt.y * kk });
+  }, [centerHereTick]);
   React.useEffect(() => {
     if (!zoomCmd || !zoomCmd.n || LY.mobile) return;
     const vb = visibleBox();

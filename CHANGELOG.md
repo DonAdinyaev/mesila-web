@@ -2,6 +2,7 @@
 
 ## 2026-11-16
 
+- **Locate scrolls to you:** the locate button now also brings your blue dot to the middle of the visible map (on a computer it zooms in a little too). It acts at once with the position the app already has, then refines it with a fresh fix. When From already holds your nearest station, the "Nearest station · …" line under the name is the locate button, so the name keeps its full width. Distances under 50 m show as 50 m instead of 0 m.
 - **Smooth "you are here":** on a moving train the dot now glides to each new position (and its circle grows or shrinks with it) instead of jumping. Zooming moves it at once so it never trails the map, and with "Reduce motion" it doesn't animate.
 - **Fix:** the "you are here" dot could land at the wrong station (e.g. next to Netanya – Sapir while you were in central Netanya). It was being placed along an express stretch drawn as one hop (Hof HaCarmel → Herzliya), whose in-between stations aren't spaced as in reality. Such hops are now skipped whenever a local stretch is drawn.
 - **You are here.** Your position shows on the map as a blue dot, like in map apps. The map is a diagram, so the dot goes on the stretch of track you're closest to (by the stations' real positions), at the same point along it, or on the station itself within 300 m. It never floats in the background. When the position is approximate (weak GPS, or you're away from the track) a translucent circle shows how approximate. It follows you while the app is open.
