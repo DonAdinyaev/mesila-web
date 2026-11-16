@@ -62,7 +62,8 @@ window.I18N = (() => {
       ttBorrowed: 'Outside the loaded timetable: showing the same weekday from it.',
       earlier: 'Earlier trip', later: 'Later trip', tripN: (i, n) => `Trip ${i} of ${n}`,
       expand: 'Show trip details', collapse: 'Hide trip details',
-      leaveNow: 'Leave now', leaveAt: (t) => `Leave ${t}`, today: 'today', tomorrow: 'Tomorrow',
+      leaveNow: 'Leave now', leaveAt: (t) => `Leave ${t}`, today: 'today', tomorrow: 'Tomorrow', locate: 'Use nearest station',
+      kmAway: (km) => `Nearest station · ${km < 1 ? `${Math.round(km * 1000 / 50) * 50} m` : `${km.toFixed(1)} km`}`,
     },
     he: {
       brand: 'מסילה', operator: 'רכבת ישראל', filter: 'סינון קווים', zoomIn: 'הגדלה', zoomOut: 'הקטנה',
@@ -81,7 +82,8 @@ window.I18N = (() => {
       ttBorrowed: 'התאריך מחוץ ללוח הזמנים שנטען: מוצג אותו יום בשבוע מתוכו.',
       earlier: 'נסיעה מוקדמת יותר', later: 'נסיעה מאוחרת יותר', tripN: (i, n) => `נסיעה ${i} מתוך ${n}`,
       expand: 'הצגת פרטי הנסיעה', collapse: 'הסתרת פרטי הנסיעה',
-      leaveNow: 'יציאה עכשיו', leaveAt: (t) => `יציאה ${t}`, today: 'היום', tomorrow: 'מחר',
+      leaveNow: 'יציאה עכשיו', leaveAt: (t) => `יציאה ${t}`, today: 'היום', tomorrow: 'מחר', locate: 'התחנה הקרובה',
+      kmAway: (km) => `התחנה הקרובה · ${km < 1 ? `${Math.round(km * 1000 / 50) * 50} מ׳` : `${km.toFixed(1)} ק״מ`}`,
     },
   };
 

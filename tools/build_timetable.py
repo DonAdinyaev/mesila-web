@@ -85,6 +85,7 @@ def build(zpath):
     # Stop times (the big file: stream it, keep rail rows only)
     st = {}
     unknown = {}
+    coords = {}
     for r in read(z, 'stop_times.txt'):
         if r['trip_id'] not in trips:
             continue
@@ -94,6 +95,9 @@ def build(zpath):
             unknown[code] = stops[r['stop_id']]['stop_name']
             continue
         st.setdefault(r['trip_id'], []).append((int(r['stop_sequence']), sid, mins(r['departure_time'])))
+        # real position of each station (first GTFS stop seen for it), for "nearest station"
+        if sid not in coords:
+            coords[sid] = [round(float(stops[r['stop_id']]['stop_lat']), 5), round(float(stops[r['stop_id']]['stop_lon']), 5)]
     if unknown:
         sys.exit('Rail stops missing from STOP_CODES (add them, and to data/network.js): %r' % unknown)
 
@@ -133,6 +137,7 @@ def build(zpath):
         'start': first.isoformat(),
         'days': ndays,
         'stations': station_ids,
+        'coords': [coords[s] for s in station_ids],   # [lat, lon] per station, same order
         'daySets': day_sets,
         'trips': out_trips,
     }
@@ -163,6 +168,7 @@ def main():
           '// Source: %s. Feed date %s.\n'
           '// trips: [daySet, trainNo, [station, departure (min after midnight), then station, +min, ...]]\n'
           '// daySets: one char per day from `start` ("1" = runs that day). Times past 24:00 belong to the service day.\n'
+          '// coords: [lat, lon] of each station in `stations` (for finding the nearest one).\n'
           'window.TIMETABLE = %s;\n') % (data['source'], data['feedDate'],
                                          json.dumps(data, ensure_ascii=False, separators=(',', ':')))
     with open(a.out, 'w', encoding='utf-8') as f:

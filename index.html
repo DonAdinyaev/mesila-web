@@ -44,6 +44,7 @@
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   input, textarea { -webkit-user-select: text; user-select: text; }
+  @keyframes mesilaPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px);} to { opacity: 1; transform:none; } }
   button:active { transform: scale(0.98); }
   button { transition: transform 80ms, background 120ms, opacity 120ms; }
@@ -58,11 +59,11 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script src="data/network.js?v=56"></script>
-<script src="data/i18n.js?v=7"></script>
-<script src="data/timetable.js?v=20261115"></script>
-<script src="data/schedule.js?v=3"></script>
+<script src="data/i18n.js?v=8"></script>
+<script src="data/timetable.js?v=20261116c"></script>
+<script src="data/schedule.js?v=4"></script>
 <script type="text/babel" src="components/MapSVG.js?v=80"></script>
-<script type="text/babel" src="components/Sheet.js?v=36"></script>
+<script type="text/babel" src="components/Sheet.js?v=37"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -264,6 +265,27 @@ function App() {
   // Switch the shared language first so every component renders with it on this pass
   const toggleLang = () => { const next = lang === 'he' ? 'en' : 'he'; T.setLang(next); setLang(next); };
   const [from, setFrom] = React.useState(null);
+  // Nearest station: asked once when the app opens (if From is still empty), and
+  // again from the locate button. Only stations within 25 km count, so a viewer
+  // abroad gets nothing filled in. `located` = { id, km } of the last result.
+  const [located, setLocated] = React.useState(null);
+  const [locating, setLocating] = React.useState(false);
+  const fromRef = React.useRef(null); fromRef.current = from;
+  const locate = React.useCallback((manual) => {
+    if (!navigator.geolocation || !window.SCHEDULE || !window.SCHEDULE.nearest) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition((pos) => {
+      setLocating(false);
+      const n = window.SCHEDULE.nearest(pos.coords.latitude, pos.coords.longitude);
+      if (!n || n.km > 25) return;
+      setLocated(n);
+      // on open, don't overwrite a station the user picked meanwhile
+      if (manual || !fromRef.current) setFrom(n.id);
+    }, () => setLocating(false),
+    // on open a recent fix is fine; a tap on the button asks for a fresh one
+    { enableHighAccuracy: !!manual, timeout: 10000, maximumAge: manual ? 0 : 5 * 60000 });
+  }, []);
+  React.useEffect(() => { locate(false); }, []);
   const [to, setTo] = React.useState(null);
   const [popup, setPopup] = React.useState(null);
   const [expanded, setExpanded] = React.useState(false);
@@ -419,6 +441,7 @@ function App() {
       <window.BottomSheet
         from={from} to={to}
         onSetFrom={setFrom} onSetTo={setTo}
+        located={located} locating={locating} onLocate={() => locate(true)}
         onSwap={onSwap}
         route={route}
         journey={journey} when={when} setWhen={setWhen}
