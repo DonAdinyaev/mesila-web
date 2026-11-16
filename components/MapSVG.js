@@ -511,7 +511,10 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   // Find the stretch of track (between two consecutive stations of a drawn line,
   // using the stations' real positions) closest to the user, and put the dot the
   // same fraction of the way along that stretch on the drawing; within 300 m of a
-  // station it sits on the station. The halo's radius is the uncertainty: the GPS
+  // station it sits on the station. Express hops (a stretch that passes another
+  // station on the way, e.g. Hof HaCarmel -> Herzliya) are skipped while a local
+  // stretch is drawn: on the diagram their in-between stations aren't spaced as in
+  // reality, so a fraction along them lands in the wrong place. The halo's radius is the uncertainty: the GPS
   // accuracy or the distance from the track, whichever is larger (none under 150 m).
   const herePt = React.useMemo(() => {
     const TT = window.TIMETABLE;
@@ -519,7 +522,8 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const real = {}; TT.stations.forEach((id, i) => { real[id] = TT.coords[i]; });
     const kx = 111.32 * Math.cos(here.lat * Math.PI / 180), ky = 110.57;      // km per degree
     const P = (lat, lon) => ({ x: lon * kx, y: lat * ky }), me = P(here.lat, here.lon);
-    let best = null;
+    const stationPts = TT.stations.filter(id => LY.BY_ID[id]).map(id => ({ id, p: P(real[id][0], real[id][1]) }));
+    let best = null, bestHop = null;
     for (const id of Object.keys(geo.lines)) {
       const path = PATHS[id];
       for (let i = 0; i < path.length - 1; i++) {
@@ -527,9 +531,18 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
         const A = P(ra[0], ra[1]), B = P(rb[0], rb[1]), dx = B.x - A.x, dy = B.y - A.y, L2 = dx * dx + dy * dy;
         const t = L2 ? clamp(((me.x - A.x) * dx + (me.y - A.y) * dy) / L2, 0, 1) : 0;
         const d = Math.hypot(me.x - (A.x + t * dx), me.y - (A.y + t * dy));
-        if (!best || d < best.d) best = { d, t, id, i, km: Math.sqrt(L2) };
+        const cand = { d, t, id, i, km: Math.sqrt(L2) };
+        // another station within 1.5 km of this stretch, between its ends: an express hop
+        const hop = L2 > 0 && stationPts.some(({ id: c, p: C }) => {
+          if (c === path[i] || c === path[i + 1]) return false;
+          const tc = ((C.x - A.x) * dx + (C.y - A.y) * dy) / L2;
+          return tc > 0.05 && tc < 0.95 && Math.hypot(C.x - (A.x + tc * dx), C.y - (A.y + tc * dy)) < 1.5;
+        });
+        if (hop) { if (!bestHop || d < bestHop.d) bestHop = cand; }
+        else if (!best || d < best.d) best = cand;
       }
     }
+    if (!best || best.d > 25) best = bestHop;                // only express lines drawn here
     if (!best || best.d > 25) return null;                   // not near the network
     const gl = geo.lines[best.id], path = PATHS[best.id];
     const pts = gl.poly.slice(gl.stIdx[best.i], gl.stIdx[best.i + 1] + 1);
