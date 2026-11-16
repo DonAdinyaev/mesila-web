@@ -387,30 +387,35 @@ function LeaveAt({ when, setWhen }) {
   );
 }
 
-// Touch swipes. Vertical moves report the drag distance while the finger is down
-// (onDrag) and a direction on release. With `scrollRef`, a downward swipe counts
-// only when that element is scrolled to its top (so scrolling a list never closes it).
-function useSwipe(onSwipe, { onDrag, scrollRef } = {}) {
+// Touch gestures. The axis is locked after the first few pixels, so a sideways
+// swipe never moves the panel and a vertical drag never changes the trip.
+// onDrag(dy) runs while a vertical drag is in progress; onEnd({dx, dy, axis, top, vy})
+// on release, vy being the finger's recent vertical speed in px/ms. With `scrollRef`, `top` says whether that element was scrolled to its
+// top when the touch began (only then may a downward drag move the panel).
+function useSwipe({ onDrag, onEnd, scrollRef }) {
   const st = React.useRef(null);
   return {
     onTouchStart: (e) => {
       const t = e.touches[0];
-      st.current = { x: t.clientX, y: t.clientY, top: !scrollRef || !scrollRef.current || scrollRef.current.scrollTop <= 0 };
+      st.current = { x: t.clientX, y: t.clientY, axis: null, ly: t.clientY, lt: e.timeStamp, vy: 0,
+        top: !scrollRef || !scrollRef.current || scrollRef.current.scrollTop <= 0 };
     },
     onTouchMove: (e) => {
-      const s0 = st.current; if (!s0 || !onDrag) return;
+      const s0 = st.current; if (!s0) return;
       const t = e.touches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y;
-      if (s0.top && Math.abs(dy) > Math.abs(dx)) onDrag(dy);
+      if (!s0.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 8) s0.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      const dt = e.timeStamp - s0.lt;
+      if (dt > 0) { s0.vy = 0.6 * ((t.clientY - s0.ly) / dt) + 0.4 * s0.vy; s0.ly = t.clientY; s0.lt = e.timeStamp; }
+      if (s0.axis === 'y' && onDrag) onDrag(dy, s0.top);
     },
     onTouchEnd: (e) => {
-      const s0 = st.current; st.current = null;
-      if (onDrag) onDrag(0);
-      if (!s0) return;
-      const t = e.changedTouches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx < 0 ? 'left' : 'right');
-      else if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx) * 1.5 && (dy < 0 || s0.top)) onSwipe(dy < 0 ? 'up' : 'down');
+      const s0 = st.current; st.current = null; if (!s0) return;
+      const t = e.changedTouches[0];
+      // a finger that stopped before lifting has no speed left
+      const vy = e.timeStamp - s0.lt > 100 ? 0 : s0.vy;
+      onEnd({ dx: t.clientX - s0.x, dy: t.clientY - s0.y, axis: s0.axis, top: s0.top, vy });
     },
-    onTouchCancel: () => { st.current = null; if (onDrag) onDrag(0); },
+    onTouchCancel: () => { const s0 = st.current; st.current = null; if (s0) onEnd({ dx: 0, dy: 0, axis: null, top: s0.top }); },
   };
 }
 
@@ -475,19 +480,48 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
 
   // Collapsed = only the top strip (handle + trip card). With nothing planned yet the
   // search fields always show, since there's nothing to collapse to.
+  // The details' visible height follows the finger while dragging, in both
+  // directions, and they fade out as the panel nears the bottom.
   const peek = real ? !!journey : hasRoute;
   const open = expanded || !peek;
-  const bodyRef = React.useRef(null);
-  const [dragY, setDragY] = React.useState(0);
+  const bodyRef = React.useRef(null), contentRef = React.useRef(null), stripRef = React.useRef(null);
+  const [sizes, setSizes] = React.useState({ content: 0, strip: 0, vh: window.innerHeight });
+  React.useLayoutEffect(() => {
+    const measure = () => setSizes({ content: contentRef.current ? contentRef.current.offsetHeight : 0,
+      strip: stripRef.current ? stripRef.current.offsetHeight : 0, vh: window.innerHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (contentRef.current) ro.observe(contentRef.current);
+    if (stripRef.current) ro.observe(stripRef.current);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [peek]);
+  const maxBody = Math.max(0, sizes.vh * 0.75 - sizes.strip);
+  const full = Math.min(sizes.content, maxBody);
+  const [dy, setDy] = React.useState(null);           // finger offset while dragging, else null
+  const base = open ? full : 0;
+  const shown = dy === null ? base : Math.max(0, Math.min(full, base - dy));
+  const progress = full > 0 ? shown / full : (open ? 1 : 0);
+  const fade = Math.max(0, Math.min(1, (progress - 0.1) / 0.6));
+
   const go = (d) => { if (onSelectTrip && tripIndex + d >= 0 && tripIndex + d < trips.length) onSelectTrip(tripIndex + d); };
-  const onSwipe = (dir) => {
-    if (dir === 'up') setExpanded(true);
-    else if (dir === 'down') { if (peek) setExpanded(false); }
-    else go((dir === 'left') !== (T.dir === 'rtl') ? 1 : -1);
+  const onEnd = ({ dx, dy: ddy, axis, top, vy = 0 }, fromBody) => {
+    setDy(null);
+    if (axis === 'x') {
+      if (Math.abs(dx) > 50) go((dx < 0) !== (T.dir === 'rtl') ? 1 : -1);
+      return;
+    }
+    if (axis !== 'y' || !peek) return;
+    if (fromBody && (!top || ddy < 0)) return;         // that was a scroll, not a drag
+    const end = Math.max(0, Math.min(full, base - ddy));
+    // a quick flick goes where it was flicked; a slow drag snaps to the nearer state
+    const flick = Math.abs(vy) > 0.4 && Math.abs(ddy) > 20;
+    setExpanded(flick ? vy < 0 : end > full / 2);
   };
-  const stripSwipe = useSwipe(onSwipe, { onDrag: (dy) => setDragY(open && peek ? Math.max(0, dy) : 0) });
-  const bodySwipe = useSwipe(onSwipe, { scrollRef: bodyRef, onDrag: (dy) => setDragY(peek ? Math.max(0, dy) : 0) });
+  const stripSwipe = useSwipe({ onDrag: (d) => peek && setDy(d), onEnd: (g) => onEnd(g, false) });
+  const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => peek && top && setDy(Math.max(0, d)), onEnd: (g) => onEnd(g, true) });
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, open]);
+  const ease = 'cubic-bezier(.2,.7,.2,1)';
 
   return (
     <div data-sheet="" style={{
@@ -498,12 +532,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
       borderTopLeftRadius: 24, borderTopRightRadius: 24,
       boxShadow: '0 -8px 32px rgba(0,0,0,0.08)',
       paddingBottom: 'env(safe-area-inset-bottom, 12px)',
-      transform: dragY ? `translateY(${dragY}px)` : 'none',
-      transition: dragY ? 'none' : 'transform 220ms cubic-bezier(.2,.7,.2,1)',
       zIndex: 5,
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
-      <div {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
+      <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '8px 0 6px', cursor: peek ? 'pointer' : 'default' }}
           onClick={() => peek && setExpanded(e => !e)} role={peek ? 'button' : undefined}
           aria-label={peek ? T.t(open ? 'collapse' : 'expand') : undefined} aria-expanded={peek ? open : undefined}>
@@ -518,9 +550,16 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
         )}
       </div>
 
-      {open && (
-        <div ref={bodyRef} {...bodySwipe} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain',
-          borderTop: peek ? '1px solid var(--chip-border)' : 'none' }}>
+      <div aria-hidden={peek && !open ? true : undefined} style={peek ? {
+          height: shown, opacity: fade, overflow: 'hidden', flexShrink: 0,
+          borderTop: '1px solid var(--chip-border)',
+          transition: dy === null ? `height 260ms ${ease}, opacity 260ms ${ease}` : 'none',
+          pointerEvents: open ? 'auto' : 'none',
+        } : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain',
+          ...(peek ? { height: full, transform: `translateY(${(1 - fade) * 24}px)`,
+                       transition: dy === null ? `transform 260ms ${ease}` : 'none' } : { flex: 1, minHeight: 0 }) }}>
+        <div ref={contentRef}>
           {/* From/To */}
           <div style={{ padding: '12px 16px 12px' }}>
             <div style={{ display:'flex', gap: 10, alignItems:'center' }}>
@@ -579,7 +618,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
             </div>
           )}
         </div>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
