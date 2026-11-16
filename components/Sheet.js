@@ -474,8 +474,9 @@ function TimeWheel({ when, setWhen }) {
             <div key={i} role="option" aria-selected={on} style={{ height: ITEM_H, scrollSnapAlign: 'center', position: 'relative',
               display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', lineHeight: 1,
               color: on ? 'var(--text)' : 'var(--text-dim)', transition: 'color 120ms' }}>
-              <span style={{ font: `${on ? 700 : 500} ${i === 0 ? 13 : 14}px ${i === 0 ? 'var(--font)' : '"JetBrains Mono", ui-monospace, monospace'}` }}>{l.time}</span>
-              {l.day && <span style={{ font: '500 9px var(--font)', marginTop: 1, whiteSpace: 'nowrap' }}>{l.day}</span>}
+              {/* line-height after the font shorthand (which resets it), so time and day sit together */}
+              <span style={{ font: `${on ? 700 : 500} ${i === 0 ? 13 : 14}px ${i === 0 ? 'var(--font)' : '"JetBrains Mono", ui-monospace, monospace'}`, lineHeight: '14px' }}>{l.time}</span>
+              {l.day && <span style={{ font: '500 9px var(--font)', lineHeight: '10px', whiteSpace: 'nowrap' }}>{l.day}</span>}
             </div>
           );
         })}
