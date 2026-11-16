@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-16
+
+- **Alternative trips:** the planner now finds several trips around your time, ordered by departure. Swipe left or right on the trip card (or use the ‹ › buttons) to move between them; the dots show where you are. The map follows the selected trip. With a picked time, a couple of earlier trips are included too.
+- **Collapsible trip panel:** the trip card stays above the map at all times. Swipe down to hide the details, swipe up or tap the handle to bring them back. The panel follows your finger both ways, and the details fade out as it nears the bottom and back in as it rises. Let go and it snaps open or closed: a quick flick goes where you flicked, a slow drag to whichever is nearer. Scrolling the details never closes the panel by accident.
+
 ## 2026-11-08 (timetable)
 
 - **Real timetable.** Trip times now come from the planned Israel Railways timetable (Ministry of Transport GTFS open data) instead of a formula. Each leg shows the train number, its departure and arrival, and the time at every stop; changes show both arrival and onward departure.
