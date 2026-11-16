@@ -52,6 +52,7 @@ function nextDepartures(lineId, baseMins = 0) {
   return { headway, deps };
 }
 
+// One row of the search card. 16px text so iPhones don't zoom the page on focus.
 function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, autoFocus }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
@@ -69,16 +70,9 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
 
   return (
     <div style={{ position: 'relative', flex: 1 }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        background: 'var(--chip-bg)',
-        border: '1px solid var(--chip-border)',
-        borderRadius: 14,
-        padding: '10px 14px',
-        transition: 'border-color 150ms',
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingInlineStart: 12, paddingInlineEnd: 6, height: 42 }}>
         <span style={{
-          width: 10, height: 10, borderRadius: 10,
+          width: 10, height: 10, borderRadius: 10, position: 'relative', zIndex: 1,
           background: label === 'from' ? '#1A1A1C' : 'transparent',
           border: label === 'from' ? 'none' : '2px solid #1A1A1C',
           flexShrink: 0,
@@ -92,15 +86,15 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
           placeholder={placeholder}
           style={{
             flex: 1, border: 'none', outline: 'none', background: 'transparent',
-            font: '500 15px var(--font)',
+            font: '500 16px var(--font)',
             color: 'var(--text)',
-            minWidth: 0,
+            minWidth: 0, height: '100%', padding: 0,
           }}
         />
         {value && (
           <button onClick={() => onChange(null)} style={{
             border:'none', background:'transparent', cursor:'pointer',
-            color: 'var(--text-dim)', fontSize: 18, lineHeight: 1, padding: 2,
+            color: 'var(--text-dim)', fontSize: 18, lineHeight: 1, width: 30, height: 30, flexShrink: 0,
           }} title={window.I18N.t('clear')} aria-label={window.I18N.t('clear')}>×</button>
         )}
       </div>
@@ -364,25 +358,43 @@ function TimetableNote({ borrowed }) {
   );
 }
 
-// "Leave: [Now] [date-time]" — the picked value is Israel wall-clock time
+// Departure time: one chip ("Leave now" or the picked time). Tapping it opens the
+// phone's own date-time picker; "Now" appears to reset a picked time. The picked
+// value is Israel wall-clock time.
 function LeaveAt({ when, setWhen }) {
   const T = window.I18N;
   const pad = (x) => String(x).padStart(2, '0');
-  const cur = when || window.SCHEDULE.israelNow();
+  const today = window.SCHEDULE.israelNow();
+  const cur = when || today;
   const d = new Date(cur.day * 864e5);
   const value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(Math.floor(cur.min / 60))}:${pad(cur.min % 60)}`;
+  const hhmm = `${pad(Math.floor(cur.min / 60))}:${pad(cur.min % 60)}`;
+  const dayText = cur.day === today.day ? T.t('today')
+    : d.toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const inputRef = React.useRef(null);
   const onChange = (e) => {
     const m = /^(\d+)-(\d+)-(\d+)T(\d+):(\d+)/.exec(e.target.value);
     if (m) setWhen({ day: Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5, min: +m[4] * 60 + +m[5] });
   };
-  const chip = (active) => ({ padding: '6px 12px', borderRadius: 999, cursor:'pointer', font:'600 12px var(--font)',
-    border: '1px solid var(--chip-border)', background: active ? 'var(--text)' : 'var(--chip-bg)', color: active ? 'var(--surface)' : 'var(--text)' });
+  const chip = { display:'inline-flex', alignItems:'center', gap: 6, height: 30, padding: '0 12px', borderRadius: 999,
+    border: '1px solid var(--chip-border)', background: 'var(--chip-bg)', color: 'var(--text)',
+    font: '600 13px var(--font)', cursor: 'pointer', whiteSpace: 'nowrap' };
   return (
-    <div style={{ display:'flex', alignItems:'center', gap: 8, marginTop: 10, flexWrap:'wrap' }}>
-      <span style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>{T.t('leave')}</span>
-      <button onClick={() => setWhen(null)} style={chip(!when)}>{T.t('now')}</button>
-      <input type="datetime-local" value={value} onChange={onChange} aria-label={T.t('leave')} style={{
-        ...chip(!!when), font:'500 12px "JetBrains Mono", ui-monospace, monospace', padding: '5px 10px', colorScheme: 'light dark' }}/>
+    <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 8 }}>
+      <label style={{ ...chip, position: 'relative' }}
+        onClick={() => { try { inputRef.current.showPicker(); } catch (e) { /* the tap reached the input itself */ } }}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <circle cx="7" cy="7" r="5.6" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M7 4v3.2l2 1.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+        <span>{when ? T.t('leaveAt', `${dayText} ${hhmm}`) : T.t('leaveNow')}</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>
+        <input ref={inputRef} type="datetime-local" value={value} onChange={onChange} aria-label={T.t('leave')}
+          style={{ position:'absolute', inset: 0, width:'100%', height:'100%', opacity: 0, border: 0, padding: 0, fontSize: 16, cursor:'pointer' }}/>
+      </label>
+      {when && (
+        <button onClick={() => setWhen(null)} style={{ ...chip, background: 'transparent', color: 'var(--text-dim)' }}>{T.t('now')}</button>
+      )}
     </div>
   );
 }
@@ -441,7 +453,7 @@ function TripSummary({ j, live, index, count, onPrev, onNext }) {
         <div key={index} style={{ flex: 1, minWidth: 0, animation: 'fadeIn 180ms ease-out' }}>
           <div style={{ display:'flex', alignItems:'baseline', gap: 10, flexWrap:'wrap' }}>
             <div style={{ font: '700 26px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(j.arrive - j.depart)}</div>
-            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap', direction:'ltr' }}>{clockOf(j, j.depart)} → {clockOf(j, j.arrive)}</div>
+            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}>{clockOf(j, j.depart)} {rtl ? '←' : '→'} {clockOf(j, j.arrive)}</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 4, flexWrap:'wrap', font: '500 12px var(--font)', color: 'var(--text-dim)' }}>
             {j.legs.map((l, k) => (
@@ -560,22 +572,29 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
           ...(peek ? { height: full, transform: `translateY(${(1 - fade) * 24}px)`,
                        transition: dy === null ? `transform 260ms ${ease}` : 'none' } : { flex: 1, minHeight: 0 }) }}>
         <div ref={contentRef}>
-          {/* From/To */}
-          <div style={{ padding: '12px 16px 12px' }}>
-            <div style={{ display:'flex', gap: 10, alignItems:'center' }}>
-              <div style={{ flex: 1, display:'flex', flexDirection:'column', gap: 8 }}>
+          {/* From/To: one card, two rows joined by a route line, swap inside */}
+          <div style={{ padding: '10px 16px 10px' }}>
+            <div style={{ position:'relative', display:'flex', alignItems:'center',
+              background: 'var(--chip-bg)', border: '1px solid var(--chip-border)', borderRadius: 14 }}>
+              {/* route line: three dots spread evenly between the two station markers
+                  (marker centres sit 21px from the card's top and bottom; 5px radius) */}
+              <span aria-hidden="true" style={{ position:'absolute', insetInlineStart: 12, width: 10, top: 26, bottom: 26,
+                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-evenly' }}>
+                {[0, 1, 2].map(k => <span key={k} style={{ width: 3, height: 3, borderRadius: 2, background: 'var(--text-dim)', opacity: 0.7 }}/>)}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   onChange={onSetFrom} onPick={onSetFrom}/>
+                <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
                   onChange={onSetTo} onPick={onSetTo}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
-                width: 40, height: 40, borderRadius: 20,
-                background: 'var(--chip-bg)', border: '1px solid var(--chip-border)',
-                cursor: 'pointer', flexShrink: 0,
-                display:'flex', alignItems:'center', justifyContent:'center',
+                width: 34, height: 34, borderRadius: 17, margin: '0 6px', flexShrink: 0,
+                background: 'var(--surface)', border: '1px solid var(--chip-border)', cursor: 'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', padding: 0,
               }}>
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style={{ transform: 'rotate(90deg)' }}>
                   <path d="M4 6h10M11 3l3 3-3 3M14 12H4M7 15l-3-3 3-3"
                     stroke="var(--text)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
