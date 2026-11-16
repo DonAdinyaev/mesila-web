@@ -624,6 +624,23 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
   const stripSwipe = useSwipe({ onDrag: (d) => peek && setDy(d), onEnd: (g) => onEnd(g, false) });
   const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => peek && top && setDy(Math.max(0, d)), onEnd: (g) => onEnd(g, true) });
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, open]);
+  // A downward drag that starts with the details scrolled to the top moves the
+  // panel. Stop the browser from also scrolling/bouncing the content (iOS rubber
+  // band), or the content would move twice as fast as the finger. React's touch
+  // handlers are passive, so this needs a native non-passive listener.
+  React.useEffect(() => {
+    const el = bodyRef.current; if (!el || !peek) return;
+    let sx = 0, sy = 0, atTop = false, mode = null;
+    const start = (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; atTop = el.scrollTop <= 0; mode = null; };
+    const move = (e) => {
+      const t = e.touches[0], dx = t.clientX - sx, ddy = t.clientY - sy;
+      if (!mode && Math.max(Math.abs(dx), Math.abs(ddy)) > 8) mode = Math.abs(dx) > Math.abs(ddy) ? 'x' : (atTop && ddy > 0 ? 'panel' : 'scroll');
+      if (mode === 'panel' && e.cancelable) e.preventDefault();
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    return () => { el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); };
+  }, [peek]);
   const ease = 'cubic-bezier(.2,.7,.2,1)';
 
   return (
@@ -660,8 +677,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, whe
           pointerEvents: open ? 'auto' : 'none',
         } : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain',
-          ...(peek ? { height: full, transform: `translateY(${(1 - fade) * 24}px)`,
-                       transition: dy === null ? `transform 260ms ${ease}` : 'none' } : { flex: 1, minHeight: 0 }) }}>
+          ...(peek ? { height: full } : { flex: 1, minHeight: 0 }) }}>
         <div ref={contentRef}>
           {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
           <div style={{ padding: '10px 16px 10px' }}>
