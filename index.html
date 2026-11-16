@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<title>Mesila Rail Map</title>
+<title>Mesila · Israel Railways</title>
+<link rel="icon" type="image/svg+xml" href="assets/mesila-logo.svg" media="(prefers-color-scheme: light)"/>
+<link rel="icon" type="image/svg+xml" href="assets/mesila-logo-dark.svg" media="(prefers-color-scheme: dark)"/>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"/>
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-title" content="Mesila"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
@@ -254,7 +259,7 @@ function App() {
     T.setLang(lang);
     document.documentElement.lang = lang;
     document.documentElement.dir = T.dir;
-    document.title = lang === 'he' ? 'מסילה — רכבת ישראל' : 'Mesila Rail Map';
+    document.title = lang === 'he' ? 'מסילה · רכבת ישראל' : 'Mesila · Israel Railways'; // same as the header
   }, [lang]);
   // Switch the shared language first so every component renders with it on this pass
   const toggleLang = () => { const next = lang === 'he' ? 'en' : 'he'; T.setLang(next); setLang(next); };

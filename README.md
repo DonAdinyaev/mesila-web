@@ -62,7 +62,7 @@ tools/build_timetable.py  Builds data/timetable.js from the Ministry of Transpor
 data/i18n.js            English/Hebrew strings, station, line and place names
 components/MapSVG.js    Map renderer: track layout, bends, markers, labels, pan/zoom
 components/Sheet.js     Bottom sheet: From/To search and trip timeline
-assets/                 Logo files (light icon, dark icon, transparent mark)
+assets/                 Logo files (light icon, dark icon, transparent mark), favicon and iPhone home-screen PNGs
 .github/workflows/      GitHub Pages deployment; twice-weekly timetable refresh
 ```
 
