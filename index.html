@@ -53,11 +53,11 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script src="data/network.js?v=55"></script>
-<script src="data/i18n.js?v=3"></script>
+<script src="data/i18n.js?v=4"></script>
 <script src="data/timetable.js?v=20261115"></script>
-<script src="data/schedule.js?v=1"></script>
+<script src="data/schedule.js?v=2"></script>
 <script type="text/babel" src="components/MapSVG.js?v=79"></script>
-<script type="text/babel" src="components/Sheet.js?v=29"></script>
+<script type="text/babel" src="components/Sheet.js?v=30"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -329,10 +329,19 @@ function App() {
   const [, setTick] = React.useState(0); // re-plan "now" as the minutes pass
   React.useEffect(() => { const t = setInterval(() => setTick(c => c + 1), 30000); return () => clearInterval(t); }, []);
   const nowKey = when ? 0 : Math.floor(Date.now() / 60000);
-  const journey = React.useMemo(() => {
-    if (!window.SCHEDULE || !from || !to || from === to) return null;
-    return window.SCHEDULE.plan(from, to, lineFilter, when || undefined);
+  // Trips around the requested time, ordered by departure; the sheet swipes between them.
+  const trips = React.useMemo(() => {
+    if (!window.SCHEDULE || !from || !to || from === to) return { list: [], index: 0 };
+    return window.SCHEDULE.alternatives(from, to, lineFilter, when || undefined);
   }, [from, to, lineFilter, when, nowKey]);
+  // The chosen trip, kept by identity across the minute re-plan; a new search resets it.
+  const tripKey = (j) => j.legs.map(l => l.train + '@' + l.depart).join(',');
+  const [selKey, setSelKey] = React.useState(null);
+  React.useEffect(() => { setSelKey(null); }, [from, to, when, lineFilter]);
+  let selIdx = trips.list.findIndex(j => tripKey(j) === selKey);
+  if (selIdx < 0) selIdx = trips.index;
+  const journey = trips.list[selIdx] || null;
+  const selectTrip = (i) => { const j = trips.list[i]; if (j) setSelKey(tripKey(j)); };
   // Map highlight; kept as the same object while its stations and lines don't change,
   // so the minute tick doesn't re-zoom the map or re-open the sheet.
   const routeRaw = !from || !to || from === to ? null
@@ -340,9 +349,11 @@ function App() {
   const routeKey = routeRaw ? routeRaw.map(r => r.id + ':' + r.line).join(',') : '';
   const route = React.useMemo(() => routeRaw, [routeKey]);
 
+  // Open the trip details for a new search; switching between alternative trips
+  // (same search) leaves the sheet as the user left it.
   React.useEffect(() => {
-    if (route) setExpanded(true);
-  }, [route]);
+    if (from && to && from !== to) setExpanded(true);
+  }, [from, to, when]);
 
   const onSwap = () => { setFrom(to); setTo(from); };
 
@@ -412,6 +423,7 @@ function App() {
         onSwap={onSwap}
         route={route}
         journey={journey} when={when} setWhen={setWhen}
+        trips={trips.list} tripIndex={selIdx} onSelectTrip={selectTrip}
         expanded={expanded}
         setExpanded={setExpanded}
       />

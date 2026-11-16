@@ -387,98 +387,197 @@ function LeaveAt({ when, setWhen }) {
   );
 }
 
-function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, when, setWhen, onClose, expanded, setExpanded }) {
+// Touch swipes. Vertical moves report the drag distance while the finger is down
+// (onDrag) and a direction on release. With `scrollRef`, a downward swipe counts
+// only when that element is scrolled to its top (so scrolling a list never closes it).
+function useSwipe(onSwipe, { onDrag, scrollRef } = {}) {
+  const st = React.useRef(null);
+  return {
+    onTouchStart: (e) => {
+      const t = e.touches[0];
+      st.current = { x: t.clientX, y: t.clientY, top: !scrollRef || !scrollRef.current || scrollRef.current.scrollTop <= 0 };
+    },
+    onTouchMove: (e) => {
+      const s0 = st.current; if (!s0 || !onDrag) return;
+      const t = e.touches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y;
+      if (s0.top && Math.abs(dy) > Math.abs(dx)) onDrag(dy);
+    },
+    onTouchEnd: (e) => {
+      const s0 = st.current; st.current = null;
+      if (onDrag) onDrag(0);
+      if (!s0) return;
+      const t = e.changedTouches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx < 0 ? 'left' : 'right');
+      else if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx) * 1.5 && (dy < 0 || s0.top)) onSwipe(dy < 0 ? 'up' : 'down');
+    },
+    onTouchCancel: () => { st.current = null; if (onDrag) onDrag(0); },
+  };
+}
+
+// Compact trip card: always visible at the top of the sheet. Arrows (and swipes)
+// move between alternative trips, ordered by departure time.
+function TripSummary({ j, live, index, count, onPrev, onNext }) {
+  const T = window.I18N, rtl = T.dir === 'rtl';
+  const wait = j.depart - j.start;
+  const arrow = (dir, disabled, onClick, label) => (
+    <button onClick={onClick} disabled={disabled} aria-label={label} title={label} style={{
+      width: 34, height: 34, borderRadius: 17, flexShrink: 0, border: '1px solid var(--chip-border)',
+      background: 'var(--chip-bg)', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.35 : 1,
+      display:'flex', alignItems:'center', justifyContent:'center', padding: 0 }}>
+      <svg width="12" height="12" viewBox="0 0 12 12" style={{ transform: (dir < 0) !== rtl ? 'scaleX(-1)' : 'none' }}>
+        <path d="M4 2l4 4-4 4" stroke="var(--text)" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </button>
+  );
+  return (
+    <div style={{ padding: '2px 16px 10px' }}>
+      <div style={{ display:'flex', alignItems:'center', gap: 10 }}>
+        {count > 1 && arrow(-1, index === 0, onPrev, T.t('earlier'))}
+        <div key={index} style={{ flex: 1, minWidth: 0, animation: 'fadeIn 180ms ease-out' }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap: 10, flexWrap:'wrap' }}>
+            <div style={{ font: '700 26px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(j.arrive - j.depart)}</div>
+            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap', direction:'ltr' }}>{clockOf(j, j.depart)} → {clockOf(j, j.arrive)}</div>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 4, flexWrap:'wrap', font: '500 12px var(--font)', color: 'var(--text-dim)' }}>
+            {j.legs.map((l, k) => (
+              <React.Fragment key={k}>
+                {k > 0 && <span aria-hidden="true">›</span>}
+                <LineBadge lineId={l.line} size={18}/>
+              </React.Fragment>
+            ))}
+            <span style={{ marginInlineStart: 4 }}>
+              {j.transfers === 0 ? T.t('direct') : T.t('transfers', j.transfers)}
+              {live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
+            </span>
+          </div>
+        </div>
+        {count > 1 && arrow(1, index === count - 1, onNext, T.t('later'))}
+      </div>
+      {count > 1 && (
+        <div aria-label={T.t('tripN', index + 1, count)} style={{ display:'flex', justifyContent:'center', gap: 5, marginTop: 8 }}>
+          {Array.from({ length: count }, (_, k) => (
+            <span key={k} style={{ width: k === index ? 14 : 6, height: 6, borderRadius: 3, transition: 'width 150ms',
+              background: k === index ? 'var(--text)' : 'var(--chip-border)' }}/>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, route, journey, when, setWhen, trips = [], tripIndex = 0, onSelectTrip, onClose, expanded, setExpanded }) {
+  const T = window.I18N;
   const real = !!window.SCHEDULE;
   const it = real ? null : computeItinerary(route);
   const hasRoute = !!it;
-  const now = new Date();
   const sched = hasRoute ? computeSchedule(it) : null;
   const fmtClock = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  // Collapsed = only the top strip (handle + trip card). With nothing planned yet the
+  // search fields always show, since there's nothing to collapse to.
+  const peek = real ? !!journey : hasRoute;
+  const open = expanded || !peek;
+  const bodyRef = React.useRef(null);
+  const [dragY, setDragY] = React.useState(0);
+  const go = (d) => { if (onSelectTrip && tripIndex + d >= 0 && tripIndex + d < trips.length) onSelectTrip(tripIndex + d); };
+  const onSwipe = (dir) => {
+    if (dir === 'up') setExpanded(true);
+    else if (dir === 'down') { if (peek) setExpanded(false); }
+    else go((dir === 'left') !== (T.dir === 'rtl') ? 1 : -1);
+  };
+  const stripSwipe = useSwipe(onSwipe, { onDrag: (dy) => setDragY(open && peek ? Math.max(0, dy) : 0) });
+  const bodySwipe = useSwipe(onSwipe, { scrollRef: bodyRef, onDrag: (dy) => setDragY(peek ? Math.max(0, dy) : 0) });
+  React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, open]);
 
   return (
     <div data-sheet="" style={{
       position:'absolute', left: 0, right: 0, bottom: 0,
+      display:'flex', flexDirection:'column',
+      maxHeight: '75vh',
       background: 'var(--surface)',
       borderTopLeftRadius: 24, borderTopRightRadius: 24,
       boxShadow: '0 -8px 32px rgba(0,0,0,0.08)',
       paddingBottom: 'env(safe-area-inset-bottom, 12px)',
-      maxHeight: expanded ? '55vh' : '40vh',
-      overflowY: 'auto',
-      transition: 'max-height 260ms cubic-bezier(.2,.7,.2,1)',
+      transform: dragY ? `translateY(${dragY}px)` : 'none',
+      transition: dragY ? 'none' : 'transform 220ms cubic-bezier(.2,.7,.2,1)',
       zIndex: 5,
     }}>
-      {/* grab handle */}
-      <div style={{
-        display:'flex', justifyContent:'center', padding: '8px 0 4px',
-        cursor: 'grab',
-      }}
-        onClick={() => setExpanded(e => !e)}
-      >
-        <div style={{ width: 40, height: 4, borderRadius: 4, background: '#D7D4CC' }}/>
+      {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
+      <div {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
+        <div style={{ display:'flex', justifyContent:'center', padding: '8px 0 6px', cursor: peek ? 'pointer' : 'default' }}
+          onClick={() => peek && setExpanded(e => !e)} role={peek ? 'button' : undefined}
+          aria-label={peek ? T.t(open ? 'collapse' : 'expand') : undefined} aria-expanded={peek ? open : undefined}>
+          <div style={{ width: 40, height: 4, borderRadius: 4, background: '#D7D4CC' }}/>
+        </div>
+        {real && journey && (
+          <TripSummary j={journey} live={!when} index={tripIndex} count={trips.length}
+            onPrev={() => go(-1)} onNext={() => go(1)}/>
+        )}
+        {!real && hasRoute && !open && (
+          <div style={{ padding: '2px 16px 10px', font: '700 22px var(--font)', color: 'var(--text)' }}>{fmtMin(sched.totalMin)}</div>
+        )}
       </div>
 
-      {/* From/To */}
-      <div style={{ padding: '8px 16px 12px' }}>
-        <div style={{ display:'flex', gap: 10, alignItems:'center' }}>
-          <div style={{ flex: 1, display:'flex', flexDirection:'column', gap: 8 }}>
-            <StationAutocomplete label="from" placeholder={window.I18N.t('from')} value={from}
-              onChange={onSetFrom} onPick={onSetFrom}/>
-            <StationAutocomplete label="to" placeholder={window.I18N.t('to')} value={to}
-              onChange={onSetTo} onPick={onSetTo}/>
-          </div>
-          <button onClick={onSwap} title={window.I18N.t('swap')} aria-label={window.I18N.t('swap')} style={{
-            width: 40, height: 40, borderRadius: 20,
-            background: 'var(--chip-bg)', border: '1px solid var(--chip-border)',
-            cursor: 'pointer', flexShrink: 0,
-            display:'flex', alignItems:'center', justifyContent:'center',
-          }}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M4 6h10M11 3l3 3-3 3M14 12H4M7 15l-3-3 3-3"
-                stroke="var(--text)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        </div>
-        {real && <LeaveAt when={when} setWhen={setWhen}/>}
-      </div>
-
-      {/* Real timetable: summary + timeline */}
-      {real && journey && (
-        <div style={{ padding: '0 16px 16px' }}>
-          <div style={{ display:'flex', alignItems:'baseline', gap: 12, marginBottom: 14, flexWrap:'wrap' }}>
-            <div style={{ font: '700 28px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(journey.arrive - journey.depart)}</div>
-            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}>{clockOf(journey, journey.depart)} → {clockOf(journey, journey.arrive)}</div>
-            <div style={{ marginInlineStart:'auto', font: '500 13px var(--font)', color: 'var(--text-dim)' }}>
-              {journey.transfers === 0 ? window.I18N.t('direct') : window.I18N.t('transfers', journey.transfers)}
+      {open && (
+        <div ref={bodyRef} {...bodySwipe} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain',
+          borderTop: peek ? '1px solid var(--chip-border)' : 'none' }}>
+          {/* From/To */}
+          <div style={{ padding: '12px 16px 12px' }}>
+            <div style={{ display:'flex', gap: 10, alignItems:'center' }}>
+              <div style={{ flex: 1, display:'flex', flexDirection:'column', gap: 8 }}>
+                <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
+                  onChange={onSetFrom} onPick={onSetFrom}/>
+                <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
+                  onChange={onSetTo} onPick={onSetTo}/>
+              </div>
+              <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
+                width: 40, height: 40, borderRadius: 20,
+                background: 'var(--chip-bg)', border: '1px solid var(--chip-border)',
+                cursor: 'pointer', flexShrink: 0,
+                display:'flex', alignItems:'center', justifyContent:'center',
+              }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M4 6h10M11 3l3 3-3 3M14 12H4M7 15l-3-3 3-3"
+                    stroke="var(--text)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
             </div>
+            {real && <LeaveAt when={when} setWhen={setWhen}/>}
           </div>
-          <JourneyTimeline j={journey} live={!when}/>
-          <TimetableNote borrowed={journey.borrowed}/>
-        </div>
-      )}
-      {real && from && to && from !== to && !journey && (
-        <div style={{ padding: '4px 16px 20px', color: 'var(--text-dim)', font: '500 13px var(--font)' }}>
-          {window.I18N.t('noTrains')}
-          <TimetableNote/>
-        </div>
-      )}
 
-      {/* Simulated fallback (no timetable loaded): summary + timeline */}
-      {hasRoute && sched && (
-        <div style={{ padding: '0 16px 16px' }}>
-          <div style={{ display:'flex', alignItems:'baseline', gap: 12, marginBottom: 14 }}>
-            <div style={{ font: '700 28px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(sched.totalMin)}</div>
-            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}>{fmtClock(sched.start)} → {fmtClock(sched.end)}</div>
-            <div style={{ marginInlineStart:'auto', font: '500 13px var(--font)', color: 'var(--text-dim)' }}>
-              {it.transfers === 0 ? window.I18N.t('direct') : window.I18N.t('transfers', it.transfers)}
+          {/* Real timetable: the selected trip's timeline */}
+          {real && journey && (
+            <div key={tripIndex} style={{ padding: '0 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
+              <JourneyTimeline j={journey} live={!when}/>
+              <TimetableNote borrowed={journey.borrowed}/>
             </div>
-          </div>
-          <RouteTimeline it={it} sched={sched} fmtClock={fmtClock}/>
-        </div>
-      )}
+          )}
+          {real && from && to && from !== to && !journey && (
+            <div style={{ padding: '4px 16px 20px', color: 'var(--text-dim)', font: '500 13px var(--font)' }}>
+              {T.t('noTrains')}
+              <TimetableNote/>
+            </div>
+          )}
 
-      {!hasRoute && !journey && !(real && from && to) && window.innerWidth >= 600 && (
-        <div style={{ padding: '12px 16px 20px', color: 'var(--text-dim)', font: '500 13px var(--font)' }}>
-          {window.I18N.t('hint')}
+          {/* Simulated fallback (no timetable loaded): summary + timeline */}
+          {hasRoute && sched && (
+            <div style={{ padding: '0 16px 16px' }}>
+              <div style={{ display:'flex', alignItems:'baseline', gap: 12, marginBottom: 14 }}>
+                <div style={{ font: '700 28px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(sched.totalMin)}</div>
+                <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}>{fmtClock(sched.start)} → {fmtClock(sched.end)}</div>
+                <div style={{ marginInlineStart:'auto', font: '500 13px var(--font)', color: 'var(--text-dim)' }}>
+                  {it.transfers === 0 ? T.t('direct') : T.t('transfers', it.transfers)}
+                </div>
+              </div>
+              <RouteTimeline it={it} sched={sched} fmtClock={fmtClock}/>
+            </div>
+          )}
+
+          {!hasRoute && !journey && !(real && from && to) && window.innerWidth >= 600 && (
+            <div style={{ padding: '12px 16px 20px', color: 'var(--text-dim)', font: '500 13px var(--font)' }}>
+              {T.t('hint')}
+            </div>
+          )}
         </div>
       )}
     </div>

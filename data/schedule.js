@@ -178,6 +178,38 @@ window.SCHEDULE = (() => {
     };
   }
 
+  // Several trips around the requested time, ordered by departure: the best trip,
+  // up to `later` after it and (when a time was picked) up to `earlier` before it.
+  // Returns { list, index } where list[index] is the trip plan() would return.
+  function alternatives(from, to, allowed, when, { later = 6, earlier = 2 } = {}) {
+    const first = plan(from, to, allowed, when);
+    if (!first) return { list: [], index: 0 };
+    const base = Date.parse(first.day) / 864e5;
+    const at = (min) => plan(from, to, allowed, { day: base, min });
+    const key = (j) => j.legs.map(l => l.train + '@' + l.depart).join(',') + '>' + j.arrive;
+    const seen = new Set([key(first)]);
+    const after = [];
+    for (let t = first.depart + 1, n = 0; after.length < later && n < later * 3; n++) {
+      const j = at(t);
+      if (!j || j.depart - first.start > 24 * 60) break;
+      if (!seen.has(key(j))) { seen.add(key(j)); after.push(j); }
+      t = j.depart + 1;
+    }
+    const before = [];
+    if (when && earlier > 0) {
+      for (let t = first.start - 180, n = 0; n < 20; n++) {
+        const j = at(t);
+        if (!j || j.depart >= first.depart) break;
+        if (!seen.has(key(j))) { seen.add(key(j)); before.push(j); }
+        t = j.depart + 1;
+      }
+    }
+    const pre = before.slice(-earlier);
+    // every trip keeps the requested start, so "departs in" and waits stay relative to it
+    const list = [...pre, first, ...after].map(j => ({ ...j, start: first.start }));
+    return { list, index: pre.length };
+  }
+
   // Map path for the highlight, in the shape MapSVG expects: [{id, line}, ...].
   // MapSVG draws each run of one line between its first and last station along that
   // line, so every consecutive pair must be stops of the line used for it. A train
@@ -200,7 +232,7 @@ window.SCHEDULE = (() => {
   }
 
   return {
-    plan, toPath, israelNow, dayLabel, trips, unmatched, inexact,
+    plan, alternatives, toPath, israelNow, dayLabel, trips, unmatched, inexact,
     feedDate: TT.feedDate, validFrom: TT.start, validTo: dayLabel(startDay + TT.days - 1),
   };
 })();

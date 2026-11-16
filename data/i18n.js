@@ -61,6 +61,8 @@ window.I18N = (() => {
       noTrains: 'No train on the shown lines in the next 30 hours.',
       ttNote: (d) => `Planned Israel Railways timetable (open data, ${d}). Not live: check for delays.`,
       ttBorrowed: 'Outside the loaded timetable: showing the same weekday from it.',
+      earlier: 'Earlier trip', later: 'Later trip', tripN: (i, n) => `Trip ${i} of ${n}`,
+      expand: 'Show trip details', collapse: 'Hide trip details',
     },
     he: {
       brand: 'מסילה', operator: 'רכבת ישראל', filter: 'סינון קווים', zoomIn: 'הגדלה', zoomOut: 'הקטנה',
@@ -77,6 +79,8 @@ window.I18N = (() => {
       noTrains: 'אין רכבת בקווים המוצגים ב־30 השעות הקרובות.',
       ttNote: (d) => `לוח הזמנים המתוכנן של רכבת ישראל (מידע פתוח, ${d}). לא בזמן אמת: בדקו עיכובים.`,
       ttBorrowed: 'התאריך מחוץ ללוח הזמנים שנטען: מוצג אותו יום בשבוע מתוכו.',
+      earlier: 'נסיעה מוקדמת יותר', later: 'נסיעה מאוחרת יותר', tripN: (i, n) => `נסיעה ${i} מתוך ${n}`,
+      expand: 'הצגת פרטי הנסיעה', collapse: 'הסתרת פרטי הנסיעה',
     },
   };
 
