@@ -51,6 +51,11 @@
   :root { --below-ui: 0px; }
   @supports (height: 100lvh) { :root { --below-ui: calc(100lvh - 100dvh); } }
   #root { position: absolute; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh; }
+  /* Phone: the map is the page and scrolls natively (iOS momentum and bounce, and Safari
+     draws the scrolled map behind its status bar and toolbar); the controls are fixed
+     overlays on top of it. */
+  html.page-scroll, html.page-scroll body { height: auto; overflow-x: hidden; overflow-y: auto; }
+  html.page-scroll #root { position: relative; height: auto; min-height: 100vh; }
   @keyframes mesilaFade { from { opacity: 0; } to { opacity: 1; } }
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
@@ -76,8 +81,8 @@
 <script src="data/i18n.js?v=11"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=97"></script>
-<script type="text/babel" src="components/Sheet.js?v=44"></script>
+<script type="text/babel" src="components/MapSVG.js?v=98"></script>
+<script type="text/babel" src="components/Sheet.js?v=45"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -107,7 +112,7 @@ function Header({ onClear, theme, lang, onToggleLang }) {
   const T = window.I18N;
   return (
     <div style={{
-      position: 'absolute', top: 0, left: 0, right: 0,
+      position: 'fixed', top: 0, left: 0, right: 0,
       padding: '12px 12px 0', paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
       zIndex: 7,
       pointerEvents: 'none',
@@ -161,7 +166,7 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
   const set = (k, v) => setTweaks({ ...tweaks, [k]: v });
   return (
     <div style={{
-      position:'absolute', right: 12, bottom: 12,
+      position:'fixed', right: 12, bottom: 12,
       zIndex: 20, width: 280,
       background: 'var(--surface)', borderRadius: 16,
       border: '1px solid var(--chip-border)',
@@ -218,6 +223,9 @@ function App() {
   const [lang, setLang] = React.useState(T.lang);
   // Phones get the vertical-scroll map: no zoom buttons there
   const [narrow, setNarrow] = React.useState(window.innerWidth < 600);
+  // phone layout: the page itself scrolls the map
+  React.useEffect(() => { document.documentElement.classList.toggle('page-scroll', narrow); }, [narrow]);
+  React.useEffect(() => { try { history.scrollRestoration = 'manual'; } catch (e) {} }, []);
   React.useEffect(() => { const f = () => setNarrow(window.innerWidth < 600); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
   React.useEffect(() => {
     T.setLang(lang);
@@ -368,14 +376,14 @@ function App() {
   const onSwap = () => { setFrom(to); setTo(from); };
 
   return (
-    <div style={{ position:'absolute', inset: 0 }} data-screen-label="Mesila Map">
+    <div style={narrow ? { position:'relative' } : { position:'absolute', inset: 0 }} data-screen-label="Mesila Map">
       <Header
         theme={tweaks.theme}
         lang={lang}
         onToggleLang={toggleLang}
       />
 
-      <div style={{ position:'absolute', inset: 0 }}>
+      <div style={narrow ? { position:'relative' } : { position:'absolute', inset: 0 }}>
         <window.MapSVG
           route={route}
           from={from}
@@ -390,7 +398,7 @@ function App() {
         />
       </div>
 
-      <div style={{ position:'absolute', right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
+      <div style={{ position:'fixed', right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
         {!narrow && (
         <div style={{ display:'flex', flexDirection:'column', background:'var(--surface)', border:'1px solid var(--chip-border)', borderRadius: 14, boxShadow:'0 4px 12px rgba(0,0,0,0.08)', overflow:'hidden' }}>
           <button onClick={() => zoom(1)} title={T.t('zoomIn')} aria-label={T.t('zoomIn')} style={{ width: 40, height: 40, border:'none', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
@@ -410,7 +418,7 @@ function App() {
       </div>
 
       {!popup && (!from || !to) && (
-        <div style={{ position:'absolute', left: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, maxWidth:'calc(100% - 80px)', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap: 8, padding:'8px 12px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', font:'500 13px var(--font)', color:'var(--text)', animation:'fadeIn 200ms', pointerEvents:'none' }}>
+        <div style={{ position:'fixed', left: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, maxWidth:'calc(100% - 80px)', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap: 8, padding:'8px 12px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', font:'500 13px var(--font)', color:'var(--text)', animation:'fadeIn 200ms', pointerEvents:'none' }}>
           <span style={{ width: 10, height: 10, borderRadius: 10, flexShrink: 0, background: !from ? '#1A1A1C' : 'transparent', border: !from ? 'none' : '2px solid #1A1A1C' }}></span>
           <span style={{ flexShrink: 0 }}>{!from ? T.t('tapStart') : T.t('tapDest')}</span>
         </div>

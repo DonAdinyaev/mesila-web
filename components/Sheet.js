@@ -682,13 +682,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
 
   return (
     <div data-sheet="" style={{
-      position:'absolute', left: 0, right: 0, bottom: 0,
+      position:'fixed', left: 0, right: 0, bottom: 0,
       display:'flex', flexDirection:'column',
       maxHeight: '75vh',
       background: 'var(--surface)',
       borderTopLeftRadius: 24, borderTopRightRadius: 24,
       boxShadow: '0 -8px 32px rgba(0,0,0,0.08)',
-      paddingBottom: 'calc(var(--below-ui, 0px) + env(safe-area-inset-bottom, 12px))',
+      paddingBottom: 'env(safe-area-inset-bottom, 12px)',
       zIndex: 5,
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
@@ -796,7 +796,7 @@ function StationPopup({ stationId, onClose, onSetFrom, onSetTo }) {
   if (!s) return null;
   return (
     <div style={{
-      position:'absolute', left: 12, right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)',
+      position:'fixed', left: 12, right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)',
       background: 'var(--surface)', borderRadius: 16,
       boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
       border: '1px solid var(--chip-border)',
