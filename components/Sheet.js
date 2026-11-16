@@ -93,7 +93,20 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
               minWidth: 0, height: note && !open ? 20 : '100%', padding: 0,
             }}
           />
-          {note && !open && <span style={{ font: '500 11px var(--font)', lineHeight: '13px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{note}</span>}
+          {/* the note doubles as the locate button, so the name keeps its full width */}
+          {note && !open && (onLocate
+            ? <button onClick={onLocate} title={window.I18N.t('locate')} aria-label={window.I18N.t('locate')} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start', border: 'none', background: 'transparent',
+                padding: 0, cursor: 'pointer', font: '500 11px var(--font)', lineHeight: '13px', color: 'var(--text-dim)', whiteSpace: 'nowrap',
+                animation: locating ? 'mesilaPulse 1s ease-in-out infinite' : 'none' }}>
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="4.6" stroke="currentColor" strokeWidth="1.8"/>
+                  <circle cx="8" cy="8" r="1.8" fill="currentColor"/>
+                  <path d="M8 0.8v2.4M8 12.8v2.4M0.8 8h2.4M12.8 8h2.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                {note}
+              </button>
+            : <span style={{ font: '500 11px var(--font)', lineHeight: '13px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{note}</span>)}
         </div>
         {onLocate && !note && (
           <button onClick={onLocate} title={window.I18N.t('locate')} aria-label={window.I18N.t('locate')} style={{

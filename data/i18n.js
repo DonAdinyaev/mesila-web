@@ -46,8 +46,8 @@ window.I18N = (() => {
 
   const STR = {
     en: {
-      brand: 'Mesila', operator: 'Israel Railways', filter: 'Filter lines', zoomIn: 'Zoom in', zoomOut: 'Zoom out',
-      whole: 'Show whole network', tapStart: 'Tap a station to start', tapDest: 'Now tap your destination',
+      brand: 'Mesila', operator: 'Israel Railways', zoomIn: 'Zoom in', zoomOut: 'Zoom out',
+      whole: 'Show whole network', showTrip: 'Show the trip', showMe: 'Show my location', tapStart: 'Tap a station to start', tapDest: 'Now tap your destination',
       langBtn: 'עב', langTitle: 'עברית', from: 'From', to: 'To', swap: 'Swap', clear: 'Clear',
       hint: 'Tap two stations on the map, or type above to plan a trip.', direct: 'Direct',
       transfers: (n) => `${n} transfer${n > 1 ? 's' : ''}`, transferWait: (m) => `Transfer · ${m} min to next train`,
@@ -63,11 +63,11 @@ window.I18N = (() => {
       earlier: 'Earlier trip', later: 'Later trip', tripN: (i, n) => `Trip ${i} of ${n}`,
       expand: 'Show trip details', collapse: 'Hide trip details',
       leaveNow: 'Leave now', leaveAt: (t) => `Leave ${t}`, today: 'today', tomorrow: 'Tomorrow', locate: 'Use nearest station',
-      kmAway: (km) => `Nearest station · ${km < 1 ? `${Math.round(km * 1000 / 50) * 50} m` : `${km.toFixed(1)} km`}`,
+      kmAway: (km) => `Nearest station · ${km < 1 ? `${Math.max(50, Math.round(km * 1000 / 50) * 50)} m` : `${km.toFixed(1)} km`}`,
     },
     he: {
-      brand: 'מסילה', operator: 'רכבת ישראל', filter: 'סינון קווים', zoomIn: 'הגדלה', zoomOut: 'הקטנה',
-      whole: 'הצגת כל הרשת', tapStart: 'הקישו על תחנה כדי להתחיל', tapDest: 'עכשיו הקישו על היעד',
+      brand: 'מסילה', operator: 'רכבת ישראל', zoomIn: 'הגדלה', zoomOut: 'הקטנה',
+      whole: 'הצגת כל הרשת', showTrip: 'הצגת הנסיעה', showMe: 'הצגת המיקום שלי', tapStart: 'הקישו על תחנה כדי להתחיל', tapDest: 'עכשיו הקישו על היעד',
       langBtn: 'EN', langTitle: 'English', from: 'מ־', to: 'אל', swap: 'החלפת כיוון', clear: 'ניקוי',
       hint: 'הקישו על שתי תחנות במפה, או הקלידו למעלה כדי לתכנן נסיעה.', direct: 'ישיר',
       transfers: (n) => (n === 1 ? 'החלפה אחת' : `${n} החלפות`), transferWait: (m) => `החלפה · ${m} דק׳ לרכבת הבאה`,
@@ -83,7 +83,7 @@ window.I18N = (() => {
       earlier: 'נסיעה מוקדמת יותר', later: 'נסיעה מאוחרת יותר', tripN: (i, n) => `נסיעה ${i} מתוך ${n}`,
       expand: 'הצגת פרטי הנסיעה', collapse: 'הסתרת פרטי הנסיעה',
       leaveNow: 'יציאה עכשיו', leaveAt: (t) => `יציאה ${t}`, today: 'היום', tomorrow: 'מחר', locate: 'התחנה הקרובה',
-      kmAway: (km) => `התחנה הקרובה · ${km < 1 ? `${Math.round(km * 1000 / 50) * 50} מ׳` : `${km.toFixed(1)} ק״מ`}`,
+      kmAway: (km) => `התחנה הקרובה · ${km < 1 ? `${Math.max(50, Math.round(km * 1000 / 50) * 50)} מ׳` : `${km.toFixed(1)} ק״מ`}`,
     },
   };
 

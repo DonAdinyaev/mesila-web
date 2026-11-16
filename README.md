@@ -20,7 +20,6 @@
   - **Desktop:** the full map with pan and zoom.
   - **Phone (under 600 px wide):** a tall, narrow version that scrolls only up and down, so every station is reachable with one finger.
 - **English and Hebrew:** switch with the עב / EN button. Station names, line names and the whole interface are translated, and Hebrew runs right to left.
-- **Line filter:** hide lines you don't use. The trip planner only routes over the lines you can see.
 - **Night trains:** the overnight service runs as part of line 3 (Nahariya – Modi'in) and the high-speed line (Herzliya – Jerusalem) with fewer stops. It's always included in trip planning and marked with a moon.
 - **Light and dark themes**, plus a choice of English and Hebrew fonts.
 
@@ -56,7 +55,7 @@ The script needs only Python 3's standard library.
 ## Project layout
 
 ```
-index.html              App shell: top bar, line filter, Tweaks panel, fonts, theme
+index.html              App shell: top bar, map buttons, Tweaks panel, fonts, theme
 data/network.js         Lines, stations, desktop + phone coordinates, fallback route planner
 data/timetable.js       Planned Israel Railways timetable (GENERATED from GTFS, don't edit)
 data/schedule.js        Matches trains to map lines; timetable trip planner

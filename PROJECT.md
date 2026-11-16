@@ -49,7 +49,7 @@ Desktop and phone share all of this. They differ only in coordinates and a small
 
 ### Trip planner (`route()` in `data/network.js`)
 
-A shortest-path search over (station, line) pairs. Distance is the cost, and every change of line adds a fixed transfer penalty, so the planner prefers fewer changes unless a change saves real distance. It only uses the lines currently visible on the map, so every leg it suggests is drawn.
+A shortest-path search over (station, line) pairs. Distance is the cost, and every change of line adds a fixed transfer penalty, so the planner prefers fewer changes unless a change saves real distance. Every line is always shown, so every leg it suggests is drawn.
 
 ### Timetable
 
@@ -59,7 +59,7 @@ A shortest-path search over (station, line) pairs. Distance is the cost, and eve
 
 **Line matching (`data/schedule.js`).** At load each train is matched to the map line whose stopping pattern contains its stops in order, preferring the line it skips the fewest stops of. A train with stops off every line gets the line covering most of its length. The overnight service (once separate night lines N1 and N2) belongs to line 3 and the high-speed line: a train on those lines that leaves between 23:45 and 05:00 and skips 3 or more of the line's stops, or calls where the line doesn't, is flagged `night` and shown with a moon.
 
-**Planner.** A round-based connection scan: round *k* finds the earliest arrival at every station using at most *k* trains (up to 4), with a 3-minute minimum change. It returns the earliest arrival, with the fewest changes on a tie, then re-runs from later departures to leave as late as possible for the same arrival. It only uses trains on the lines shown on the map. Times are Israel wall-clock minutes from the search day's midnight, so the app is right in any viewer time zone; the search covers the previous day's after-midnight trains through the next day, 30 hours ahead (enough to span Shabbat).
+**Planner.** A round-based connection scan: round *k* finds the earliest arrival at every station using at most *k* trains (up to 4), with a 3-minute minimum change. It returns the earliest arrival, with the fewest changes on a tie, then re-runs from later departures to leave as late as possible for the same arrival. Times are Israel wall-clock minutes from the search day's midnight, so the app is right in any viewer time zone; the search covers the previous day's after-midnight trains through the next day, 30 hours ahead (enough to span Shabbat).
 
 The map highlight is built from the planned trains. A hop between stations that the train's map line doesn't serve is drawn on another line that does.
 
