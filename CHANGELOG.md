@@ -2,6 +2,8 @@
 
 ## 2026-11-16
 
+- **Compact search:** From and To share one card (two slim rows joined by a route line, swap button inside), and the departure time is a single chip, "Leave now" or the picked time, that opens the phone's own date-time picker; "Now" resets it. The section is less than half its old height, and fields no longer make iPhones zoom in.
+- Hebrew: the trip card's time range now reads right to left with the arrow pointing to the arrival.
 - **Alternative trips:** the planner now finds several trips around your time, ordered by departure. Swipe left or right on the trip card (or use the ‹ › buttons) to move between them; the dots show where you are. The map follows the selected trip. With a picked time, a couple of earlier trips are included too.
 - **Collapsible trip panel:** the trip card stays above the map at all times. Swipe down to hide the details, swipe up or tap the handle to bring them back. The panel follows your finger both ways, and the details fade out as it nears the bottom and back in as it rises. Let go and it snaps open or closed: a quick flick goes where you flicked, a slow drag to whichever is nearer. Scrolling the details never closes the panel by accident.
 

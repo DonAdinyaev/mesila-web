@@ -63,6 +63,7 @@ window.I18N = (() => {
       ttBorrowed: 'Outside the loaded timetable: showing the same weekday from it.',
       earlier: 'Earlier trip', later: 'Later trip', tripN: (i, n) => `Trip ${i} of ${n}`,
       expand: 'Show trip details', collapse: 'Hide trip details',
+      leaveNow: 'Leave now', leaveAt: (t) => `Leave ${t}`, today: 'today',
     },
     he: {
       brand: 'מסילה', operator: 'רכבת ישראל', filter: 'סינון קווים', zoomIn: 'הגדלה', zoomOut: 'הקטנה',
@@ -81,6 +82,7 @@ window.I18N = (() => {
       ttBorrowed: 'התאריך מחוץ ללוח הזמנים שנטען: מוצג אותו יום בשבוע מתוכו.',
       earlier: 'נסיעה מוקדמת יותר', later: 'נסיעה מאוחרת יותר', tripN: (i, n) => `נסיעה ${i} מתוך ${n}`,
       expand: 'הצגת פרטי הנסיעה', collapse: 'הסתרת פרטי הנסיעה',
+      leaveNow: 'יציאה עכשיו', leaveAt: (t) => `יציאה ${t}`, today: 'היום',
     },
   };
 
