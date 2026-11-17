@@ -7,7 +7,7 @@
 const { LINES, STATIONS: STATIONS_D, BY_ID: BY_ID_D, GEO_PATHS: PATHS, PASS, MOBILE } = window.MESILA;
 // Occasional service (data/schedule.js): stops only some of a line's trains make are
 // drawn as hollow rings; track only some of them use is a "ghost" line ("L3~1") drawn
-// dashed in its parent's colour, on the parent's track where they meet.
+// hollow in its parent's colour, on the parent's track where they meet.
 const OCC = window.MESILA.OCC || {};
 const parentOf = (id) => id.split('~')[0];
 const GHOST = new Set(LINES.filter(l => l.ghost).map(l => l.id));
