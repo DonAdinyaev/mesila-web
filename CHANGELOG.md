@@ -2,6 +2,7 @@
 
 ## 2026-11-16
 
+- **iPhone:** removed the pale band over the map behind Safari's floating toolbar. Safari was tinting that zone with the trip panel's white; an invisible strip on the bottom edge now gives it nothing to tint with.
 - **Trip panel as an island:** the panel now floats as a rounded card 8px from the sides and from the bottom of the visible area, with the map showing around it, instead of being glued to the screen edge. Safari's own scroll bar is hidden on phones so only the region indicator shows.
 - **Phone map scrolls as the page:** on a phone the map is now the page itself and scrolls natively (iOS momentum, bounce and toolbar behaviour), so Safari draws it behind its status bar and toolbar like any scrolled page. The header, buttons, region indicator and trip panel are fixed on top. Everything that moved the map (opening at Tel Aviv or your location, the locate and map buttons, the region indicator, showing a trip) now scrolls the page. Desktop is unchanged. `viewport-test.html` is a diagnostic page that shows what the browser draws behind its bars.
 - **Smoother region indicator:** the thumb and region label follow instantly (no trailing animation), the thumb stays under your finger while dragging with the map catching up once per frame, and the label no longer flickers at a region border.

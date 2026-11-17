@@ -72,16 +72,11 @@
 </head>
 <body>
 <div id="root"></div>
-<script>
-  // ?sheet=probe: a full-width, invisible fixed strip on the very bottom edge, to see
-  // whether Safari samples it (instead of the trip panel) for its toolbar tint
-  if (new URLSearchParams(location.search).get('sheet') === 'probe') {
-    const d = document.createElement('div');
-    d.setAttribute('aria-hidden', 'true');
-    d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:4px;background:transparent;pointer-events:none;z-index:9';
-    document.body.appendChild(d);
-  }
-</script>
+<!-- iOS 26 Safari tints the zone behind its floating toolbar with the colour of a fixed
+     element at the bottom edge; without this it picked the white trip panel and washed
+     the map out under the toolbar. A transparent full-width strip on the very edge gives
+     it nothing to tint with. Invisible, and it doesn't take touches. -->
+<div aria-hidden="true" style="position:fixed;left:0;right:0;bottom:0;height:4px;background:transparent;pointer-events:none;z-index:9"></div>
 <script>window.safeTop = () => { const p = document.getElementById('sat-probe'); return p ? p.offsetHeight : 0; };</script>
 <!-- measures env(safe-area-inset-top) for code that positions things below the status bar -->
 <div id="sat-probe" aria-hidden="true" style="position:absolute;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none"></div>
@@ -95,7 +90,7 @@
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
 <script type="text/babel" src="components/MapSVG.js?v=99"></script>
-<script type="text/babel" src="components/Sheet.js?v=49"></script>
+<script type="text/babel" src="components/Sheet.js?v=50"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{

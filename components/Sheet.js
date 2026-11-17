@@ -608,10 +608,6 @@ function TripSummary({ j, live, index, count, onPrev, onNext }) {
   );
 }
 
-// Experiment (iPhone Safari's bottom-bar tint): ?sheet=narrow | high | probe picks a
-// variant of the floating island; no parameter = the normal island.
-const SHEET_VARIANT = (() => { try { return new URLSearchParams(location.search).get('sheet') || ''; } catch (e) { return ''; } })();
-
 function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, onLocate, route, journey, when, setWhen, trips = [], tripIndex = 0, onSelectTrip, onClose, expanded, setExpanded }) {
   const T = window.I18N;
   const real = !!window.SCHEDULE;
@@ -688,9 +684,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     <div data-sheet="" style={{
       // an island: floats 8px from the sides and from the bottom of the visible area
       // (above the home indicator), all corners rounded, the map showing around it
-      position:'fixed',
-      ...(SHEET_VARIANT === 'narrow' ? { left: '11%', right: '11%' } : { left: 8, right: 8 }),
-      bottom: SHEET_VARIANT === 'high' ? 'calc(env(safe-area-inset-bottom, 0px) + 48px)' : 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+      position:'fixed', left: 8, right: 8, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
       display:'flex', flexDirection:'column',
       maxHeight: '75vh',
       background: 'var(--surface)',
