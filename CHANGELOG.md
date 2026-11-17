@@ -2,6 +2,7 @@
 
 ## 2026-11-17
 
+- **Occasional service drawn automatically:** when some trains of a line stop where the map line doesn't, or run beyond its end, the app now works this out from the timetable when it loads, so a new timetable needs no map edits. Stops only some trains make get a hollow ring in the line's colour (for example line 3 at Netanya and Hadera at night, line 4 at Atlit and Binyamina, line 5 at Lehavim). Track only some trains use is drawn as a dashed line in the line's colour, continuing the line's own track. A trip that uses either is highlighted as one continuous line. Tapping such a line shows a small key ("some trains"). A regular stop still wins over an occasional one when matching a train to its line. With today's timetable every train now matches its line on the map (42 didn't before).
 - **High-speed line extended to Hadera:** about 2 trains an hour on the Herzliya–Jerusalem line actually start at Hadera West and call at Netanya and Beit Yehoshua (passing Netanya Sapir). The map now draws the line from Hadera, so a direct trip such as Netanya → Tel Aviv Savidor is highlighted as one continuous pink line instead of seeming to change trains at Herzliya. Renamed to Hadera – Jerusalem.
 
 ## 2026-11-16

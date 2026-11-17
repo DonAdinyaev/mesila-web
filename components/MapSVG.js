@@ -5,6 +5,12 @@
 // Geometry follows each line's full path, including stations it passes without
 // stopping (PASS): those reserve a track but get no dot.
 const { LINES, STATIONS: STATIONS_D, BY_ID: BY_ID_D, GEO_PATHS: PATHS, PASS, MOBILE } = window.MESILA;
+// Occasional service (data/schedule.js): stops only some of a line's trains make are
+// drawn as hollow rings; track only some of them use is a "ghost" line ("L3~1") drawn
+// dashed in its parent's colour, on the parent's track where they meet.
+const OCC = window.MESILA.OCC || {};
+const parentOf = (id) => id.split('~')[0];
+const GHOST = new Set(LINES.filter(l => l.ghost).map(l => l.id));
 const LINE_ORDER = LINES.map(l => l.id);
 // Paint order: line 1 (red) last so it sits on top where it crosses the trunk
 const DRAW_ORDER = [...LINE_ORDER.filter(id => id !== 'L1'), 'L1'];
@@ -179,7 +185,7 @@ function buildGeometry(visible, W, GAP, ms) {
     if (s.id in LY.AXIS_OVERRIDE) bk = LY.AXIS_OVERRIDE[s.id];
     const ax = AXES[bk], n = { x: -ax.y, y: ax.x };
     axis[s.id] = ax;
-    const ls = GEO_LINES[s.id].filter(l => visible.has(l)).sort((p, q) => BUNDLE_ORDER.indexOf(p) - BUNDLE_ORDER.indexOf(q));
+    const ls = GEO_LINES[s.id].filter(l => visible.has(l)).sort((p, q) => BUNDLE_ORDER.indexOf(parentOf(p)) - BUNDLE_ORDER.indexOf(parentOf(q)));
     slot[s.id] = { _ls: ls, _n: n, _b: Object.fromEntries(ls.map((l, i) => [l, ((ls.length - 1) / 2 - i) * GAP])) };
   }
   // Corridors: chains of stations on one straight axis. Every line keeps ONE
@@ -198,7 +204,7 @@ function buildGeometry(visible, W, GAP, ms) {
     }
   }
   const seen = new Set();
-  const base = (k) => k.split('@')[0];
+  const base = (k) => parentOf(k.split('@')[0]);
   const bo = (l) => BUNDLE_ORDER.indexOf(base(l));
   const fm = (f, k) => k === f || base(k) === f;
   const pathAdj = (l, a, b) => { const p = PATHS[l], i = p.indexOf(a); return p[i - 1] === b || p[i + 1] === b; };
@@ -223,7 +229,9 @@ function buildGeometry(visible, W, GAP, ms) {
       }
     });
     const ls = Object.keys(iv);
-    const ov = (p, q) => iv[p][0] <= iv[q][1] && iv[q][0] <= iv[p][1];
+    // a ghost run that only touches its parent's run end to end continues it: same track, no clash
+    const touch = (p, q) => p.split('@')[0] !== q.split('@')[0] && base(p) === base(q) && (iv[p][1] === iv[q][0] || iv[q][1] === iv[p][0]);
+    const ov = (p, q) => iv[p][0] <= iv[q][1] && iv[q][0] <= iv[p][1] && !touch(p, q);
     const gaps = (s) => {
       let c = 0;
       for (let k = 0; k < comp.length; k++) {
@@ -234,6 +242,7 @@ function buildGeometry(visible, W, GAP, ms) {
     };
     const pack = (perm) => {
       const s = {}; perm.forEach((l, i) => { let v = 0; for (let j = 0; j < i; j++) if (ov(l, perm[j])) v = Math.max(v, s[perm[j]] + 1); s[l] = v; });
+      for (const l of perm) for (const q of perm) if (touch(l, q) && GHOST.has(l.split('@')[0]) && !perm.some(o => o !== l && ov(l, o) && s[o] === s[q])) s[l] = s[q];
       // Compaction: slide a line one track into a free neighbouring track when that
       // closes an empty gap at its stations (order among overlapping lines is kept).
       let g = gaps(s);
@@ -258,6 +267,7 @@ function buildGeometry(visible, W, GAP, ms) {
         const p = ls[i], q = ls[j]; if (!ov(p, q)) continue;
         if ((s[p] - s[q]) * (bo(p) - bo(q)) < 0) c += 10;
       }
+      for (const p of ls) for (const q of ls) if (touch(p, q) && s[p] !== s[q]) c += 5;
       // Hard order constraints: first line always on the west/left track of the second
       for (const [p, q] of FORCE_ORDER) for (const a of ls) if (p === '*' ? !fm(q, a) : fm(p, a)) for (const b of ls) if (a !== b && fm(q, b) && ov(a, b) && s[a] > s[b]) c += 1000;
       return c;
@@ -352,7 +362,7 @@ function buildGeometry(visible, W, GAP, ms) {
     const push = (p) => { const q = poly[poly.length - 1]; if (!q || Math.hypot(q.x - p.x, q.y - p.y) > 0.3) poly.push(p); };
     for (let i = 0; i < path.length; i++) {
       const sid = path[i], sp = slot[sid][id];
-      if (!PASS[id].has(sid)) (stationPts[sid] = stationPts[sid] || []).push({ x: sp.x, y: sp.y, id });
+      if (!PASS[id].has(sid)) (stationPts[sid] = stationPts[sid] || []).push({ x: sp.x, y: sp.y, id, occ: !!(OCC[id] && OCC[id].has(sid)) });
       const inE = edges[i-1], outE = edges[i];
       if (inE) { push(inE.eA); inE.mid.forEach(push); push(inE.eB); }
       const inAlong = inE ? inE.alongB : true, outAlong = outE ? outE.alongA : true;
@@ -733,7 +743,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       const poly = geo.lines[id].poly;
       for (let i = 0; i < poly.length - 1; i++) { const d = distSeg(p, poly[i], poly[i+1]); if (d < bld) { bld = d; bl = id; } }
     }
-    if (bl && bld * ek < 12) return { line: bl };
+    if (bl && bld * ek < 12) return { line: parentOf(bl) };
     return {};
   };
 
@@ -940,8 +950,9 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const hasRoute = !!(route && route.length > 1);
   const focusLine = !hasRoute && selLine && visibleLines.has(selLine) ? selLine : null;
   const hoverLine = hoverId && hoverId.startsWith('line:') ? hoverId.slice(5) : null;
-  const lineDim = (id) => hasRoute ? true : (focusLine ? id !== focusLine : false);
-  const stationActive = (s) => hasRoute ? routeNodeIds.has(s.id) : (focusLine ? s.lines.includes(focusLine) : true);
+  const lineDim = (id) => hasRoute ? true : (focusLine ? parentOf(id) !== focusLine : false);
+  const stationActive = (s) => hasRoute ? routeNodeIds.has(s.id)
+    : (focusLine ? s.lines.includes(focusLine) || LINES.some(l => parentOf(l.id) === focusLine && window.MESILA.PATHS[l.id].includes(s.id)) : true);
 
   const th = density === 'dense' ? [0, 0] : density === 'sparse' ? [0.85, 1.4] : [0, 0.6];
   const showLabel = (s, vis) => {
@@ -1096,12 +1107,13 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
           {DRAW_ORDER.filter(id => geo.lines[id]).map(id => {
             const line = LINES.find(l => l.id === id);
             const dimmed = lineDim(id);
-            const hot = hoverLine === id && !dimmed;
+            const hot = hoverLine === parentOf(id) && !dimmed;
             const dd = polyD(geo.lines[id].poly, R, geo.lines[id].rad);
             return (
               <g key={id}>
               <path d={dd} stroke="var(--land)" strokeWidth={W + 3 * ms} opacity={dimmed ? 0.16 : 1}/>
-              <path d={dd} stroke={line.color}
+              <path d={dd} stroke={line.color} strokeLinecap={line.ghost ? 'butt' : undefined}
+                strokeDasharray={line.ghost ? `${1.6 * W} ${1.1 * W}` : undefined}
                 strokeWidth={hot ? W + 1.5 * ms : W}
                 opacity={dimmed ? 0.16 : 1} style={{ transition: 'opacity 250ms' }}/>
               </g>
@@ -1136,7 +1148,9 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
           const color = LINES.find(l => l.id === s.lines.find(x => visibleLines.has(x)))?.color || '#333';
           const single = vis <= 1 && Math.hypot(m.a.x - m.b.x, m.a.y - m.b.y) < 0.5;
           const ln = { x1: m.a.x, y1: m.a.y, x2: m.b.x, y2: m.b.y, strokeLinecap: 'round' };
-          const dots = m.pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={DOT} fill={LINES.find(l => l.id === p.id).color}/>);
+          const dots = m.pts.map((p, i) => p.occ
+            ? <circle key={i} cx={p.x} cy={p.y} r={DOT - 0.55 * ms} fill="#fff" stroke={LINES.find(l => l.id === p.id).color} strokeWidth={1.1 * ms}/>
+            : <circle key={i} cx={p.x} cy={p.y} r={DOT} fill={LINES.find(l => l.id === p.id).color}/>);
           const ring = isEnd ? 3.5 * ms : 0;
           return (
             <g key={s.id} style={{ opacity: active ? 1 : 0.28, transition: 'opacity 250ms' }} pointerEvents="none">
@@ -1195,7 +1209,19 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       <div style={{ position:'fixed', left: 12, right: 64, top: 'calc(env(safe-area-inset-top, 0px) + 112px)', zIndex: 4, display:'flex', justifyContent:'flex-start', pointerEvents:'none' }}>
         <div style={{ pointerEvents:'auto', display:'flex', alignItems:'center', gap: 10, padding:'6px 6px 6px 6px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', animation:'fadeIn 180ms', maxWidth:'100%' }}>
           <span style={{ minWidth: 26, height: 26, padding:'0 6px', borderRadius: 13, background: selLineObj.color, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', font:'700 12px var(--font)', flexShrink: 0 }}>{selLineObj.num}</span>
-          <span style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{T.line(selLineObj.id)}</span>
+          <span style={{ display:'flex', flexDirection:'column', minWidth: 0 }}>
+            <span style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{T.line(selLineObj.id)}</span>
+            {/* key to the occasional-service marks, only for a line that has them */}
+            {LINES.some(l => parentOf(l.id) === selLineObj.id && (l.ghost || OCC[l.id]?.size)) && (
+              <span style={{ display:'flex', alignItems:'center', gap: 5, font:'500 11px var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap' }}>
+                <svg width="30" height="10" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <line x1="1" y1="5" x2="19" y2="5" stroke={selLineObj.color} strokeWidth="3.5" strokeDasharray="5 3"/>
+                  <circle cx="25" cy="5" r="3" fill="#fff" stroke={selLineObj.color} strokeWidth="1.5"/>
+                </svg>
+                {T.t('occasional')}
+              </span>
+            )}
+          </span>
           <button onClick={() => fitIds(PATHS[selLineObj.id])} style={{ border:'1px solid var(--chip-border)', background:'var(--chip-bg)', borderRadius: 999, padding:'4px 10px', font:'600 12px var(--font)', color:'var(--text)', cursor:'pointer', flexShrink: 0 }}>{T.t('show')}</button>
           <button onClick={() => setSelLine(null)} title={T.t('clear')} aria-label={T.t('clear')} style={{ width: 26, height: 26, borderRadius: 13, border:'none', background:'var(--chip-bg)', color:'var(--text)', cursor:'pointer', fontSize: 15, lineHeight: 1, flexShrink: 0 }}>×</button>
         </div>

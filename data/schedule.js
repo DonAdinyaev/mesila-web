@@ -39,7 +39,8 @@ window.SCHEDULE = (() => {
   function classify(trip) {
     let best = null;
     for (const L of M.LINES) {
-      const stops = M.PATHS[L.id];
+      if (L.ghost) continue;
+      const stops = M.PATHS[L.id], occ = M.OCC[L.id];
       for (const seq of [stops, [...stops].reverse()]) {
         // walk the trip; hops between two consecutive stops both on the line (in order) are covered
         let j = -1, a = -1, matched = 0, off = 0, prevOn = false;
@@ -50,8 +51,12 @@ window.SCHEDULE = (() => {
           prevOn = on;
         });
         if (matched < 2) continue;
-        const skipped = (j - a + 1) - matched;
-        const score = off + skipped * 10 + (stops.length - matched) * 0.01;
+        // stops only some of the line's trains make (see below) don't count as skipped
+        let skipped = 0;
+        for (let k = a; k <= j; k++) if (!occ.has(seq[k]) && !trip.st.includes(seq[k])) skipped++;
+        // ...but a line that stops there regularly is the better match
+        const occUsed = trip.st.filter(x => occ.has(x)).length;
+        const score = off + skipped * 10 + occUsed * 11 + (stops.length - matched) * 0.01;
         if (!best || score < best.score) best = { id: L.id, score, exact: matched === trip.st.length, skipped };
       }
     }
@@ -62,8 +67,101 @@ window.SCHEDULE = (() => {
     }
     return best ? best.id : null;
   }
+  M.OCC = M.OCC || Object.fromEntries(M.LINES.map(l => [l.id, new Set()]));
+  for (const tr of trips) tr.line = classify(tr);
+
+  // ---- Occasional service, found in the timetable itself
+  // Some trains of a line stop where the map line doesn't, or run beyond its end
+  // (night trains via Netanya, a few Be'er Sheva trains calling at Atlit, ...). Rather
+  // than editing the map for every new timetable, such stops and track are added
+  // here, marked as occasional: the map draws occasional stops as hollow rings and
+  // occasional track as a dashed line (a "ghost" line, e.g. "L3~1", in its parent's
+  // colour). The new track always follows track another line already uses.
+  const extensions = (() => {
+    const geo = {};                        // line id -> [{ id, pass }]
+    for (const L of M.LINES) geo[L.id] = M.GEO_PATHS[L.id].map(id => ({ id, pass: M.PASS[L.id].has(id) }));
+    const ghosts = [];                     // { parent, path: [ids], stops: Set }
+    // shortest run of another line's track from a to b (b null: ends at the last of
+    // `need`) that passes the stations of `need` in order
+    const corridor = (a, b, need, skip) => {
+      let best = null;
+      for (const L of M.LINES) {
+        if (L.ghost || L.id === skip) continue;
+        const g = M.GEO_PATHS[L.id];
+        for (const seq of [g, [...g].reverse()]) {
+          const i = seq.indexOf(a); if (i < 0) continue;
+          const end = b ? seq.indexOf(b, i + 1) : seq.indexOf(need[need.length - 1], i + 1);
+          if (end < 0) continue;
+          const run = seq.slice(i, end + 1);
+          let k = 0; for (const s of run) if (s === need[k]) k++;
+          if (k === need.length && (!best || run.length < best.length)) best = run;
+        }
+      }
+      return best;
+    };
+    const addGhost = (parent, path, stops) => {
+      // one ghost per stretch: a longer one through the same stations absorbs a shorter one
+      for (const gh of ghosts) {
+        if (gh.parent !== parent || gh.path[0] !== path[0]) continue;
+        const [lo, hi] = gh.path.length >= path.length ? [path, gh.path] : [gh.path, path];
+        let k = 0; for (const s of hi) if (s === lo[k]) k++;      // lo's stations lie along hi
+        if (k === lo.length) { gh.path = hi; stops.forEach(x => gh.stops.add(x)); return; }
+      }
+      ghosts.push({ parent, path, stops: new Set(stops) });
+    };
+    for (const tr of trips) {
+      if (!tr.line || tr.exact) continue;
+      const L = tr.line, line = geo[L], at = (id) => line.findIndex(x => x.id === id);
+      const isStop = (id) => { const k = at(id); return k >= 0 && !line[k].pass; };
+      // runs of consecutive stops off the line, with the line stations around them
+      let k = 0;
+      while (k < tr.st.length) {
+        if (isStop(tr.st[k])) { k++; continue; }
+        const gap = []; const P = k > 0 ? tr.st[k - 1] : null;
+        while (k < tr.st.length && !isStop(tr.st[k])) gap.push(tr.st[k++]);
+        const N = k < tr.st.length ? tr.st[k] : null;
+        if (P && N) {
+          const i = at(P), j = at(N), lo = Math.min(i, j), hi = Math.max(i, j);
+          const between = line.slice(lo + 1, hi).map(x => x.id);
+          if (gap.every(s => between.includes(s))) {          // passes them already: just stops there
+            for (const s of gap) { line[at(s)].pass = false; M.OCC[L].add(s); }
+            continue;
+          }
+          const run = corridor(P, N, gap, L);
+          if (!run) continue;
+          if (hi - lo === 1) {                                 // same track, more stations on it
+            const mid = run.slice(1, -1).map(id => ({ id, pass: !gap.includes(id) }));
+            line.splice(lo + 1, 0, ...(i < j ? mid : mid.reverse()));
+            gap.forEach(s => M.OCC[L].add(s));
+          } else addGhost(L, run, gap);                        // a detour off the line's track
+        } else if (P || N) {                                   // runs on past the line's end
+          const T = P || N, need = P ? gap : [...gap].reverse();
+          const run = corridor(T, null, need, L);
+          if (run) addGhost(L, run, gap);
+        }
+      }
+    }
+    // write the result back into the network
+    for (const L of M.LINES) {
+      M.GEO_PATHS[L.id] = geo[L.id].map(x => x.id);
+      M.PASS[L.id] = new Set(geo[L.id].filter(x => x.pass).map(x => x.id));
+      M.PATHS[L.id] = geo[L.id].filter(x => !x.pass).map(x => x.id);
+    }
+    const n = {};
+    for (const gh of ghosts) {
+      const p = M.LINES.find(l => l.id === gh.parent);
+      const id = gh.parent + '~' + (n[gh.parent] = (n[gh.parent] || 0) + 1);
+      M.LINES.push({ ...p, id, parent: gh.parent, ghost: true });
+      M.GEO_PATHS[id] = gh.path;
+      M.PASS[id] = new Set(gh.path.filter(s => !gh.stops.has(s)));
+      M.PATHS[id] = gh.path;
+      M.OCC[id] = gh.stops;
+    }
+    return ghosts;
+  })();
   for (const tr of trips) tr.line = classify(tr);
   const unmatched = trips.filter(t => !t.line);
+  // still off their line's map: covered only by ghost track, or by nothing
   const inexact = trips.filter(t => t.line && !t.exact);
 
   // ---- Calendar helpers (Israel time)
@@ -225,7 +323,10 @@ window.SCHEDULE = (() => {
   function hopLine(a, b, pref, allowed) {
     const on = (id) => { const p = M.PATHS[id]; return p && p.includes(a) && p.includes(b); };
     if (on(pref)) return pref;
-    const cands = M.LINES.map(l => l.id).filter(id => on(id));
+    // the train's own occasional track first, then another line's
+    const own = M.LINES.find(l => l.parent === pref && on(l.id));
+    if (own) return own.id;
+    const cands = M.LINES.filter(l => !l.ghost).map(l => l.id).filter(id => on(id));
     return cands.find(id => !allowed || allowed.has(id)) || cands[0] || pref;
   }
   function toPath(j, allowed) {
@@ -257,7 +358,7 @@ window.SCHEDULE = (() => {
   }
 
   return {
-    plan, alternatives, nearest, toPath, israelNow, dayLabel, trips, unmatched, inexact,
+    plan, alternatives, nearest, toPath, israelNow, dayLabel, trips, unmatched, inexact, extensions,
     feedDate: TT.feedDate, validFrom: TT.start, validTo: dayLabel(startDay + TT.days - 1),
   };
 })();
