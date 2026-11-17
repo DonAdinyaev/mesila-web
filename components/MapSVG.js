@@ -558,7 +558,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     // lets every part of the network be scrolled into view on small screens.
     const r = svg.getBoundingClientRect();
     const sheet = document.querySelector('[data-sheet]');
-    const topUI = Math.min(110 + (window.safeTop ? window.safeTop() : 0), r.height * 0.25), botUI = sheet ? Math.min(sheet.getBoundingClientRect().height, r.height * 0.6) : 0;
+    const topUI = Math.min(110 + (window.safeTop ? window.safeTop() : 0), r.height * 0.25), botUI = sheet ? Math.min(Math.max(0, innerHeight - sheet.getBoundingClientRect().top), r.height * 0.6) : 0;
     const a = toUser(r.left, r.top + topUI), b = toUser(r.right, r.bottom - botUI);
     const ax = (lo, hi, pos, vlo, vhi, k = v.k) => {
       const s = (hi - lo) * k;
@@ -607,7 +607,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const [sheetH, setSheetH] = React.useState(0);
   React.useEffect(() => {
     const sh = document.querySelector('[data-sheet]'); if (!sh) return;
-    const upd = () => setSheetH(Math.round(sh.getBoundingClientRect().height));
+    const upd = () => setSheetH(Math.round(Math.max(0, innerHeight - sh.getBoundingClientRect().top)));   // covered from its top edge down
     upd(); const ro = new ResizeObserver(upd); ro.observe(sh); return () => ro.disconnect();
   }, []);
 
@@ -720,13 +720,13 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   };
   const visibleBox = () => {
     if (LY.mobile) {
-      const sheet = document.querySelector('[data-sheet]'), sh = sheet ? sheet.getBoundingClientRect().height : 0;
+      const sheet = document.querySelector('[data-sheet]'), sh = sheet ? Math.max(0, innerHeight - sheet.getBoundingClientRect().top) : 0;
       const a = toUser(16, 110 + (window.safeTop ? window.safeTop() : 0)), b = toUser(innerWidth - 64, innerHeight - sh - 16);
       return { x: a.x, y: a.y, w: Math.max(50, b.x - a.x), h: Math.max(50, b.y - a.y) };
     }
     const rect = svgRef.current.getBoundingClientRect();
     const sheet = document.querySelector('[data-sheet]');
-    const sh = sheet ? sheet.getBoundingClientRect().height : 0;
+    const sh = sheet ? Math.max(0, innerHeight - sheet.getBoundingClientRect().top) : 0;
     const a = toUser(rect.left + 16, rect.top + 110 + (window.safeTop ? window.safeTop() : 0)), b = toUser(rect.right - 64, rect.bottom - sh - 16);
     return { x: a.x, y: a.y, w: Math.max(50, b.x - a.x), h: Math.max(50, b.y - a.y) };
   };
