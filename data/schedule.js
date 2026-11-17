@@ -75,7 +75,7 @@ window.SCHEDULE = (() => {
   // (night trains via Netanya, a few Be'er Sheva trains calling at Atlit, ...). Rather
   // than editing the map for every new timetable, such stops and track are added
   // here, marked as occasional: the map draws occasional stops as hollow rings and
-  // occasional track as a dashed line (a "ghost" line, e.g. "L3~1", in its parent's
+  // occasional track as a hollow line (a "ghost" line, e.g. "L3~1", in its parent's
   // colour). The new track always follows track another line already uses.
   const extensions = (() => {
     const geo = {};                        // line id -> [{ id, pass }]

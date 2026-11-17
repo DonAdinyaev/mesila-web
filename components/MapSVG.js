@@ -1112,10 +1112,14 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
             return (
               <g key={id}>
               <path d={dd} stroke="var(--land)" strokeWidth={W + 3 * ms} opacity={dimmed ? 0.16 : 1}/>
-              <path d={dd} stroke={line.color} strokeLinecap={line.ghost ? 'butt' : undefined}
-                strokeDasharray={line.ghost ? `${1.6 * W} ${1.1 * W}` : undefined}
+              <path d={dd} stroke={line.color}
                 strokeWidth={hot ? W + 1.5 * ms : W}
                 opacity={dimmed ? 0.16 : 1} style={{ transition: 'opacity 250ms' }}/>
+              {/* occasional track: hollow, a coloured outline around a pale fill of the same colour */}
+              {line.ghost && <>
+                <path d={dd} stroke="var(--land)" strokeWidth={(hot ? W + 1.5 * ms : W) - 2.4 * ms}/>
+                <path d={dd} stroke={line.color} strokeWidth={(hot ? W + 1.5 * ms : W) - 2.4 * ms} opacity={(dimmed ? 0.16 : 1) * 0.35}/>
+              </>}
               </g>
             );
           })}
@@ -1149,7 +1153,8 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
           const single = vis <= 1 && Math.hypot(m.a.x - m.b.x, m.a.y - m.b.y) < 0.5;
           const ln = { x1: m.a.x, y1: m.a.y, x2: m.b.x, y2: m.b.y, strokeLinecap: 'round' };
           const dots = m.pts.map((p, i) => p.occ
-            ? <circle key={i} cx={p.x} cy={p.y} r={DOT - 0.55 * ms} fill="#fff" stroke={LINES.find(l => l.id === p.id).color} strokeWidth={1.1 * ms}/>
+            ? <g key={i}><circle cx={p.x} cy={p.y} r={DOT - 0.55 * ms} fill="#fff"/>
+                <circle cx={p.x} cy={p.y} r={DOT - 0.55 * ms} fill={LINES.find(l => l.id === p.id).color} fillOpacity={0.35} stroke={LINES.find(l => l.id === p.id).color} strokeWidth={1.1 * ms}/></g>
             : <circle key={i} cx={p.x} cy={p.y} r={DOT} fill={LINES.find(l => l.id === p.id).color}/>);
           const ring = isEnd ? 3.5 * ms : 0;
           return (
@@ -1215,8 +1220,11 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
             {LINES.some(l => parentOf(l.id) === selLineObj.id && (l.ghost || OCC[l.id]?.size)) && (
               <span style={{ display:'flex', alignItems:'center', gap: 5, font:'500 11px var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap' }}>
                 <svg width="30" height="10" aria-hidden="true" style={{ flexShrink: 0 }}>
-                  <line x1="1" y1="5" x2="19" y2="5" stroke={selLineObj.color} strokeWidth="3.5" strokeDasharray="5 3"/>
-                  <circle cx="25" cy="5" r="3" fill="#fff" stroke={selLineObj.color} strokeWidth="1.5"/>
+                  <line x1="2" y1="5" x2="18" y2="5" stroke={selLineObj.color} strokeWidth="5" strokeLinecap="round"/>
+                  <line x1="2" y1="5" x2="18" y2="5" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"/>
+                  <line x1="2" y1="5" x2="18" y2="5" stroke={selLineObj.color} strokeOpacity="0.35" strokeWidth="2.6" strokeLinecap="round"/>
+                  <circle cx="25" cy="5" r="3" fill="#fff"/>
+                  <circle cx="25" cy="5" r="3" fill={selLineObj.color} fillOpacity="0.35" stroke={selLineObj.color} strokeWidth="1.5"/>
                 </svg>
                 {T.t('occasional')}
               </span>
