@@ -56,9 +56,6 @@
      overlays on top of it. */
   html.page-scroll, html.page-scroll body { height: auto; overflow-x: hidden; overflow-y: auto; }
   html.page-scroll #root { position: relative; height: auto; min-height: 100vh; }
-  /* the region indicator replaces the browser's own scroll bar */
-  html.page-scroll, html.page-scroll body { scrollbar-width: none; }
-  html.page-scroll::-webkit-scrollbar, html.page-scroll body::-webkit-scrollbar { display: none; width: 0; height: 0; }
   @keyframes mesilaFade { from { opacity: 0; } to { opacity: 1; } }
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
@@ -84,7 +81,7 @@
 <script src="data/i18n.js?v=11"></script>
 <script src="data/timetable.js?v=20261116c"></script>
 <script src="data/schedule.js?v=5"></script>
-<script type="text/babel" src="components/MapSVG.js?v=99"></script>
+<script type="text/babel" src="components/MapSVG.js?v=100"></script>
 <script type="text/babel" src="components/Sheet.js?v=51"></script>
 
 <script type="text/babel">

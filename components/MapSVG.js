@@ -489,7 +489,7 @@ function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
   const ys = ly.STATIONS.map(s => s.y), y0 = Math.min(...ys) - 30, y1 = Math.max(...ys) + 30, span = y1 - y0;
   const regions = REGIONS.map(r => { const p = r.st.map(id => ly.BY_ID[id]).filter(Boolean); return { ...r, y: p.reduce((a, q) => a + q.y, 0) / p.length }; });
   const trackH = innerHeight - box.top - box.bottom;
-  if (trackH < 120) return null;                            // too little room (sheet open wide)
+  if (trackH < 120 && !ly.mobile) return null;              // too little room (sheet open wide)
   // part of the network on screen, and the region at its centre
   const vb = visibleBox(), top = (vb.y - view.y) / view.k, bot = (vb.y + vb.h - view.y) / view.k;
   const f = (y) => Math.max(0, Math.min(1, (y - y0) / span));
@@ -505,6 +505,25 @@ function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
   const near = regionAt(centreY);
   if (near.id !== cur.id && Math.abs(near.y - centreY) < Math.abs(cur.y - centreY) - 0.15 * Math.abs(near.y - cur.y)) cur = near;
   shown.current = cur.id;
+  if (ly.mobile) {
+    // Phone: the page scrolls the map, so Safari's own scroll indicator does the job (touch
+    // and hold it to drag; native and smooth). We only put the region name beside its
+    // thumb, placed the way the native thumb moves: from the top of the visible area to
+    // the bottom as the page scrolls from top to end. Touches pass through to Safari.
+    const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, vtop = vv ? vv.offsetTop : 0;
+    const docH = document.documentElement.scrollHeight, maxS = Math.max(1, docH - vh);
+    const tTop = vtop + 6, tLen = vh - 12, nThumb = Math.max(36, tLen * vh / docH);
+    const yc = tTop + nThumb / 2 + Math.min(1, Math.max(0, scrollY / maxS)) * (tLen - nThumb);
+    const he = lang === 'he';
+    return (
+      <div key={cur.id} aria-live="polite" style={{ position: 'fixed', right: 14, top: yc, transform: 'translateY(-50%)', zIndex: 4, pointerEvents: 'none',
+        padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap', font: '600 11px var(--font)', color: 'var(--text)',
+        background: 'color-mix(in srgb, var(--surface) 92%, transparent)', border: '1px solid var(--chip-border)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', animation: 'mesilaFade 120ms ease-out' }}>
+        {he ? cur.he : cur.en}
+      </div>
+    );
+  }
   const at = (clientY, animated) => {
     const rc = trackRef.current.getBoundingClientRect(), py = Math.max(0, Math.min(rc.height, clientY - rc.top));
     setFingerY(py);
