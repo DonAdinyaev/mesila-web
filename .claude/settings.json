@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl https://rail-api.rail.co.il:*)"
+    ]
+  }
+}
