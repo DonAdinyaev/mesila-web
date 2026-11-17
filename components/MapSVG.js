@@ -17,7 +17,7 @@ const DRAW_ORDER = [...LINE_ORDER.filter(id => id !== 'L1'), 'L1'];
 const GEO_LINES = {};
 for (const s of STATIONS_D) GEO_LINES[s.id] = LINE_ORDER.filter(id => PATHS[id].includes(s.id));
 // Cross-bundle ordering (west/south side first), as on the official map:
-// Tel Aviv W→E red, navy, green, orange, blue, lime, pink; Haifa W→E green, orange, maroon, lime, orchid.
+// (see FORCE_ORDER for pairs that must keep their order, e.g. line 3 east of 6 and 7)
 const BUNDLE_ORDER = ['L1','L10','L2','L4','L5','L7','L6','L3','HS','L8','L12','E','L9','L11'];
 // Pairs whose track order is never traded away for tighter packing: [west/south, east/north].
 // '*' means every other line; 'L1@herzliya' is line 1's run that starts at Herzliya.
@@ -27,6 +27,9 @@ const FORCE_ORDER = [
   // Airport – Pa'atei Modi'in: line 3 rides the bottom (south) track after the HaHagana curve
   ['L3@bengurion','HS@bengurion'],
   ['L3@bengurion','L12@paatei'],
+  // line 3 runs east of lines 7 (Haifa) and 6 (Netanya – Tel Aviv)
+  ['L7','L3'],
+  ['L6','L3'],
 ];
 const MAJOR = new Set(['nahariya','akko','karmiel','hashmona','hof_carmel','afula','beit_shean','binyamina','hadera','netanya','herzliya','kfar_saba','savidor','hahagana','bengurion','modiin','lod','rehovot','beit_shem','yitzhak_nav','malha','ashdod','ashkelon','sderot','kgat','bs_center','dimona']);
 const SHORT = { university:'University', by_yoseftal:'Bat Yam – Yoseftal', beit_shean:'Beit She’an', hadera_e:'Hadera East', shomron:'Shomron', tira:'Tira', bat_galim:'Bat Galim', hof_carmel:'Hof HaCarmel', ashdod:'Ashdod', bs_center:'BS Center', hashmona:'HaShmona', caesarea:'Caesarea', modiin:'Modi’in', migdal:'Migdal HaEmek', yoknaam:'Yokne’am', bs_north:'BS North / University', rz_dayan:'Moshe Dayan', rz_haris:'HaRishonim', kmalakhi:'Kiryat Malakhi', ptkv_arye:'Kiryat Arye', ptkv_sgula:'Sgula', hod_hash:'Hod HaSharon', kfar_saba:'Kfar Saba', rosh_ayin:'Rosh Ha’Ayin', yitzhak_nav:'Yitzhak Navon', lehavim:'Lehavim' };
