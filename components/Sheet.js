@@ -689,7 +689,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       maxHeight: '75vh',
       background: 'var(--surface)',
       borderRadius: 24, overflow: 'hidden',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.14)', border: '1px solid var(--chip-border)',
+      // Shadow cast upward and kept within 8px below the island: iOS Safari clips fixed
+      // elements at the top of its toolbar zone, just 8px under the island, so a deeper
+      // shadow was cut off there in a hard grey band.
+      boxShadow: '0 -6px 14px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.08)', border: '1px solid var(--chip-border)',
       paddingBottom: 6,
       zIndex: 5,
     }}>
