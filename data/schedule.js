@@ -228,15 +228,12 @@ window.SCHEDULE = (() => {
     const cands = M.LINES.map(l => l.id).filter(id => on(id));
     return cands.find(id => !allowed || allowed.has(id)) || cands[0] || pref;
   }
-  // Each step also carries `as`: the line of the train actually riding it, so a hop
-  // drawn along a borrowed line is painted in the train's colour (one continuous line,
-  // not what looks like a change of train).
   function toPath(j, allowed) {
     if (!j) return null;
-    const path = [{ id: j.legs[0].stationIds[0], line: j.legs[0].line, as: j.legs[0].line }];
+    const path = [{ id: j.legs[0].stationIds[0], line: j.legs[0].line }];
     for (const l of j.legs) {
       const ids = l.stationIds;
-      for (let k = 1; k < ids.length; k++) path.push({ id: ids[k], line: hopLine(ids[k - 1], ids[k], l.line, allowed), as: l.line });
+      for (let k = 1; k < ids.length; k++) path.push({ id: ids[k], line: hopLine(ids[k - 1], ids[k], l.line, allowed) });
     }
     path[0].line = path[1].line;
     return path;

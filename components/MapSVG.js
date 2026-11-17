@@ -926,11 +926,10 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const routeSegments = React.useMemo(() => {
     if (!route || route.length < 2) return [];
     const segs = [];
-    // a run = consecutive steps drawn along one line (`line`) by one train's line (`as`)
-    let cur = { line: route[1].line, as: route[1].as || route[1].line, ids: [route[0].id] };
+    let cur = { line: route[1].line, ids: [route[0].id] };
     for (let i = 1; i < route.length; i++) {
-      const step = route[i], as = step.as || step.line;
-      if ((step.line !== cur.line || as !== cur.as) && i > 1) { segs.push(cur); cur = { line: step.line, as, ids: [route[i-1].id] }; }
+      const step = route[i];
+      if (step.line !== cur.line && i > 1) { segs.push(cur); cur = { line: step.line, ids: [route[i-1].id] }; }
       cur.ids.push(step.id);
     }
     segs.push(cur);
@@ -1113,7 +1112,6 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
         {routeSegments.map((seg, i) => {
           const line = LINES.find(l => l.id === seg.line), gl = geo.lines[seg.line];
           if (!line || !gl) return null;
-          const paint = (LINES.find(l => l.id === seg.as) || line).color;   // the train's colour
           const path = PATHS[seg.line];
           const a = path.indexOf(seg.ids[0]), b = path.indexOf(seg.ids[seg.ids.length - 1]);
           if (a < 0 || b < 0) return null;
@@ -1123,7 +1121,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
           return (
             <g key={i} fill="none" strokeLinecap="round" strokeLinejoin="round">
               <path d={d} stroke="var(--land)" strokeWidth={W + 7 * ms}/>
-              <path d={d} stroke={paint} strokeWidth={W + 2.5 * ms}/>
+              <path d={d} stroke={line.color} strokeWidth={W + 2.5 * ms}/>
             </g>
           );
         })}

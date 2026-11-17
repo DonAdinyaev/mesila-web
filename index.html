@@ -80,8 +80,8 @@
 <script src="data/network.js?v=56"></script>
 <script src="data/i18n.js?v=11"></script>
 <script src="data/timetable.js?v=20261116c"></script>
-<script src="data/schedule.js?v=6"></script>
-<script type="text/babel" src="components/MapSVG.js?v=102"></script>
+<script src="data/schedule.js?v=5"></script>
+<script type="text/babel" src="components/MapSVG.js?v=101"></script>
 <script type="text/babel" src="components/Sheet.js?v=51"></script>
 
 <script type="text/babel">
@@ -364,7 +364,7 @@ function App() {
   // so the minute tick doesn't re-zoom the map or re-open the sheet.
   const routeRaw = !from || !to || from === to ? null
     : window.SCHEDULE ? window.SCHEDULE.toPath(journey, lineFilter) : window.findRoute(from, to, lineFilter);
-  const routeKey = routeRaw ? routeRaw.map(r => r.id + ':' + r.line + ':' + (r.as || '')).join(',') : '';
+  const routeKey = routeRaw ? routeRaw.map(r => r.id + ':' + r.line).join(',') : '';
   const route = React.useMemo(() => routeRaw, [routeKey]);
 
   // Open the trip details for a new search; switching between alternative trips

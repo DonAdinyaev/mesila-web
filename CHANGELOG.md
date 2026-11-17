@@ -2,7 +2,6 @@
 
 ## 2026-11-16
 
-- **Fix:** a direct train on a stretch its map line doesn't cover (e.g. Netanya → Herzliya on a Netanya – Jerusalem high-speed train) was highlighted in another line's colour there, so it looked like a change of train. That stretch now follows the other line's track but in the train's own colour.
 - **Region indicator removed** (the region bar and the region name label next to the scroll bar). On phones Safari's own scroll indicator remains.
 - **Phone: native scroll indicator.** Dragging our own region bar made the map jump. On phones the map now uses Safari's own scroll indicator (touch and hold it to drag; native and smooth), and the region name rides beside its thumb, switching as you pass each region. Desktop keeps the draggable region bar.
 - **iPhone:** removed the grey band under the trip panel. It was the panel's own drop shadow, which reached about 40px below it and was cut off by Safari at the top of its toolbar zone, 8px under the panel. The shadow is now cast upward and stays within those 8px.
