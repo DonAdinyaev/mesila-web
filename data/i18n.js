@@ -35,7 +35,7 @@ window.I18N = (() => {
     L1:'הרצליה – באר שבע (דרך השרון והחוף)', L2:'בנימינה – אשקלון', L3:'נהריה – מודיעין', L4:'נהריה – באר שבע',
     L5:'כרמיאל – באר שבע', L6:'נתניה – בית שמש', L7:'כרמיאל – חוף הכרמל', L8:'עתלית – בית שאן',
     L9:'בית שמש – ירושלים מלחה (סגור)', L10:'לוד – ראשון לציון הראשונים', L11:'באר שבע – דימונה',
-    L12:'מודיעין – ירושלים', HS:'הרצליה – ירושלים', E:'חדרה מזרח – ראש העין (המסילה המזרחית)',
+    L12:'מודיעין – ירושלים', HS:'חדרה – ירושלים', E:'חדרה מזרח – ראש העין (המסילה המזרחית)',
   };
   // Map geography labels
   const HE_GEO = {
@@ -53,7 +53,7 @@ window.I18N = (() => {
       transfers: (n) => `${n} transfer${n > 1 ? 's' : ''}`, transferWait: (m) => `Transfer · ${m} min to next train`,
       toward: (s) => `Toward ${s}`, departsIn: (m) => `Departs in ${m} min · `, every: (m) => `every ${m} min`,
       stops: (n, m) => `${n} stop${n > 1 ? 's' : ''} · ${m} min`, arrive: 'Arrive',
-      dur: (h, m) => (h > 0 ? `${h}h ${m}m` : `${m} min`), departHere: 'Depart from here', goHere: 'Go here', show: 'Show',
+      dur: (h, m) => (h > 0 ? `${h}h ${m}m` : `${m} min`), departHere: 'Depart from here', goHere: 'Go here', show: 'Show', occasional: 'some trains',
       tweaks: 'Tweaks', theme: 'Theme', light: 'Light', dark: 'Dark', density: 'Label density', sparse: 'Sparse',
       normal: 'Normal', dense: 'Dense', nightTrain: 'Night train', fontEn: 'English font', fontHe: 'Hebrew font',
       train: (n) => `Train ${n}`, leave: 'Leave', now: 'Now', departsInOnly: (m) => `Departs in ${m} min`,
@@ -73,7 +73,7 @@ window.I18N = (() => {
       transfers: (n) => (n === 1 ? 'החלפה אחת' : `${n} החלפות`), transferWait: (m) => `החלפה · ${m} דק׳ לרכבת הבאה`,
       toward: (s) => `לכיוון ${s}`, departsIn: (m) => `יוצאת בעוד ${m} דק׳ · `, every: (m) => `כל ${m} דק׳`,
       stops: (n, m) => `${n === 1 ? 'תחנה אחת' : `${n} תחנות`} · ${m} דק׳`, arrive: 'הגעה',
-      dur: (h, m) => (h > 0 ? `${h} ש׳ ${m} דק׳` : `${m} דק׳`), departHere: 'יציאה מכאן', goHere: 'נסיעה לכאן', show: 'הצגה',
+      dur: (h, m) => (h > 0 ? `${h} ש׳ ${m} דק׳` : `${m} דק׳`), departHere: 'יציאה מכאן', goHere: 'נסיעה לכאן', show: 'הצגה', occasional: 'חלק מהרכבות',
       tweaks: 'התאמות', theme: 'ערכת נושא', light: 'בהירה', dark: 'כהה', density: 'צפיפות תוויות', sparse: 'דלילה',
       normal: 'רגילה', dense: 'צפופה', nightTrain: 'רכבת לילה', fontEn: 'גופן אנגלית', fontHe: 'גופן עברית',
       train: (n) => `רכבת ${n}`, leave: 'יציאה', now: 'עכשיו', departsInOnly: (m) => `יוצאת בעוד ${m} דק׳`,

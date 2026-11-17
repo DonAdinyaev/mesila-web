@@ -19,7 +19,7 @@ window.MESILA = (() => {
     { id:'L10', num:'10', name:'Lod – Rishon LeZion HaRishonim',    color:'#7E3CA6' },
     { id:'L11', num:'11', name:'Be’er Sheva – Dimona',         color:'#A06E3C' },
     { id:'L12', num:'12', name:'Modi’in – Jerusalem',          color:'#C2679F' },
-    { id:'HS',  num:'HS', name:'Herzliya – Jerusalem',              color:'#F2A0C8', ink:'#1A1A1C' },
+    { id:'HS',  num:'HS', name:'Hadera – Jerusalem',                color:'#F2A0C8', ink:'#1A1A1C' },
     { id:'E',   num:'E',  name:'Hadera East – Rosh Ha’Ayin (Eastern Railway)', color:'#0C7F63' },
   ];
 
@@ -165,7 +165,9 @@ window.MESILA = (() => {
     L10: ['lod','rz_haris'],
     L11: ['bs_north','dimona'],
     L12: ['modiin','paatei','yitzhak_nav'],
-    HS:  ['herzliya', ...TLV,'bengurion','yitzhak_nav'],
+    // the timetable runs ~2 trains an hour from Hadera West (stopping at Netanya and Beit
+    // Yehoshua, not Sapir), so the line is drawn from there rather than from Herzliya
+    HS:  ['hadera','netanya','~sapir','beit_yh','herzliya', ...TLV,'bengurion','yitzhak_nav'],
     E:   ['hadera_e','shomron','tira','rosh_ayin'],
   };
   // Geometry paths (passes stripped of "~") and the set of pass-through stations per line
