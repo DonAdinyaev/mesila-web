@@ -449,119 +449,6 @@ function distSeg(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
-// Region scroll indicator (iOS style): a thin track along the right edge standing for
-// the whole length of the network, a thumb for the part on screen, and beside the
-// thumb the name of the region in view, which switches as the map scrolls. Tap or
-// drag the track to jump; a light tick marks each new region while dragging.
-const REGIONS = [
-  { id: 'galilee', en: 'Galilee', he: 'גליל', st: ['nahariya', 'akko', 'karmiel', 'ahihud', 'k_motzkin'] },
-  { id: 'haifa', en: 'Haifa', he: 'חיפה', st: ['k_hayim', 'hutzot', 'merkazit', 'hashmona', 'bat_galim', 'hof_carmel'] },
-  { id: 'hadera', en: 'Hadera', he: 'חדרה', st: ['atlit', 'binyamina', 'caesarea', 'hadera', 'hadera_e'] },
-  { id: 'sharon', en: 'Sharon', he: 'השרון', st: ['netanya', 'sapir', 'beit_yh', 'herzliya', 'raanana_w', 'raanana_s', 'hod_hash', 'kfar_saba'] },
-  { id: 'tlv', en: 'Tel Aviv', he: 'תל אביב', st: ['university', 'savidor', 'hashalom', 'hahagana'] },
-  { id: 'jlm', en: 'Jerusalem', he: 'ירושלים', st: ['bengurion', 'paatei', 'modiin', 'yitzhak_nav'] },
-  { id: 'lod', en: 'Lod', he: 'לוד', st: ['lod', 'ramla', 'rehovot', 'beer_yaakov', 'beit_shem'] },
-  { id: 'south', en: 'South', he: 'דרום', st: ['ashdod', 'ashkelon', 'kgat', 'sderot', 'netivot', 'ofakim'] },
-  { id: 'bs', en: 'Be’er Sheva', he: 'באר שבע', st: ['bs_north', 'bs_center', 'dimona'] },
-];
-function RegionScrubber({ ly, view, visibleBox, jumpTo, lang }) {
-  const [box, setBox] = React.useState({ top: 120, bottom: 200 });
-  const [dragging, setDragging] = React.useState(false);
-  const [fingerY, setFingerY] = React.useState(null);      // while dragging: thumb follows the finger directly
-  const trackRef = React.useRef(null), lastRegion = React.useRef(null), shown = React.useRef(null);
-  const pending = React.useRef(null), raf = React.useRef(0);
-  React.useEffect(() => () => cancelAnimationFrame(raf.current), []);
-  // phone: the page scrolls the map, so follow scrolling here (cheap) rather than
-  // re-rendering the whole map on every scroll event
-  const [, setScrollTick] = React.useState(0);
-  React.useEffect(() => {
-    let r = 0; const on = () => { if (!r) r = requestAnimationFrame(() => { r = 0; setScrollTick(t => t + 1); }); };
-    addEventListener('scroll', on, { passive: true }); return () => { removeEventListener('scroll', on); cancelAnimationFrame(r); };
-  }, []);
-  // stay between the map buttons and the bottom sheet
-  React.useEffect(() => {
-    const upd = () => { const sh = document.querySelector('[data-sheet]'); const st = sh ? sh.getBoundingClientRect().top : innerHeight;
-      // below the map buttons: phone has one (fit), desktop three (zoom in/out, fit)
-      setBox({ top: (ly.mobile ? 124 : 236) + (window.safeTop ? window.safeTop() : 0), bottom: Math.max(innerHeight - st + 14, 14) }); };
-    upd(); const sh = document.querySelector('[data-sheet]'); const ro = sh ? new ResizeObserver(upd) : null; if (ro) ro.observe(sh);
-    addEventListener('resize', upd); return () => { if (ro) ro.disconnect(); removeEventListener('resize', upd); };
-  }, [ly.mobile]);
-  const ys = ly.STATIONS.map(s => s.y), y0 = Math.min(...ys) - 30, y1 = Math.max(...ys) + 30, span = y1 - y0;
-  const regions = REGIONS.map(r => { const p = r.st.map(id => ly.BY_ID[id]).filter(Boolean); return { ...r, y: p.reduce((a, q) => a + q.y, 0) / p.length }; });
-  const trackH = innerHeight - box.top - box.bottom;
-  if (trackH < 120 && !ly.mobile) return null;              // too little room (sheet open wide)
-  // part of the network on screen, and the region at its centre
-  const vb = visibleBox(), top = (vb.y - view.y) / view.k, bot = (vb.y + vb.h - view.y) / view.k;
-  const f = (y) => Math.max(0, Math.min(1, (y - y0) / span));
-  const thumbH = Math.max(28, (f(bot) - f(top)) * trackH);
-  const thumbTop = fingerY !== null
-    ? Math.max(0, Math.min(trackH - thumbH, fingerY - thumbH / 2))      // dragging: under the finger, no waiting for the map
-    : Math.min(f(top) * trackH, trackH - thumbH);
-  const regionAt = (my) => regions.reduce((b, r) => Math.abs(r.y - my) < Math.abs(b.y - my) ? r : b);
-  // Region in view, with hysteresis: only switch once clearly closer to the next region,
-  // so the label doesn't flicker at a border.
-  const centreY = fingerY !== null ? y0 + (thumbTop + thumbH / 2) / trackH * span : (top + bot) / 2;
-  let cur = regions.find(r => r.id === shown.current) || regionAt(centreY);
-  const near = regionAt(centreY);
-  if (near.id !== cur.id && Math.abs(near.y - centreY) < Math.abs(cur.y - centreY) - 0.15 * Math.abs(near.y - cur.y)) cur = near;
-  shown.current = cur.id;
-  if (ly.mobile) {
-    // Phone: the page scrolls the map, so Safari's own scroll indicator does the job (touch
-    // and hold it to drag; native and smooth). We only put the region name beside its
-    // thumb, placed the way the native thumb moves: from the top of the visible area to
-    // the bottom as the page scrolls from top to end. Touches pass through to Safari.
-    const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, vtop = vv ? vv.offsetTop : 0;
-    const docH = document.documentElement.scrollHeight, maxS = Math.max(1, docH - vh);
-    const tTop = vtop + 6, tLen = vh - 12, nThumb = Math.max(36, tLen * vh / docH);
-    const yc = tTop + nThumb / 2 + Math.min(1, Math.max(0, scrollY / maxS)) * (tLen - nThumb);
-    const he = lang === 'he';
-    return (
-      <div key={cur.id} aria-live="polite" style={{ position: 'fixed', right: 14, top: yc, transform: 'translateY(-50%)', zIndex: 4, pointerEvents: 'none',
-        padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap', font: '600 11px var(--font)', color: 'var(--text)',
-        background: 'color-mix(in srgb, var(--surface) 92%, transparent)', border: '1px solid var(--chip-border)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', animation: 'mesilaFade 120ms ease-out' }}>
-        {he ? cur.he : cur.en}
-      </div>
-    );
-  }
-  const at = (clientY, animated) => {
-    const rc = trackRef.current.getBoundingClientRect(), py = Math.max(0, Math.min(rc.height, clientY - rc.top));
-    setFingerY(py);
-    const my = y0 + (py / rc.height) * span;
-    const r = regionAt(my);
-    if (r.id !== lastRegion.current) { lastRegion.current = r.id; if (typeof haptic === 'function') haptic(); }
-    if (animated) { jumpTo(my, true); return; }
-    // move the map at most once per frame, with the latest finger position
-    pending.current = my;
-    if (!raf.current) raf.current = requestAnimationFrame(() => { raf.current = 0; jumpTo(pending.current, false); });
-  };
-  const end = () => { setDragging(false); setFingerY(null); };
-  const he = lang === 'he';
-  return (
-    <div ref={trackRef} role="scrollbar" aria-orientation="vertical" aria-label={he ? 'אזורי המפה' : 'Map regions'}
-      aria-valuetext={he ? cur.he : cur.en}
-      onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); lastRegion.current = cur.id; setDragging(true); at(e.clientY, true); }}
-      onPointerMove={(e) => { if (dragging) at(e.clientY, false); }}
-      onPointerUp={end} onPointerCancel={end}
-      style={{ position: 'fixed', right: 0, top: box.top, height: trackH, width: 30, zIndex: 4, touchAction: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}>
-      {/* track */}
-      <div style={{ position: 'absolute', right: 7, top: 0, bottom: 0, width: 3, borderRadius: 2, background: 'color-mix(in srgb, var(--text-dim) 22%, transparent)' }}/>
-      {/* thumb: the part on screen */}
-      <div style={{ position: 'absolute', right: dragging ? 5 : 6, top: thumbTop, height: thumbH, width: dragging ? 9 : 7, borderRadius: 5,
-        background: 'color-mix(in srgb, var(--text) ' + (dragging ? 70 : 45) + '%, transparent)',
-        transition: 'width 120ms, right 120ms' }}/>
-      {/* region in view, beside the thumb */}
-      <div key={cur.id} style={{ position: 'absolute', right: 20, top: thumbTop + thumbH / 2, transform: 'translateY(-50%)', pointerEvents: 'none',
-        padding: dragging ? '5px 11px' : '3px 9px', borderRadius: 999, whiteSpace: 'nowrap',
-        font: (dragging ? '700 14px' : '600 11px') + ' var(--font)', color: 'var(--text)',
-        background: 'color-mix(in srgb, var(--surface) 92%, transparent)', border: '1px solid var(--chip-border)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', animation: 'mesilaFade 120ms ease-out' }}>
-        {he ? cur.he : cur.en}
-      </div>
-    </div>
-  );
-}
-
 function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomCmd, density, lang, fontKey, here, centerHereTick, openCenterTick }) {
   const T = window.I18N, he = T.lang === 'he';
   const svgRef = React.useRef(null);
@@ -1304,11 +1191,6 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
         </g>
       </g>
     </svg>
-    {base && svgRef.current && (
-      <RegionScrubber ly={LY} view={view} visibleBox={visibleBox} lang={lang}
-        jumpTo={(my, animated) => { stopGlide(); const vb = visibleBox(), k = viewRef.current.k;
-          const v = { ...viewRef.current, y: vb.y + vb.h / 2 - my * k }; animated ? animateTo(v) : setView(v); }}/>
-    )}
     {selLineObj && (
       <div style={{ position:'fixed', left: 12, right: 64, top: 'calc(env(safe-area-inset-top, 0px) + 112px)', zIndex: 4, display:'flex', justifyContent:'flex-start', pointerEvents:'none' }}>
         <div style={{ pointerEvents:'auto', display:'flex', alignItems:'center', gap: 10, padding:'6px 6px 6px 6px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', animation:'fadeIn 180ms', maxWidth:'100%' }}>
