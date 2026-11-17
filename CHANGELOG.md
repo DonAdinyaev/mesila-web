@@ -2,6 +2,7 @@
 
 ## 2026-11-16
 
+- **Region indicator removed** (the region bar and the region name label next to the scroll bar). On phones Safari's own scroll indicator remains.
 - **Phone: native scroll indicator.** Dragging our own region bar made the map jump. On phones the map now uses Safari's own scroll indicator (touch and hold it to drag; native and smooth), and the region name rides beside its thumb, switching as you pass each region. Desktop keeps the draggable region bar.
 - **iPhone:** removed the grey band under the trip panel. It was the panel's own drop shadow, which reached about 40px below it and was cut off by Safari at the top of its toolbar zone, 8px under the panel. The shadow is now cast upward and stays within those 8px.
 - **Trip panel as an island:** the panel now floats as a rounded card 8px from the sides and from the bottom of the visible area, with the map showing around it, instead of being glued to the screen edge. Safari's own scroll bar is hidden on phones so only the region indicator shows.
