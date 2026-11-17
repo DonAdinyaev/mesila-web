@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17
+
+- **High-speed line extended to Hadera:** about 2 trains an hour on the Herzliya–Jerusalem line actually start at Hadera West and call at Netanya and Beit Yehoshua (passing Netanya Sapir). The map now draws the line from Hadera, so a direct trip such as Netanya → Tel Aviv Savidor is highlighted as one continuous pink line instead of seeming to change trains at Herzliya. Renamed to Hadera – Jerusalem.
+
 ## 2026-11-16
 
 - **Region indicator removed** (the region bar and the region name label next to the scroll bar). On phones Safari's own scroll indicator remains.
