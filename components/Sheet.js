@@ -309,7 +309,46 @@ function Moon({ size = 12 }) {
   );
 }
 
-function JourneyTimeline({ j, live }) {
+// ---- Live delays (data/live.js): rt = [{ dep, arr } | null] per leg, minutes late
+const LATE = '#D2372D', ONTIME = '#2E8B4A';
+// Refreshed every 30 s while the trip is on screen and the page is visible
+function useLiveDelays(j) {
+  const [rt, setRt] = React.useState(null);
+  const key = j ? j.day + ':' + j.legs.map(l => l.train + '@' + l.depart).join(',') : '';
+  React.useEffect(() => {
+    setRt(null);
+    if (!j || !window.LIVE) return;
+    let alive = true;
+    const run = () => { if (!document.hidden) window.LIVE.forJourney(j).then(r => { if (alive) setRt(r && r.some(Boolean) ? r : null); }); };
+    run();
+    const id = setInterval(run, window.LIVE.REFRESH);
+    document.addEventListener('visibilitychange', run);
+    return () => { alive = false; clearInterval(id); document.removeEventListener('visibilitychange', run); };
+  }, [key]);
+  return rt;
+}
+// A clock time moved by a live delay: the new time in red, the planned one struck through
+function LiveClock({ j, m, d, small }) {
+  if (!d) return clockOf(j, m);
+  return (
+    <span style={{ display:'inline-flex', flexDirection: small ? 'row' : 'column', gap: small ? 6 : 0, alignItems: small ? 'baseline' : 'flex-start' }}>
+      <span style={{ color: LATE }}>{clockOf(j, m + d)}</span>
+      <span style={{ textDecoration:'line-through', opacity: 0.55, fontWeight: 500, fontSize: '0.85em' }}>{clockOf(j, m)}</span>
+    </span>
+  );
+}
+// "3 min late" / "On time", with a dot that says it is live
+function LiveStatus({ d }) {
+  const T = window.I18N, late = d > 0, c = late ? LATE : ONTIME;
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap: 4, color: c, fontWeight: 600 }}>
+      <span style={{ width: 6, height: 6, borderRadius: 3, background: c, animation: 'mesilaPulse 2s ease-in-out infinite' }}></span>
+      {late ? T.t('late', d) : T.t('onTime')}
+    </span>
+  );
+}
+
+function JourneyTimeline({ j, live, rt }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
   // One width for the whole trip, so the line and markers stay in one straight column:
@@ -324,12 +363,16 @@ function JourneyTimeline({ j, live }) {
   j.legs.forEach((leg, i) => {
     const color = colorOf(leg.line);
     const ids = leg.stationIds, n = ids.length - 1;
-    const wait = i === 0 ? leg.depart - j.start : leg.depart - j.legs[i - 1].arrive;
+    const L = rt && rt[i], P = i > 0 && rt && rt[i - 1];
+    const wait = i === 0 ? leg.depart + (L ? L.dep : 0) - j.start
+      : leg.depart + (L ? L.dep : 0) - j.legs[i - 1].arrive - (P ? P.arr : 0);
+    // with live delays, a change that leaves under 2 minutes is likely missed
+    const risky = i > 0 && (L || P) && wait < 2;
     rows.push(
       <div key={'s'+i} style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
         <div style={timeCol}>
-          {i > 0 && <div style={{ color:'var(--text-dim)', fontWeight: 500 }}>{clockOf(j, j.legs[i - 1].arrive)}</div>}
-          {clockOf(j, leg.depart)}
+          {i > 0 && <div style={{ color:'var(--text-dim)', fontWeight: 500 }}><LiveClock j={j} m={j.legs[i - 1].arrive} d={P && P.arr}/></div>}
+          <LiveClock j={j} m={leg.depart} d={L && L.dep}/>
         </div>
         <div style={{ ...rail, paddingTop: 1 }}>
           {i > 0 && <span style={{ ...bar(colorOf(j.legs[i-1].line)), bottom: '50%' }}></span>}
@@ -338,7 +381,7 @@ function JourneyTimeline({ j, live }) {
         </div>
         <div style={{ flex: 1, minWidth: 0, paddingBottom: 10 }}>
           <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[0])}</div>
-          {i > 0 && <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)', marginTop: 2 }}>{T.t('transferWait', wait)}</div>}
+          {i > 0 && <div style={{ font:'500 12px var(--font)', color: risky ? LATE : 'var(--text-dim)', fontWeight: risky ? 600 : 500, marginTop: 2 }}>{risky ? T.t('tightTransfer') : T.t('transferWait', wait)}</div>}
         </div>
       </div>
     );
@@ -353,6 +396,7 @@ function JourneyTimeline({ j, live }) {
               <div style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{T.t('toward', T.station(leg.terminus))}</div>
               <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>
                 {T.t('train', leg.train)}
+                {L && <> · <LiveStatus d={Math.max(L.dep, 0)}/></>}
                 {leg.night && <> · <span style={{ display:'inline-flex', alignItems:'center', gap: 3, verticalAlign: '-1px' }}><Moon size={11}/>{T.t('nightTrain')}</span></>}
                 {i === 0 && live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
               </div>
@@ -380,7 +424,7 @@ function JourneyTimeline({ j, live }) {
     );
     if (i === j.legs.length - 1) rows.push(
       <div key="end" style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
-        <div style={timeCol}>{clockOf(j, leg.arrive)}</div>
+        <div style={timeCol}><LiveClock j={j} m={leg.arrive} d={L && L.arr}/></div>
         <div style={{ ...rail, paddingTop: 1 }}>
           <span style={{ ...bar(color), bottom: '50%' }}></span>
           <TLNode kind="end"/>
@@ -395,12 +439,12 @@ function JourneyTimeline({ j, live }) {
   return <div style={{ borderTop:'1px solid var(--chip-border)', paddingTop: 14 }}>{rows}</div>;
 }
 
-function TimetableNote({ borrowed }) {
+function TimetableNote({ borrowed, live }) {
   const S = window.SCHEDULE;
   return (
     <div style={{ marginTop: 12, font: '500 11px/1.4 var(--font)', color: 'var(--text-dim)' }}>
       {borrowed && <div style={{ marginBottom: 4 }}>{window.I18N.t('ttBorrowed')}</div>}
-      {window.I18N.t('ttNote', `${S.validFrom} – ${S.validTo}`)}
+      {window.I18N.t(live ? 'ttNoteLive' : 'ttNote', `${S.validFrom} – ${S.validTo}`)}
     </div>
   );
 }
@@ -558,9 +602,11 @@ function useSwipe({ onDrag, onEnd, scrollRef }) {
 
 // Compact trip card: always visible at the top of the sheet. Arrows (and swipes)
 // move between alternative trips, ordered by departure time.
-function TripSummary({ j, live, index, count, onPrev, onNext }) {
+function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
   const T = window.I18N, rtl = T.dir === 'rtl';
-  const wait = j.depart - j.start;
+  const first = rt && rt[0], last = rt && rt[rt.length - 1];
+  const wait = j.depart + (first ? first.dep : 0) - j.start;
+  const shown = rt && rt.find(Boolean);       // the status shown: the first leg with live data
   const arrow = (dir, disabled, onClick, label) => (
     <button onClick={onClick} disabled={disabled} aria-label={label} title={label} style={{
       width: 34, height: 34, borderRadius: 17, flexShrink: 0, border: '1px solid var(--chip-border)',
@@ -578,7 +624,7 @@ function TripSummary({ j, live, index, count, onPrev, onNext }) {
         <div key={index} style={{ flex: 1, minWidth: 0, animation: 'fadeIn 180ms ease-out' }}>
           <div style={{ display:'flex', alignItems:'baseline', gap: 10, flexWrap:'wrap' }}>
             <div style={{ font: '700 26px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(j.arrive - j.depart)}</div>
-            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}>{clockOf(j, j.depart)} {rtl ? '←' : '→'} {clockOf(j, j.arrive)}</div>
+            <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}><LiveClock j={j} m={j.depart} d={first && first.dep} small/> {rtl ? '←' : '→'} <LiveClock j={j} m={j.arrive} d={last && last.arr} small/></div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 4, flexWrap:'wrap', font: '500 12px var(--font)', color: 'var(--text-dim)' }}>
             {j.legs.map((l, k) => (
@@ -592,6 +638,7 @@ function TripSummary({ j, live, index, count, onPrev, onNext }) {
               {j.transfers === 0 ? T.t('direct') : T.t('transfers', j.transfers)}
               {live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
             </span>
+            {shown && <LiveStatus d={Math.max(shown.dep, 0)}/>}
           </div>
         </div>
         {count > 1 && arrow(1, index === count - 1, onNext, T.t('later'))}
@@ -621,6 +668,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   // The details' visible height follows the finger while dragging, in both
   // directions, and they fade out as the panel nears the bottom.
   const peek = real ? !!journey : hasRoute;
+  const rt = useLiveDelays(real ? journey : null);
   const open = expanded || !peek;
   const bodyRef = React.useRef(null), contentRef = React.useRef(null), stripRef = React.useRef(null);
   const [sizes, setSizes] = React.useState({ content: 0, strip: 0, vh: window.innerHeight });
@@ -704,7 +752,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           <div style={{ width: 40, height: 4, borderRadius: 4, background: '#D7D4CC' }}/>
         </div>
         {real && journey && (
-          <TripSummary j={journey} live={!when} index={tripIndex} count={trips.length}
+          <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
             onPrev={() => go(-1)} onNext={() => go(1)}/>
         )}
         {!real && hasRoute && !open && (
@@ -758,8 +806,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           {/* Real timetable: the selected trip's timeline */}
           {real && journey && (
             <div key={tripIndex} style={{ padding: '0 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
-              <JourneyTimeline j={journey} live={!when}/>
-              <TimetableNote borrowed={journey.borrowed}/>
+              <JourneyTimeline j={journey} live={!when} rt={rt}/>
+              <TimetableNote borrowed={journey.borrowed} live={!!rt}/>
             </div>
           )}
           {real && from && to && from !== to && !journey && (

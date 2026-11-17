@@ -52,6 +52,24 @@ python3 tools/build_timetable.py --zip feed.zip   # or use a feed you already do
 
 The script needs only Python 3's standard library.
 
+## Live delays
+
+The trip card and timeline show live delays ("4 min late", new times in red, a warning when a change is likely missed) for trains running now, refreshed every 30 seconds. They come from Israel Railways' own API (`rail-api.rail.co.il`, unofficial: it is the API behind rail.co.il). That API only answers browsers on www.rail.co.il, so the app asks a small relay instead:
+
+- [`relay/worker.js`](relay/worker.js) is a Cloudflare Worker, deployed as `mesila-live` at `https://mesila-live.mesila.workers.dev/trains?from=3300&to=3700&date=YYYY-MM-DD`. It keeps the API key as a Worker secret (`RAIL_KEY`), caches each answer for 30 seconds, and only answers this site (and `localhost` for development).
+- [`data/live.js`](data/live.js) has Israel Railways' station numbers for our stations (the Eastern line's Hadera East, Shomron and Tira are still missing) and applies the delays to the trip on screen.
+
+To redeploy the relay after changing it (needs a Cloudflare API token with Workers edit rights):
+
+```bash
+curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scripts/mesila-live" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F 'metadata={"main_module":"worker.js","compatibility_date":"2026-11-01","keep_bindings":["secret_text"]};type=application/json' \
+  -F 'worker.js=@relay/worker.js;type=application/javascript+module'
+```
+
+If the relay or the API is down, the app simply shows the planned times.
+
 ## Project layout
 
 ```
@@ -59,6 +77,8 @@ index.html              App shell: top bar, map buttons, Tweaks panel, fonts, th
 data/network.js         Lines, stations, desktop + phone coordinates, fallback route planner
 data/timetable.js       Planned Israel Railways timetable (GENERATED from GTFS, don't edit)
 data/schedule.js        Matches trains to map lines; timetable trip planner
+data/live.js            Live delays for the trip on screen (through relay/)
+relay/worker.js         Cloudflare Worker relaying live delays from the Israel Railways API
 tools/build_timetable.py  Builds data/timetable.js from the Ministry of Transport GTFS feed
 data/i18n.js            English/Hebrew strings, station, line and place names
 components/MapSVG.js    Map renderer: track layout, bends, markers, labels, pan/zoom
