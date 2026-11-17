@@ -1159,22 +1159,22 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
             ? <g key={i}><circle cx={p.x} cy={p.y} r={DOT - 0.55 * ms} fill="#fff"/>
                 <circle cx={p.x} cy={p.y} r={DOT - 0.55 * ms} fill={LINES.find(l => l.id === p.id).color} fillOpacity={0.35} stroke={LINES.find(l => l.id === p.id).color} strokeWidth={1.1 * ms}/></g>
             : <circle key={i} cx={p.x} cy={p.y} r={DOT} fill={LINES.find(l => l.id === p.id).color}/>);
-          const ring = isEnd ? 3.5 * ms : 0;
+          const ring = isEnd ? 1 * ms : 0;   // a chosen start/end: the black outline twice as thick
           return (
             <g key={s.id} style={{ opacity: active ? 1 : 0.28, transition: 'opacity 250ms' }} pointerEvents="none">
               {single ? (
                 // Same construction as interchange pills, just with one dot
                 <g>
-                  <circle cx={m.cx} cy={m.cy} r={(W + 7.6 * ms + ring * 2) / 2} fill={isEnd ? '#1A1A1C' : 'var(--land)'}/>
-                  <circle cx={m.cx} cy={m.cy} r={(W + (hot ? 4.6 : 3.6) * ms + ring) / 2} fill="#1A1A1C"/>
+                  <circle cx={m.cx} cy={m.cy} r={(W + 7.6 * ms + ring * 2) / 2} fill="var(--land)"/>
+                  <circle cx={m.cx} cy={m.cy} r={(W + (hot ? 4.6 : 3.6) * ms + ring * 2) / 2} fill="#1A1A1C"/>
                   <circle cx={m.cx} cy={m.cy} r={(W + 1.6 * ms) / 2} fill={isFrom ? '#1A1A1C' : s.closed ? '#8A8A8A' : '#fff'}/>
                   {isFrom && <circle cx={m.cx} cy={m.cy} r={DOT + 0.6 * ms} fill="#fff"/>}
                   {!s.closed && <circle cx={m.cx} cy={m.cy} r={DOT} fill={color}/>}
                 </g>
               ) : (
                 <g>
-                  <line {...ln} stroke={isEnd ? '#1A1A1C' : 'var(--land)'} strokeWidth={W + 7.6 * ms + ring * 2}/>
-                  <line {...ln} stroke="#1A1A1C" strokeWidth={W + (hot ? 4.6 : 3.6) * ms + ring}/>
+                  <line {...ln} stroke="var(--land)" strokeWidth={W + 7.6 * ms + ring * 2}/>
+                  <line {...ln} stroke="#1A1A1C" strokeWidth={W + (hot ? 4.6 : 3.6) * ms + ring * 2}/>
                   <line {...ln} stroke={isFrom ? '#1A1A1C' : '#fff'} strokeWidth={W + 1.6 * ms}/>
                   {isFrom ? m.pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={DOT + 0.6 * ms} fill="#fff"/>) : null}
                   {dots}
