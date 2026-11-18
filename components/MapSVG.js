@@ -477,7 +477,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     // lets every part of the network be scrolled into view on small screens.
     const r = svg.getBoundingClientRect();
     const sheet = document.querySelector('[data-sheet]');
-    const topUI = Math.min(110 + (window.safeTop ? window.safeTop() : 0), r.height * 0.25), botUI = sheet ? Math.min(Math.max(0, innerHeight - sheet.getBoundingClientRect().top), r.height * 0.6) : 0;
+    const topUI = Math.min(64 + (window.safeTop ? window.safeTop() : 0), r.height * 0.25), botUI = sheet ? Math.min(Math.max(0, innerHeight - sheet.getBoundingClientRect().top), r.height * 0.6) : 0;
     const a = toUser(r.left, r.top + topUI), b = toUser(r.right, r.bottom - botUI);
     const ax = (lo, hi, pos, vlo, vhi, k = v.k) => {
       const s = (hi - lo) * k;
@@ -640,13 +640,13 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const visibleBox = () => {
     if (LY.mobile) {
       const sheet = document.querySelector('[data-sheet]'), sh = sheet ? Math.max(0, innerHeight - sheet.getBoundingClientRect().top) : 0;
-      const a = toUser(16, 110 + (window.safeTop ? window.safeTop() : 0)), b = toUser(innerWidth - 64, innerHeight - sh - 16);
+      const a = toUser(16, 64 + (window.safeTop ? window.safeTop() : 0)), b = toUser(innerWidth - 64, innerHeight - sh - 16);
       return { x: a.x, y: a.y, w: Math.max(50, b.x - a.x), h: Math.max(50, b.y - a.y) };
     }
     const rect = svgRef.current.getBoundingClientRect();
     const sheet = document.querySelector('[data-sheet]');
     const sh = sheet ? Math.max(0, innerHeight - sheet.getBoundingClientRect().top) : 0;
-    const a = toUser(rect.left + 16, rect.top + 110 + (window.safeTop ? window.safeTop() : 0)), b = toUser(rect.right - 64, rect.bottom - sh - 16);
+    const a = toUser(rect.left + 16, rect.top + 64 + (window.safeTop ? window.safeTop() : 0)), b = toUser(rect.right - 64, rect.bottom - sh - 16);
     return { x: a.x, y: a.y, w: Math.max(50, b.x - a.x), h: Math.max(50, b.y - a.y) };
   };
   const fitBox = (bx) => {
@@ -1057,7 +1057,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
 
   // Phone: the whole network as one tall drawing, with room above it for the top bar
   // and below it for the bottom sheet, so both ends can scroll fully into view.
-  const padTopU = (110 + (window.safeTop ? window.safeTop() : 0)) / base, padBotU = sheetH / base;
+  const padTopU = (64 + (window.safeTop ? window.safeTop() : 0)) / base, padBotU = sheetH / base;
   const mobileVB = `${LY.VB.x} ${LY.VB.y - padTopU} ${LY.VB.w} ${LY.VB.h + padTopU + padBotU}`;
   const mobileH = Math.round((LY.VB.h + padTopU + padBotU) * base);
 
@@ -1214,7 +1214,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       </g>
     </svg>
     {selLineObj && (
-      <div style={{ position:'fixed', left: 12, right: 64, top: 'calc(env(safe-area-inset-top, 0px) + 112px)', zIndex: 4, display:'flex', justifyContent:'flex-start', pointerEvents:'none' }}>
+      <div style={{ position:'fixed', left: 12, right: 64, top: 'calc(env(safe-area-inset-top, 0px) + 60px)', zIndex: 4, display:'flex', justifyContent:'flex-start', pointerEvents:'none' }}>
         <div style={{ pointerEvents:'auto', display:'flex', alignItems:'center', gap: 10, padding:'6px 6px 6px 6px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', animation:'fadeIn 180ms', maxWidth:'100%' }}>
           <span style={{ minWidth: 26, height: 26, padding:'0 6px', borderRadius: 13, background: selLineObj.color, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', font:'700 12px var(--font)', flexShrink: 0 }}>{selLineObj.num}</span>
           <span style={{ display:'flex', flexDirection:'column', minWidth: 0 }}>

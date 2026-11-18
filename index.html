@@ -65,10 +65,33 @@
   button:active { transform: scale(0.98); }
   button { transition: transform 80ms, background 120ms, opacity 120ms; }
   input::placeholder { color: var(--text-dim); opacity: 0.7; }
+  /* loading screen (inside #root until the app replaces it) */
+  :root { --sk-base: #DEDACF; --sk-hi: #FFFFFF; }
+  [data-theme="dark"] { --sk-base: #2A2C31; --sk-hi: #3B3E45; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sk-base: #2A2C31; --sk-hi: #3B3E45; } }
+  .loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--land); }
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <!-- Loading screen: shown while the scripts load, replaced by the app. The logo's rails
+       are grey with a light band sweeping across them (a skeleton shimmer). -->
+  <div class="loading" aria-label="Mesila" role="img">
+    <svg width="96" height="98" viewBox="36 30 168 172" aria-hidden="true">
+      <defs>
+        <linearGradient id="sk" gradientUnits="userSpaceOnUse" x1="-120" y1="0" x2="0" y2="0">
+          <stop offset="0" style="stop-color:var(--sk-base)"/><stop offset="0.5" style="stop-color:var(--sk-hi)"/><stop offset="1" style="stop-color:var(--sk-base)"/>
+          <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="360 0" dur="1.4s" repeatCount="indefinite"/>
+        </linearGradient>
+      </defs>
+      <g fill="none" stroke="url(#sk)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M52.0 56.0 L82.3 86.3 Q94 98 94.0 114.6 L94 186"/>
+        <path d="M68.0 186.0 L68.0 166.6 Q68 150 79.7 138.3 L102.3 115.7 Q114 104 114.0 87.4 L114.0 75.0 Q114 46 143.0 46.0 L151.0 46.0 Q188 46 188.0 83.0 L188.0 163.0 Q188 186 165.0 186.0 L142 186"/>
+      </g>
+      <g fill="url(#sk)"><circle cx="52" cy="56" r="14"/><circle cx="68" cy="186" r="14"/><circle cx="94" cy="186" r="14"/><circle cx="142" cy="186" r="14"/></g>
+    </svg>
+  </div>
+</div>
 <script>window.safeTop = () => { const p = document.getElementById('sat-probe'); return p ? p.offsetHeight : 0; };</script>
 <!-- measures env(safe-area-inset-top) for code that positions things below the status bar -->
 <div id="sat-probe" aria-hidden="true" style="position:absolute;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none"></div>
@@ -82,8 +105,8 @@
 <script src="data/timetable.js?v=20261118"></script>
 <script src="data/schedule.js?v=7"></script>
 <script src="data/live.js?v=2"></script>
-<script type="text/babel" src="components/MapSVG.js?v=105"></script>
-<script type="text/babel" src="components/Sheet.js?v=69"></script>
+<script type="text/babel" src="components/MapSVG.js?v=106"></script>
+<script type="text/babel" src="components/Sheet.js?v=70"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -109,56 +132,18 @@ const fontUrl = (fams) => 'https://fonts.googleapis.com/css2?' + fams.map(([n, w
 
 const { LINES: ALL_LINES } = window.MESILA;
 
-function Header({ onClear, theme, lang, onToggleLang }) {
+// Language switch: a lone button at the top corner where the old top bar's switch sat
+// (right in English, left in Hebrew), level with the hint pill
+function LangButton({ lang, onToggleLang }) {
   const T = window.I18N;
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0,
-      padding: '12px 12px 0', paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
-      zIndex: 7,
-      pointerEvents: 'none',
-    }}>
-      <div style={{
-        pointerEvents: 'auto',
-        display:'flex', alignItems:'center', gap: 8,
-        background: 'var(--surface)', borderRadius: 16,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-        padding: '8px 10px 8px 14px',
-        border: '1px solid var(--chip-border)',
-      }}>
-        <div style={{
-          display:'flex', alignItems:'center', gap: 8,
-          font:'700 17px var(--font)', letterSpacing:'-0.02em',
-          color: 'var(--text)',
-        }}>
-          {/* Mesila logo: the letter מ drawn as two rail lines */}
-          <svg width="27" height="28" viewBox="36 30 168 172" aria-hidden="true"><path d="M52.0 56.0 L82.3 86.3 Q94 98 94.0 114.6 L94 186" fill="none" stroke="var(--surface)" strokeWidth="25" strokeLinecap="round" strokeLinejoin="round"/><path d="M52.0 56.0 L82.3 86.3 Q94 98 94.0 114.6 L94 186" fill="none" stroke="#E3262D" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round"/><path d="M68.0 186.0 L68.0 166.6 Q68 150 79.7 138.3 L102.3 115.7 Q114 104 114.0 87.4 L114.0 75.0 Q114 46 143.0 46.0 L151.0 46.0 Q188 46 188.0 83.0 L188.0 163.0 Q188 186 165.0 186.0 L142 186" fill="none" stroke="var(--surface)" strokeWidth="25" strokeLinecap="round" strokeLinejoin="round"/><path d="M68.0 186.0 L68.0 166.6 Q68 150 79.7 138.3 L102.3 115.7 Q114 104 114.0 87.4 L114.0 75.0 Q114 46 143.0 46.0 L151.0 46.0 Q188 46 188.0 83.0 L188.0 163.0 Q188 186 165.0 186.0 L142 186" fill="none" stroke="var(--logo-b)" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round"/><line x1="68" y1="186" x2="94" y2="186" stroke="var(--surface)" strokeWidth="31" strokeLinecap="round"/><line x1="68" y1="186" x2="94" y2="186" stroke="#1A1A1C" strokeWidth="25" strokeLinecap="round"/><line x1="68" y1="186" x2="94" y2="186" stroke="#fff" strokeWidth="20.5" strokeLinecap="round"/><circle cx="68" cy="186" r="8.6" fill="var(--logo-b)"/><circle cx="94" cy="186" r="8.6" fill="#E3262D"/><line x1="52" y1="56" x2="52" y2="56" stroke="var(--surface)" strokeWidth="31" strokeLinecap="round"/><line x1="52" y1="56" x2="52" y2="56" stroke="#1A1A1C" strokeWidth="25" strokeLinecap="round"/><line x1="52" y1="56" x2="52" y2="56" stroke="#fff" strokeWidth="20.5" strokeLinecap="round"/><circle cx="52" cy="56" r="8.6" fill="#E3262D"/><line x1="142" y1="186" x2="142" y2="186" stroke="var(--surface)" strokeWidth="31" strokeLinecap="round"/><line x1="142" y1="186" x2="142" y2="186" stroke="#1A1A1C" strokeWidth="25" strokeLinecap="round"/><line x1="142" y1="186" x2="142" y2="186" stroke="#fff" strokeWidth="20.5" strokeLinecap="round"/><circle cx="142" cy="186" r="8.6" fill="var(--logo-b)"/></svg>
-          {T.t('brand')}
-        </div>
-        <div style={{
-          marginInlineStart: 10, paddingInlineStart: 10,
-          borderInlineStart: '1px solid var(--chip-border)',
-          font:'500 12px var(--font)', color:'var(--text-dim)',
-          flex: 1, minWidth: 0,
-        }}>
-          {T.t('operator')}
-        </div>
-        <button
-          onClick={onToggleLang}
-          title={T.t('langTitle')}
-          aria-label={T.t('langTitle')}
-          lang={lang === 'he' ? 'en' : 'he'}
-          style={{
-            border: '1px solid var(--chip-border)', background: 'var(--chip-bg)', color: 'var(--text)',
-            minWidth: 34, height: 34, padding: '0 8px', borderRadius: 10, cursor: 'pointer',
-            font: '600 13px var(--font)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-          }}>
-          {T.t('langBtn')}
-        </button>
-      </div>
-
-    </div>
+    <button onClick={onToggleLang} title={T.t('langTitle')} aria-label={T.t('langTitle')} lang={lang === 'he' ? 'en' : 'he'}
+      style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', insetInlineEnd: 12, zIndex: 7,
+        minWidth: 40, height: 40, padding: '0 10px', borderRadius: 14, cursor: 'pointer',
+        background: 'var(--surface)', border: '1px solid var(--chip-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        color: 'var(--text)', font: '600 14px var(--font)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {T.t('langBtn')}
+    </button>
   );
 }
 
@@ -378,11 +363,7 @@ function App() {
 
   return (
     <div style={narrow ? { position:'relative' } : { position:'absolute', inset: 0 }} data-screen-label="Mesila Map">
-      <Header
-        theme={tweaks.theme}
-        lang={lang}
-        onToggleLang={toggleLang}
-      />
+      <LangButton lang={lang} onToggleLang={toggleLang}/>
 
       <div style={narrow ? { position:'relative' } : { position:'absolute', inset: 0 }}>
         <window.MapSVG
@@ -399,7 +380,7 @@ function App() {
         />
       </div>
 
-      <div style={{ position:'fixed', right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
+      <div style={{ position:'fixed', right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 60px)', zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
         {!narrow && (
         <div style={{ display:'flex', flexDirection:'column', background:'var(--surface)', border:'1px solid var(--chip-border)', borderRadius: 14, boxShadow:'0 4px 12px rgba(0,0,0,0.08)', overflow:'hidden' }}>
           <button onClick={() => zoom(1)} title={T.t('zoomIn')} aria-label={T.t('zoomIn')} style={{ width: 40, height: 40, border:'none', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
@@ -412,14 +393,15 @@ function App() {
         </div>
         )}
         <button onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M2 6V2h4M12 2h4v4M16 12v4h-4M6 16H2v-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          {/* location arrow */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.6 3.4 3.9 10.6c-.8.4-.7 1.6.2 1.8l6.6 1.1 1.1 6.6c.2.9 1.4 1 1.8.2l7.2-16.7c.3-.8-.4-1.5-1.2-1.2z" fill="currentColor"/>
           </svg>
         </button>
       </div>
 
       {!popup && (!from || !to) && (
-        <div style={{ position:'fixed', left: 12, top: 'calc(env(safe-area-inset-top, 0px) + 68px)', zIndex: 4, maxWidth:'calc(100% - 80px)', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap: 8, padding:'8px 12px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', font:'500 13px var(--font)', color:'var(--text)', animation:'fadeIn 200ms', pointerEvents:'none' }}>
+        <div style={{ position:'fixed', insetInlineStart: 12, top: 'calc(env(safe-area-inset-top, 0px) + 12px)', zIndex: 4, maxWidth:'calc(100% - 80px)', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap: 8, padding:'8px 12px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', font:'500 13px var(--font)', color:'var(--text)', animation:'fadeIn 200ms', pointerEvents:'none' }}>
           <span style={{ width: 10, height: 10, borderRadius: 10, flexShrink: 0, background: !from ? '#1A1A1C' : 'transparent', border: !from ? 'none' : '2px solid #1A1A1C' }}></span>
           <span style={{ flexShrink: 0 }}>{!from ? T.t('tapStart') : T.t('tapDest')}</span>
         </div>
