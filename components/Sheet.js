@@ -448,12 +448,11 @@ function JourneyTimeline({ j, live, rt }) {
   return <div style={{ borderTop:'1px solid var(--chip-border)', paddingTop: 14 }}>{rows}</div>;
 }
 
-function TimetableNote({ borrowed, live }) {
-  const S = window.SCHEDULE;
+function TimetableNote({ borrowed }) {
   return (
     <div style={{ marginTop: 12, font: '500 11px/1.4 var(--font)', color: 'var(--text-dim)' }}>
       {borrowed && <div style={{ marginBottom: 4 }}>{window.I18N.t('ttBorrowed')}</div>}
-      {window.I18N.t(live ? 'ttNoteLive' : 'ttNote', `${S.validFrom} – ${S.validTo}`)}
+      <div style={{ fontSize: 10, opacity: 0.75 }}>{window.I18N.t('credit')}</div>
     </div>
   );
 }
@@ -819,7 +818,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           {real && journey && (
             <div key={tripIndex} style={{ padding: '0 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
               <JourneyTimeline j={journey} live={!when} rt={rt}/>
-              <TimetableNote borrowed={journey.borrowed} live={!!(rt && rt.some(x => x && x.dep != null))}/>
+              <TimetableNote borrowed={journey.borrowed}/>
             </div>
           )}
           {real && from && to && from !== to && !journey && (
