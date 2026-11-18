@@ -483,16 +483,25 @@ const haptic = (() => {
 // stops. Tapping the selected time opens the phone's own date-time picker for any
 // other moment (rounded to the nearest 15 minutes). Times are Israel wall-clock.
 const SLOT = 15, ITEM_H = 28, WHEEL_DAYS = 7;
+const BACK = 2;   // slots before "Now": 15 and 30 minutes ago (to see a train that just left)
 function TimeWheel({ when, setWhen }) {
   const T = window.I18N;
   const pad = (x) => String(x).padStart(2, '0');
   const now = window.SCHEDULE.israelNow();
   const abs = (w) => w.day * 1440 + w.min;                       // minutes since 1970, Israel wall clock
   const nowAbs = abs(now);
-  const firstSlot = Math.min(Math.ceil((nowAbs + 1) / SLOT) * SLOT, when ? abs(when) : Infinity);
-  const count = 1 + (WHEEL_DAYS * 1440) / SLOT;
-  const slotAt = (i) => firstSlot + (i - 1) * SLOT;             // i >= 1
-  const indexOf = (w) => !w ? 0 : Math.max(1, Math.min(count - 1, 1 + Math.round((abs(w) - firstSlot) / SLOT)));
+  const past = when && abs(when) < nowAbs;
+  const firstSlot = Math.min(Math.ceil((nowAbs + 1) / SLOT) * SLOT, when && !past ? abs(when) : Infinity);
+  // index: 0 .. BACK-1 = 30 / 15 min ago, BACK = Now, then the 15-minute slots ahead
+  const count = BACK + 1 + (WHEEL_DAYS * 1440) / SLOT;
+  const slotAt = (i) => firstSlot + (i - BACK - 1) * SLOT;      // i > BACK
+  const pastAt = (i) => nowAbs - (BACK - i) * SLOT;             // i < BACK
+  const indexOf = (w) => {
+    if (!w) return BACK;
+    const a = abs(w);
+    if (a < nowAbs) return BACK - Math.max(1, Math.min(BACK, Math.round((nowAbs - a) / SLOT)));
+    return Math.max(BACK + 1, Math.min(count - 1, BACK + 1 + Math.round((a - firstSlot) / SLOT)));
+  };
   const selected = indexOf(when);
 
   const ref = React.useRef(null), inputRef = React.useRef(null);
@@ -506,8 +515,8 @@ function TimeWheel({ when, setWhen }) {
   const commit = (i) => {
     userScroll.current = false;
     if (i === selected) return;
-    if (i === 0) setWhen(null);
-    else { const m = slotAt(i); setWhen({ day: Math.floor(m / 1440), min: m % 1440 }); }
+    if (i === BACK) setWhen(null);
+    else { const m = i < BACK ? pastAt(i) : slotAt(i); setWhen({ day: Math.floor(m / 1440), min: m % 1440 }); }
   };
   const onScroll = () => {
     const el = ref.current; if (!el) return;
@@ -517,7 +526,11 @@ function TimeWheel({ when, setWhen }) {
     settle.current = setTimeout(() => commit(i), 220);
   };
   const label = (i) => {
-    if (i === 0) return { time: T.t('now'), day: '' };
+    if (i === BACK) return { time: T.t('now'), day: '' };
+    if (i < BACK) {   // a picked past time keeps its own minute; the other shows now - 15 / 30
+      const m = past && i === selected ? abs(when) : pastAt(i);
+      return { time: `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}`, day: T.t('minAgo', (BACK - i) * SLOT) };
+    }
     const m = slotAt(i), day = Math.floor(m / 1440);
     const d = day === now.day ? '' : day === now.day + 1 ? T.t('tomorrow')
       : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -562,7 +575,7 @@ function TimeWheel({ when, setWhen }) {
               display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', lineHeight: 1,
               color: on ? 'var(--text)' : 'var(--text-dim)', transition: 'color 120ms' }}>
               {/* line-height after the font shorthand (which resets it), so time and day sit together */}
-              <span style={{ font: `${on ? 700 : 500} ${i === 0 ? 13 : 14}px ${i === 0 ? 'var(--font)' : '"JetBrains Mono", ui-monospace, monospace'}`, lineHeight: '14px' }}>{l.time}</span>
+              <span style={{ font: `${on ? 700 : 500} ${i === BACK ? 13 : 14}px ${i === BACK ? 'var(--font)' : '"JetBrains Mono", ui-monospace, monospace'}`, lineHeight: '14px' }}>{l.time}</span>
               {l.day && <span style={{ font: '500 9px var(--font)', lineHeight: '10px', whiteSpace: 'nowrap' }}>{l.day}</span>}
             </div>
           );
@@ -615,6 +628,10 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
   const first = rt && rt[0], last = rt && rt[rt.length - 1];
   const wait = j.depart + (first && first.dep != null ? first.dep : 0) - j.start;
   const shown = rt && rt.find(x => x && x.dep != null);   // the status shown: the first leg with live data
+  // a trip from the past (the time wheel goes back 30 minutes): how long ago it left
+  const nowI = window.SCHEDULE.israelNow();
+  const leftAgo = Math.round(nowI.day * 1440 + nowI.min - (Date.parse(j.day) / 864e5 * 1440 + j.depart + (first && first.dep != null ? first.dep : 0)));
+  const gone = !live && leftAgo > 0 ? ' · ' + T.t('leftAgo', leftAgo) : '';
   const arrow = (dir, disabled, onClick, label) => (
     <button onClick={onClick} disabled={disabled} aria-label={label} title={label} style={{
       width: 34, height: 34, borderRadius: 17, flexShrink: 0, border: '1px solid var(--chip-border)',
@@ -646,8 +663,8 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
               {/* the badges already show how many trains it takes: when the platform is
                   known it takes the place of "Direct" / "1 transfer", so the row stays one line */}
               {first && first.pf
-                ? (live && wait > 0 ? T.t('platformIn', first.pf, wait) : T.t('platform', first.pf))
-                : <>{j.transfers === 0 ? T.t('direct') : T.t('transfers', j.transfers)}{live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}</>}
+                ? (live && wait > 0 ? T.t('platformIn', first.pf, wait) : T.t('platform', first.pf) + gone)
+                : <>{j.transfers === 0 ? T.t('direct') : T.t('transfers', j.transfers)}{live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : gone}</>}
               {shown && <> · <LiveStatus d={Math.max(shown.dep, 0)}/></>}
             </span>
           </div>
