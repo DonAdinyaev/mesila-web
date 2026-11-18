@@ -785,7 +785,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const startSearch = () => {
     if (!phone || live.current.searching) return;
     changed.current = false;
-    scrollBack.current = window.scrollY;      // Safari may scroll the page (the map) to the field
+    // Freeze the page while typing. On phones the page is the map, and Safari scrolls the
+    // page to bring a focused field into view, which moved the map and, on the way back,
+    // jolted the panel. A fixed body at the current offset (the usual iOS scroll lock)
+    // leaves Safari nothing to scroll; it is released once the keyboard has gone.
+    const y = window.scrollY, b = document.body.style;
+    scrollBack.current = y;
+    Object.assign(b, { position: 'fixed', top: -y + 'px', left: '0', right: '0', width: '100%' });
     setSearching(true); setSnap(live.current.hasTrip ? 'full' : 'half');
   };
   const endSearch = () => {
@@ -798,7 +804,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   React.useEffect(() => {
     if (kb || searching || scrollBack.current == null) return;
     const y = scrollBack.current; scrollBack.current = null;
-    if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
+    // release the lock: the body goes back into the page at the same place, scrolled to
+    // where it was shown, so nothing moves
+    Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '' });
+    window.scrollTo(0, y);
   }, [kb, searching]);
   // new stations: show the trip card (once typing is over)
   const firstKey = React.useRef(true);
