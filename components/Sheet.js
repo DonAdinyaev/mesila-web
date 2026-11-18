@@ -696,16 +696,31 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   // search fields always show, since there's nothing to collapse to.
   // The details' visible height follows the finger while dragging, in both
   // directions, and they fade out as the panel nears the bottom.
-  // Typing a station on a phone: the sheet rises to the top of the screen, search card
-  // first, so the suggestions have room above the keyboard
-  const [searching, setSearching] = React.useState(false);
+  // Typing a station on a phone: the sheet rises to just under the top bar, search card
+  // first, so the suggestions have room above the keyboard. It slides there and back:
+  // phase 'open' (risen), 'closing' (sliding back), 'off'. While not 'off' the body has an
+  // explicit height (searchH) that CSS animates; the trip card above it folds away.
+  const [phase, setPhase] = React.useState('off');
+  const [searchH, setSearchH] = React.useState(0);
+  const [fold, setFold] = React.useState(false);     // trip card folded away (starts with the slide)
+  const [sdy, setSdy] = React.useState(null);         // finger offset while dragging the risen panel down
+  const searching = phase === 'open';
   const phone = window.innerWidth < 600;
-  const startSearch = () => { if (phone) setSearching(true); };
+  const sheetRef = React.useRef(null), wrapRef = React.useRef(null), sumRef = React.useRef(null);
+  const SEARCH_TOP = 72;   // the top bar ends ~64px below the safe area
+  const startSearch = () => {
+    if (!phone || phase === 'open' || !sheetRef.current || !wrapRef.current) return;
+    const top = sheetRef.current.getBoundingClientRect().top, w = wrapRef.current.offsetHeight;
+    const card = sumRef.current ? sumRef.current.offsetHeight : 0;
+    const target = w + card + top - ((window.safeTop ? window.safeTop() : 0) + SEARCH_TOP);
+    setSearchH(w); setPhase('open');                       // start from where it is...
+    requestAnimationFrame(() => requestAnimationFrame(() => { setSearchH(target); setFold(true); }));   // ...then slide
+  };
   const endSearch = () => {
     const a = document.activeElement;
-    if (!(a && a.tagName === 'INPUT' && a.closest('[data-sheet]'))) setSearching(false);
+    if (phase !== 'off' && !(a && a.tagName === 'INPUT' && a.closest('[data-sheet]'))) setPhase('closing');
   };
-  const peek = (real ? !!journey : hasRoute) && !searching;
+  const peek = (real ? !!journey : hasRoute) && phase === 'off';
   const rt = useLiveDelays(real ? journey : null);
   const open = expanded || !peek;
   const bodyRef = React.useRef(null), contentRef = React.useRef(null), stripRef = React.useRef(null);
@@ -722,6 +737,18 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   }, [peek]);
   const maxBody = Math.max(0, sizes.vh * 0.75 - sizes.strip);
   const full = Math.min(sizes.content, maxBody);
+  // Sliding back: aim at the height the panel will have afterwards (the trip card alone,
+  // the open details, or the search card with nothing planned), then switch back
+  React.useLayoutEffect(() => {
+    if (phase !== 'closing') return;
+    setFold(false);
+    const strip = 18 + (sumRef.current ? sumRef.current.scrollHeight : 0);       // handle + trip card
+    const natural = Math.min(contentRef.current ? contentRef.current.offsetHeight : 0, Math.max(0, window.innerHeight * 0.75 - strip));
+    const peekAfter = real ? !!journey : hasRoute;
+    setSearchH(peekAfter ? (expanded ? natural : 0) : natural);
+    const t = setTimeout(() => setPhase('off'), 320);
+    return () => clearTimeout(t);
+  }, [phase]);
   const [dy, setDy] = React.useState(null);           // finger offset while dragging, else null
   const base = open ? full : 0;
   const shown = dy === null ? base : Math.max(0, Math.min(full, base - dy));
@@ -731,6 +758,16 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const go = (d) => { if (onSelectTrip && tripIndex + d >= 0 && tripIndex + d < trips.length) onSelectTrip(tripIndex + d); };
   const onEnd = ({ dx, dy: ddy, axis, top, vy = 0 }, fromBody) => {
     setDy(null);
+    if (searching) {
+      // the risen search panel: dragged far enough (or flicked) down, it folds back
+      setSdy(null);
+      if (axis !== 'y' || (fromBody && !top)) return;
+      if (ddy > 80 || (vy > 0.4 && ddy > 20)) {
+        const a = document.activeElement; if (a && a.blur) a.blur();    // closes the keyboard
+        setPhase('closing');
+      }
+      return;
+    }
     if (axis === 'x') {
       if (Math.abs(dx) > 50) go((dx < 0) !== (T.dir === 'rtl') ? 1 : -1);
       return;
@@ -742,15 +779,15 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     const flick = Math.abs(vy) > 0.4 && Math.abs(ddy) > 20;
     setExpanded(flick ? vy < 0 : end > full / 2);
   };
-  const stripSwipe = useSwipe({ onDrag: (d) => peek && setDy(d), onEnd: (g) => onEnd(g, false) });
-  const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => peek && top && setDy(Math.max(0, d)), onEnd: (g) => onEnd(g, true) });
+  const stripSwipe = useSwipe({ onDrag: (d) => searching ? setSdy(Math.max(0, d)) : peek && setDy(d), onEnd: (g) => onEnd(g, false) });
+  const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => top && (searching ? setSdy(Math.max(0, d)) : peek && setDy(Math.max(0, d))), onEnd: (g) => onEnd(g, true) });
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, open, searching]);
   // A downward drag that starts with the details scrolled to the top moves the
   // panel. Stop the browser from also scrolling/bouncing the content (iOS rubber
   // band), or the content would move twice as fast as the finger. React's touch
   // handlers are passive, so this needs a native non-passive listener.
   React.useEffect(() => {
-    const el = bodyRef.current; if (!el || !peek) return;
+    const el = bodyRef.current; if (!el || !(peek || searching)) return;
     let sx = 0, sy = 0, atTop = false, mode = null;
     // touches on something that scrolls by itself (the time wheel) are left alone
     const start = (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; atTop = el.scrollTop <= 0;
@@ -763,16 +800,15 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     el.addEventListener('touchstart', start, { passive: true });
     el.addEventListener('touchmove', move, { passive: false });
     return () => { el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); };
-  }, [peek]);
+  }, [peek, searching]);
   const ease = 'cubic-bezier(.2,.7,.2,1)';
 
   return (
-    <div data-sheet="" style={{
+    <div ref={sheetRef} data-sheet="" style={{
       // an island: floats 8px from the sides and from the bottom of the visible area
       // (above the home indicator), all corners rounded, the map showing around it
       position:'fixed', left: 8, right: 8, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
-      // while searching it rises to just under the top bar (which ends ~64px below the safe area)
-      ...(searching ? { top: 'calc(env(safe-area-inset-top, 0px) + 72px)' } : { maxHeight: '75vh' }),
+      ...(phase === 'off' ? { maxHeight: '75vh' } : {}),
       display:'flex', flexDirection:'column',
       background: 'var(--surface)',
       borderRadius: 24, overflow: 'hidden',
@@ -781,25 +817,38 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       // shadow was cut off there in a hard grey band.
       boxShadow: '0 -6px 14px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.08)', border: '1px solid var(--chip-border)',
       paddingBottom: 6,
-      zIndex: searching ? 6 : 5,       // while searching, above the map buttons
+      zIndex: phase !== 'off' ? 6 : 5,  // while searching, above the map buttons
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
       <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '8px 0 6px', cursor: peek ? 'pointer' : 'default' }}
-          onClick={() => peek && setExpanded(e => !e)} role={peek ? 'button' : undefined}
+          onClick={() => {
+            if (searching) { const a = document.activeElement; if (a && a.blur) a.blur(); setPhase('closing'); }
+            else if (peek) setExpanded(e => !e);
+          }} role={peek || searching ? 'button' : undefined}
           aria-label={peek ? T.t(open ? 'collapse' : 'expand') : undefined} aria-expanded={peek ? open : undefined}>
           <div style={{ width: 40, height: 4, borderRadius: 4, background: '#D7D4CC' }}/>
         </div>
-        {real && journey && !searching && (
-          <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
-            onPrev={() => go(-1)} onNext={() => go(1)}/>
+        {real && journey && (
+          // folds away (and back) smoothly while a station is being typed
+          <div style={{ display:'grid', gridTemplateRows: fold ? '0fr' : '1fr', opacity: fold ? 0 : 1,
+            transition: `grid-template-rows 300ms ${ease}, opacity 220ms ${ease}` }}>
+            <div ref={sumRef} style={{ overflow:'hidden', minHeight: 0 }}>
+              <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
+                onPrev={() => go(-1)} onNext={() => go(1)}/>
+            </div>
+          </div>
         )}
         {!real && hasRoute && !open && (
           <div style={{ padding: '2px 16px 10px', font: '700 22px var(--font)', color: 'var(--text)' }}>{fmtMin(sched.totalMin)}</div>
         )}
       </div>
 
-      <div aria-hidden={peek && !open ? true : undefined} style={peek ? {
+      <div ref={wrapRef} aria-hidden={peek && !open ? true : undefined} style={phase !== 'off' ? {
+          height: Math.max(0, searchH - (sdy || 0)), overflow: 'hidden', flexShrink: 0, display: 'flex', flexDirection: 'column',
+          borderTop: real && journey ? '1px solid var(--chip-border)' : 'none',
+          transition: sdy === null ? `height 300ms ${ease}` : 'none',     // follows the finger while dragged
+        } : peek ? {
           height: shown, opacity: fade, overflow: 'hidden', flexShrink: 0,
           borderTop: '1px solid var(--chip-border)',
           transition: dy === null ? `height 260ms ${ease}, opacity 260ms ${ease}` : 'none',
