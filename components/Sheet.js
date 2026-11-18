@@ -341,8 +341,8 @@ function LiveClock({ j, m, d, small }) {
 function LiveStatus({ d }) {
   const T = window.I18N, late = d > 0, c = late ? LATE : ONTIME;
   return (
-    <span style={{ display:'inline-flex', alignItems:'center', gap: 4, color: c, fontWeight: 600 }}>
-      <span style={{ width: 6, height: 6, borderRadius: 3, background: c, animation: 'mesilaPulse 2s ease-in-out infinite' }}></span>
+    <span style={{ color: c, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      <span style={{ display:'inline-block', width: 6, height: 6, borderRadius: 3, background: c, marginInlineEnd: 4, verticalAlign: '0.08em', animation: 'mesilaPulse 2s ease-in-out infinite' }}></span>
       {late ? T.t('late', d) : T.t('onTime')}
     </span>
   );
@@ -387,11 +387,11 @@ function JourneyTimeline({ j, live, rt }) {
     );
     rows.push(
       <div key={'r'+i} style={{ display:'flex', gap: 8, alignItems:'stretch' }}>
-        <div style={{ ...timeCol, color:'transparent' }}>{clockOf(j, leg.depart)}</div>
+        {/* the line's badge sits in the time column, beside the ride, leaving the text the full width */}
+        <div style={{ ...timeCol, display:'flex', alignItems:'center', paddingTop: 0, paddingBottom: 12 }}><LineBadge lineId={leg.line} size={24}/></div>
         <div style={rail}><span style={bar(color)}></span></div>
         <div style={{ flex: 1, minWidth: 0, padding: '2px 0 14px' }}>
           <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
-            <LineBadge lineId={leg.line} size={24}/>
             <div style={{ minWidth: 0 }}>
               <div style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{T.t('toward', T.station(leg.terminus))}</div>
               <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>
@@ -637,8 +637,8 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
             <span style={{ marginInlineStart: 4 }}>
               {j.transfers === 0 ? T.t('direct') : T.t('transfers', j.transfers)}
               {live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
+              {shown && <> · <LiveStatus d={Math.max(shown.dep, 0)}/></>}
             </span>
-            {shown && <LiveStatus d={Math.max(shown.dep, 0)}/>}
           </div>
         </div>
         {count > 1 && arrow(1, index === count - 1, onNext, T.t('later'))}
