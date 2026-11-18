@@ -692,9 +692,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const sched = hasRoute ? computeSchedule(it) : null;
   const fmtClock = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-  // The panel rests in one of three positions ('snap'):
+  // The panel rests in one of four positions ('snap'):
   //   'hidden': only the handle shows
   //   'rest':   the trip card (or, with nothing planned, the search card)
+  //   'half':   halfway between the card and full
   //   'full':   its top edge just under the top row of buttons; the details scroll inside
   // Dragging the handle, the card or the details moves it with the finger; on release it
   // snaps to the nearest position (a flick goes to the next one that way). Typing a station
@@ -729,7 +730,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const fullH = Math.max(0, m.bottom - (safeTop + FULL_TOP));
   const hiddenH = HANDLE + CHROME;
   const restH = Math.max(hiddenH, Math.min(fullH, HANDLE + (hasTrip ? m.card : m.content) + CHROME));
-  const H = { hidden: hiddenH, rest: restH, full: fullH };
+  const H = { hidden: hiddenH, rest: restH, half: Math.round((restH + fullH) / 2), full: fullH };
   const baseH = H[snap];
   const height = dy === null ? baseH : Math.max(hiddenH, Math.min(fullH, baseH - dy));
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -775,7 +776,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (axis !== 'y') return;
     if (fromBody && snap === 'full' && (!top || ddy < 0)) return;     // that was a scroll, not a drag
     const h = Math.max(hiddenH, Math.min(fullH, baseH - ddy));
-    const order = ['hidden', 'rest', 'full'];
+    const order = ['hidden', 'rest', 'half', 'full'];
     let t;
     if (Math.abs(vy) > 0.4 && Math.abs(ddy) > 20) {
       // a flick: the next position that way
@@ -812,7 +813,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   React.useLayoutEffect(() => {
     document.documentElement.style.setProperty('--sheet-rest', restH + 'px');
   }, [restH]);
-  const tapHandle = () => goSnap(snap === 'rest' ? 'full' : 'rest');
+  // tapping the handle steps up: card -> half -> full -> back to the card (hidden -> card)
+  const tapHandle = () => goSnap(snap === 'rest' ? 'half' : snap === 'half' ? 'full' : 'rest');
 
   return (
     <div ref={sheetRef} data-sheet="" style={{
