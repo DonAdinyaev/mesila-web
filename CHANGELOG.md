@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-18
+
+- **Trip timeline:** the line badge moved into the left column beside the ride, so "Train 157 · On time · Departs in 8 min" fits on one line. The live status ("On time", "x min late") now sits on the same baseline as the text around it, with its dot centred on the letters, in the timeline and on the trip card.
+
 ## 2026-11-17
 
 - **Live delays:** for trains running now, the trip card shows "x min late" or "On time" with a pulsing dot, and the departure and arrival times move to the live ones (red, with the planned time struck through). The timeline does the same for every leg, says which train is late, and warns when a change of trains is likely to be missed. The data comes from Israel Railways through our relay (relay/worker.js, a Cloudflare Worker) and refreshes every 30 seconds while the trip is on screen. Without it (relay down, or a train not running yet), the planned times show as before. The Eastern line (Hadera East – Rosh HaAyin) has no live data yet.
