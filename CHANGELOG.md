@@ -2,6 +2,7 @@
 
 ## 2026-11-18
 
+- **Station suggestions:** the coloured dots of a station's lines moved to the end of the row (right in English, left in Hebrew), so the names line up.
 - **Station search on phones:** tapping a station field raises the panel up to just under the top bar, search fields first, so the suggestions have room above the keyboard. Once both stations are chosen, the panel folds down to the trip card and the route shows on the map; swipe up for the details. Changing the time or the trip leaves the panel as it is.
 - **Look back 15 or 30 minutes:** the time wheel has two slots above "Now" ("15 min ago", "30 min ago"), to find a train that just left, for example to see where it is or how late it runs. The card then says "Left 16 min ago" instead of "in 14 min". Earlier trips (swipe right) also reach back 30 minutes, no further.
 - **Shorter note under the trip:** the paragraph about the planned timetable and live delays is replaced by one small line: "Unofficial · Data: Ministry of Transport, Israel Railways" (in Hebrew: "לא רשמי · נתונים: משרד התחבורה, רכבת ישראל"). The note for dates outside the timetable stays.

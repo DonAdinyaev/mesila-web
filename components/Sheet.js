@@ -149,13 +149,14 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
               onMouseEnter={e => e.currentTarget.style.background = 'var(--chip-bg)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div style={{ display:'flex', gap: 3 }}>
+              <span>{window.I18N.station(s.id)}</span>
+              {/* the station's lines, at the end of the row */}
+              <div style={{ display:'flex', gap: 3, marginInlineStart: 'auto', flexShrink: 0 }}>
                 {s.lines.map(l => {
                   const c = APP_LINES.find(x=>x.id===l)?.color;
                   return <span key={l} style={{ width: 8, height: 8, borderRadius: 8, background: c }}/>;
                 })}
               </div>
-              <span>{window.I18N.station(s.id)}</span>
             </div>
           ))}
         </div>
