@@ -391,7 +391,7 @@ function App() {
       </div>
 
       {/* show me / the trip / Tel Aviv */}
-      <button onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 12, zIndex: 4,
+      <button data-locate="" onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 12, zIndex: 4,
           // just above the panel at rest; it stays put while the panel is opened over it
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px + var(--sheet-rest, 140px) + 10px)', transition: `bottom 260ms cubic-bezier(.2,.7,.2,1)`,
           width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>

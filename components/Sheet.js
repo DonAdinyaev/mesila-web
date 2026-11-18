@@ -80,7 +80,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
         {/* station name, with an optional small note (distance) underneath so the name keeps the full width */}
         <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <input
-            ref={inputRef}
+            ref={inputRef} data-station-input={label}
             value={open ? q : display}
             onChange={e => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => { setOpen(true); setQ(''); onFocus?.(); }}
@@ -130,7 +130,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
       {results.length > 0 && (
         // about four and a half rows tall, the rest scrolls (its touches are its own: they
         // neither drag the panel nor scroll it)
-        <div data-own-scroll="true"
+        <div data-own-scroll="true" data-suggestions=""
           onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
           style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
@@ -142,7 +142,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
         }}>
           {results.map(s => (
             <div
-              key={s.id}
+              key={s.id} data-suggestion={s.id}
               onMouseDown={(e) => { e.preventDefault(); onPick(s.id); setOpen(false); setQ(''); }}
               style={{
                 padding: '10px 14px', cursor: 'pointer',
@@ -917,7 +917,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       {/* Top strip: handle + trip card. Drag up/down to move the panel, swipe sideways to change trip. */}
       <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '6px 0 4px', cursor: 'pointer' }}
-          onClick={tapHandle} role="button"
+          onClick={tapHandle} role="button" data-handle=""
           aria-label={T.t(snap === 'rest' ? 'expand' : 'collapse')} aria-expanded={snap === 'full'}>
           <div style={{ width: 32, height: 3, borderRadius: 3, background: '#D7D4CC' }}/>
         </div>
