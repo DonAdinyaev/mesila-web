@@ -2,7 +2,7 @@
 
 ## 2026-11-18
 
-- **Smooth station search:** the panel now slides up to the top bar while you type a station (the trip card folding away as it rises) and slides back down when you are done, instead of jumping.
+- **Smooth station search:** the panel now slides up to the top bar while you type a station (the trip card folding away as it rises) and slides back down when you are done, instead of jumping. While it is up, drag it down to fold it (it follows the finger; a short drag springs back, a longer drag or a flick folds it and closes the keyboard), or tap its handle.
 - **Station suggestions:** the coloured dots of a station's lines moved to the end of the row (right in English, left in Hebrew), so the names line up.
 - **Station search on phones:** tapping a station field raises the panel up to just under the top bar, search fields first, so the suggestions have room above the keyboard. Once both stations are chosen, the panel folds down to the trip card and the route shows on the map; swipe up for the details. Changing the time or the trip leaves the panel as it is.
 - **Look back 15 or 30 minutes:** the time wheel has two slots above "Now" ("15 min ago", "30 min ago"), to find a train that just left, for example to see where it is or how late it runs. The card then says "Left 16 min ago" instead of "in 14 min". Earlier trips (swipe right) also reach back 30 minutes, no further.
