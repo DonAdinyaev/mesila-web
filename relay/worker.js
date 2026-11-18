@@ -3,10 +3,13 @@
 // The Israel Railways API (rail-api.rail.co.il) only answers browsers on www.rail.co.il,
 // so the app asks this relay instead. It calls the API with the key (a Worker secret,
 // RAIL_KEY, never in the page), keeps each answer for 30 s so users don't multiply
-// requests, and returns only what the app needs: the live state of trains running now.
+// requests, and returns only what the app needs: each train's platforms, and the live
+// state of the trains running now.
 //
 //   GET /trains?from=3300&to=3700&date=2026-11-18
-//   -> { at, trains: { "137": { delay: 2, last: 2500, next: 2800, eta: { "3300": 1 } } } }
+//   -> { at, trains: { "137": { pf: 2, pt: 4, delay: 2, last: 2500, next: 2800, eta: { "3300": 1 } } } }
+//   pf / pt: platform at `from` / at `to` (every train of the day); delay, last, next, eta:
+//   only for trains running now (delay in minutes; eta: predicted delay per station ahead)
 //
 // Station numbers are Israel Railways' own (see data/railids.js in the app).
 const API = 'https://rail-api.rail.co.il/rjpa/api/v1/timetable/searchTrain';
@@ -48,11 +51,16 @@ export default {
       const data = await api.json();
       const trains = {};
       for (const tv of (data.result && data.result.travels) || []) for (const t of tv.trains || []) {
+        // only trains that run between exactly these two stations (not legs of a change)
+        if (t.orignStation !== +from || t.destinationStation !== +to) continue;
+        const o = { pf: t.originPlatform || null, pt: t.destPlatform || null };
         const p = t.trainPosition;
-        if (!p && !(t.etaDiffTimes && t.etaDiffTimes.length)) continue;     // not running now
-        const eta = {};
-        for (const e of t.etaDiffTimes || []) eta[e.stationId] = e.difMin;
-        trains[t.trainNumber] = { delay: p ? p.calcDiffMinutes : null, last: p ? p.currentLastStation : null, next: p ? p.nextStation || null : null, eta };
+        if (p || (t.etaDiffTimes && t.etaDiffTimes.length)) {               // running now
+          const eta = {};
+          for (const e of t.etaDiffTimes || []) eta[e.stationId] = e.difMin;
+          Object.assign(o, { delay: p ? p.calcDiffMinutes : null, last: p ? p.currentLastStation : null, next: p ? p.nextStation || null : null, eta });
+        }
+        trains[t.trainNumber] = o;
       }
       res = new Response(JSON.stringify({ at: new Date().toISOString(), trains }), {
         headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': `public, max-age=${TTL}` },
