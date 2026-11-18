@@ -702,7 +702,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   // on a phone uses the same 'full' position, with the trip card folded away so the search
   // is on top. All moves are one CSS height transition.
   const FULL_TOP = 60;            // safe area + top row of buttons (12px + 40px) + 8px
-  const HANDLE = 18, CHROME = 8;  // handle strip; bottom padding (6) + border (2)
+  const HANDLE = 13, CHROME = 8;  // handle strip (6 + 3 + 4); bottom padding (6) + border (2)
   const [snap, setSnap] = React.useState('rest');
   const [searching, setSearching] = React.useState(false);
   const [dy, setDy] = React.useState(null);           // finger offset while dragging, else null
@@ -745,9 +745,12 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const fullH = kb ? Math.max(0, vv.h - kbGapTop - 8) : Math.max(0, m.bottom - (safeTop + FULL_TOP));
   const hiddenH = HANDLE + CHROME;
   const restH = Math.max(hiddenH, Math.min(fullH, HANDLE + (hasTrip ? m.card : m.content) + CHROME));
-  const H = { hidden: hiddenH, rest: restH, half: Math.round((restH + fullH) / 2), full: fullH };
+  const H = { hidden: hiddenH, rest: restH, half: kb ? fullH : Math.round((restH + fullH) / 2), full: fullH };
+  // without a trip the panel goes no higher than half (there are no details to show)
+  const topSnap = hasTrip ? 'full' : 'half';
+  const maxH = H[topSnap];
   const baseH = H[snap];
-  const height = dy === null ? baseH : Math.max(hiddenH, Math.min(fullH, baseH - dy));
+  const height = dy === null ? baseH : Math.max(hiddenH, Math.min(maxH, baseH - dy));
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
   // the card fades as the panel goes down to the handle; with a trip, the details fade in
   // as the panel rises above the card
@@ -756,24 +759,31 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
 
   // typing a station (phone): go to 'full'; afterwards back to where it was, or to the
   // card once the stations changed
-  const prevSnap = React.useRef('rest'), changed = React.useRef(false);
+  const changed = React.useRef(false);
   const live = React.useRef({}); live.current = { searching, hasTrip };
   const goSnap = (t) => {
-    if (live.current.searching && t !== 'full') { const a = document.activeElement; if (a && a.blur) a.blur(); setSearching(false); }
+    if (!hasTrip && t === 'full') t = 'half';
+    if (live.current.searching && (t === 'rest' || t === 'hidden')) { const a = document.activeElement; if (a && a.blur) a.blur(); setSearching(false); }
+    // no route yet: opening the panel starts typing the first empty station
+    if (!hasTrip && t === 'half' && !live.current.searching && (!from || !to) && sheetRef.current) {
+      const inputs = sheetRef.current.querySelectorAll('input:not([type=datetime-local])');
+      const el = inputs[!from ? 0 : 1];
+      if (el) { el.focus(); if (!phone) setSnap('half'); return; }   // on phones the focus opens it
+    }
     setSnap(t);
   };
   const scrollBack = React.useRef(null);
   const startSearch = () => {
     if (!phone || live.current.searching) return;
-    prevSnap.current = snap; changed.current = false;
+    changed.current = false;
     scrollBack.current = window.scrollY;      // Safari may scroll the page (the map) to the field
-    setSearching(true); setSnap('full');
+    setSearching(true); setSnap(live.current.hasTrip ? 'full' : 'half');
   };
   const endSearch = () => {
     const a = document.activeElement;
     if (!live.current.searching || (a && a.tagName === 'INPUT' && a.closest('[data-sheet]'))) return;
     setSearching(false);
-    setSnap(changed.current || !live.current.hasTrip ? 'rest' : prevSnap.current);
+    setSnap('rest');                    // the keyboard closed: back to the card
     // put the map back where it was before the keyboard came up
     const y = scrollBack.current;
     if (y != null && Math.abs(window.scrollY - y) > 2) setTimeout(() => window.scrollTo(0, y), 60);
@@ -796,12 +806,12 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     }
     if (axis !== 'y') return;
     if (fromBody && snap === 'full' && (!top || ddy < 0)) return;     // that was a scroll, not a drag
-    const h = Math.max(hiddenH, Math.min(fullH, baseH - ddy));
-    const order = ['hidden', 'rest', 'half', 'full'];
+    const h = Math.max(hiddenH, Math.min(maxH, baseH - ddy));
+    const order = hasTrip ? ['hidden', 'rest', 'half', 'full'] : ['hidden', 'rest', 'half'];
     let t;
     if (Math.abs(vy) > 0.4 && Math.abs(ddy) > 20) {
       // a flick: the next position that way
-      t = vy < 0 ? order.find(k => H[k] > h + 1) || 'full' : [...order].reverse().find(k => H[k] < h - 1) || 'hidden';
+      t = vy < 0 ? order.find(k => H[k] > h + 1) || topSnap : [...order].reverse().find(k => H[k] < h - 1) || 'hidden';
     } else t = order.reduce((b, k) => Math.abs(H[k] - h) < Math.abs(H[b] - h) ? k : b, 'rest');
     goSnap(t);
   };
@@ -835,7 +845,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     document.documentElement.style.setProperty('--sheet-rest', restH + 'px');
   }, [restH]);
   // tapping the handle steps up: card -> half -> full -> back to the card (hidden -> card)
-  const tapHandle = () => goSnap(snap === 'rest' ? 'half' : snap === 'half' ? 'full' : 'rest');
+  const tapHandle = () => goSnap(snap === 'rest' ? 'half' : snap === 'half' && hasTrip ? 'full' : 'rest');
 
   return (
     <div ref={sheetRef} data-sheet="" style={{
@@ -857,10 +867,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     }}>
       {/* Top strip: handle + trip card. Drag up/down to move the panel, swipe sideways to change trip. */}
       <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
-        <div style={{ display:'flex', justifyContent:'center', padding: '8px 0 6px', cursor: 'pointer' }}
+        <div style={{ display:'flex', justifyContent:'center', padding: '6px 0 4px', cursor: 'pointer' }}
           onClick={tapHandle} role="button"
           aria-label={T.t(snap === 'rest' ? 'expand' : 'collapse')} aria-expanded={snap === 'full'}>
-          <div style={{ width: 32, height: 4, borderRadius: 4, background: '#D7D4CC' }}/>
+          <div style={{ width: 32, height: 3, borderRadius: 3, background: '#D7D4CC' }}/>
         </div>
         {real && journey && (
           // folds away (and back) smoothly while a station is being typed
