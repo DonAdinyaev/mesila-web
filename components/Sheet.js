@@ -844,6 +844,35 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     return () => { el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); };
   }, [snap]);
   const ease = 'cubic-bezier(.2,.7,.2,1)';
+  // Touches on the panel never reach the map behind it. On phones the map is the page,
+  // so a swipe that had nothing left to scroll in the panel (the details at their end, or
+  // too short to scroll at all) used to scroll the map instead. Now a vertical swipe only
+  // scrolls something inside the panel that can still scroll that way (the details, the
+  // suggestions, the time wheel); otherwise the browser's scroll is cancelled. The panel's
+  // own drag still works: it runs on the touch events, not on the browser's scrolling.
+  React.useEffect(() => {
+    const sheet = sheetRef.current; if (!sheet) return;
+    let last = 0;
+    const start = (e) => { last = e.touches[0].clientY; };
+    const move = (e) => {
+      if (!e.cancelable) return;
+      const y = e.touches[0].clientY, dyMove = y - last;   // > 0: finger moving down (content scrolls up)
+      last = y;
+      if (!dyMove) return;
+      for (let el = e.target; el && el !== sheet.parentNode; el = el.parentElement) {
+        const st = getComputedStyle(el);
+        if ((st.overflowY === 'auto' || st.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 1) {
+          const canUp = el.scrollTop > 0, canDown = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+          if ((dyMove > 0 && canUp) || (dyMove < 0 && canDown)) return;   // this one scrolls: let it
+        }
+        if (el === sheet) break;
+      }
+      e.preventDefault();
+    };
+    sheet.addEventListener('touchstart', start, { passive: true });
+    sheet.addEventListener('touchmove', move, { passive: false });
+    return () => { sheet.removeEventListener('touchstart', start); sheet.removeEventListener('touchmove', move); };
+  }, []);
   // The resting height, for things that float just above the panel (the location button):
   // they stay put while the panel is opened, dragged or hidden
   React.useLayoutEffect(() => {
