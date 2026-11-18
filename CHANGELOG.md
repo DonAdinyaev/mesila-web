@@ -2,6 +2,9 @@
 
 ## 2026-11-18
 
+- **No top bar:** the Mesila / Israel Railways bar is gone, so the map runs to the top of the screen. The language switch stays in the same corner as a separate button (top right in English, top left in Hebrew), the "Tap a station to start" hint moved up to the same row, and the map button sits under the language switch. The station search panel now rises to just under that row.
+- **Location arrow:** the map button (show me / the trip / Tel Aviv) has a location arrow instead of the corner-brackets frame.
+- **Loading screen:** while the app loads, the Mesila logo shows in the middle of the screen in grey, with a light band sweeping across it (a skeleton shimmer); light and dark themes.
 - **Smooth station search:** the panel now slides up to the top bar while you type a station (the trip card folding away as it rises) and slides back down when you are done, instead of jumping. While it is up, drag it down to fold it (it follows the finger; a short drag springs back, a longer drag or a flick folds it and closes the keyboard), or tap its handle.
 - **Station suggestions:** the coloured dots of a station's lines moved to the end of the row (right in English, left in Hebrew), so the names line up.
 - **Station search on phones:** tapping a station field raises the panel up to just under the top bar, search fields first, so the suggestions have room above the keyboard. Once both stations are chosen, the panel folds down to the trip card and the route shows on the map; swipe up for the details. Changing the time or the trip leaves the panel as it is.

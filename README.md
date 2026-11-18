@@ -73,7 +73,7 @@ If the relay or the API is down, the app simply shows the planned times.
 ## Project layout
 
 ```
-index.html              App shell: top bar, map buttons, Tweaks panel, fonts, theme
+index.html              App shell: loading screen, language switch, map buttons, Tweaks panel, fonts, theme
 data/network.js         Lines, stations, desktop + phone coordinates, fallback route planner
 data/timetable.js       Planned Israel Railways timetable (GENERATED from GTFS, don't edit)
 data/schedule.js        Matches trains to map lines; timetable trip planner

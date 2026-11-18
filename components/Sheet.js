@@ -707,7 +707,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const searching = phase === 'open';
   const phone = window.innerWidth < 600;
   const sheetRef = React.useRef(null), wrapRef = React.useRef(null), sumRef = React.useRef(null);
-  const SEARCH_TOP = 72;   // the top bar ends ~64px below the safe area
+  const SEARCH_TOP = 60;   // just under the top row of buttons (language switch, 12px + 40px)
   const startSearch = () => {
     if (!phone || phase === 'open' || !sheetRef.current || !wrapRef.current) return;
     const top = sheetRef.current.getBoundingClientRect().top, w = wrapRef.current.offsetHeight;
