@@ -301,8 +301,8 @@ window.SCHEDULE = (() => {
     }
     const before = [];
     if (when && earlier > 0) {
-      // earlier trips, but never ones that have already left
-      const now = israelNow(), nowMin = (now.day - base) * 1440 + now.min;
+      // earlier trips, but none that left more than 30 minutes ago (the time wheel's limit)
+      const now = israelNow(), nowMin = (now.day - base) * 1440 + now.min - 30;
       for (let t = Math.max(first.start - 180, nowMin), n = 0; n < 20; n++) {
         const j = at(t);
         if (!j || j.depart >= first.depart) break;
