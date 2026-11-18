@@ -349,6 +349,12 @@ function LiveStatus({ d }) {
   );
 }
 
+// The platform, on the line of the station's name, after it
+function Plat({ text }) {
+  if (!text) return null;
+  return <span style={{ font:'600 12px var(--font)', color:'var(--text-dim)', letterSpacing: 0, marginInlineStart: 8, whiteSpace:'nowrap' }}>{text}</span>;
+}
+
 function JourneyTimeline({ j, live, rt }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
@@ -383,9 +389,8 @@ function JourneyTimeline({ j, live, rt }) {
           <TLNode kind={i === 0 ? 'start' : 'transfer'}/>
         </div>
         <div style={{ flex: 1, minWidth: 0, paddingBottom: 10 }}>
-          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[0])}</div>
+          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[0])}<Plat text={plat}/></div>
           {i > 0 && <div style={{ font:'500 12px var(--font)', color: risky ? LATE : 'var(--text-dim)', fontWeight: risky ? 600 : 500, marginTop: 2 }}>{risky ? T.t('tightTransfer') : T.t('transferWait', wait)}</div>}
-          {plat && <div style={{ font:'600 12px var(--font)', color:'var(--text)', marginTop: 2 }}>{plat}</div>}
         </div>
       </div>
     );
@@ -434,8 +439,8 @@ function JourneyTimeline({ j, live, rt }) {
           <TLNode kind="end"/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[n])}</div>
-          <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)', marginTop: 2 }}>{T.t('arrive')}{L && L.pt ? ' · ' + T.t('platform', L.pt) : ''}</div>
+          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[n])}<Plat text={L && L.pt ? T.t('platform', L.pt) : null}/></div>
+          <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)', marginTop: 2 }}>{T.t('arrive')}</div>
         </div>
       </div>
     );
