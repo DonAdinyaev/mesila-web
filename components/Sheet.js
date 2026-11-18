@@ -723,7 +723,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     const measure = () => setM({
       card: sumRef.current ? sumRef.current.scrollHeight : 0,
       content: contentRef.current ? contentRef.current.offsetHeight : 0,
-      bottom: sheetRef.current ? sheetRef.current.getBoundingClientRect().bottom : window.innerHeight - 8 });
+      // where the panel's bottom sits at rest (screen bottom - home indicator - 8px); not read
+      // from the panel itself, which may be mid-animation or riding on the keyboard
+      bottom: document.documentElement.clientHeight - (window.safeBottom ? window.safeBottom() : 0) - 8 });
     measure();
     const ro = new ResizeObserver(measure);
     if (contentRef.current) ro.observe(contentRef.current);
@@ -736,21 +738,23 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   // slides the visible area ("visual viewport") over it to keep the field in view, so a
   // panel sized to the whole page ends up above or below what you can see. Then the panel
   // is fitted to the visible area instead (above the keyboard).
+  // Followed all the time on phones, not only while typing, so that when typing ends the
+  // panel rides down with the closing keyboard in one movement instead of jumping.
   const [vv, setVv] = React.useState(null);
   React.useEffect(() => {
     const V = window.visualViewport;
-    if (!searching || !V) { setVv(null); return; }
+    if (!phone || !V) return;
     const upd = () => setVv({ top: V.offsetTop, h: V.height, lh: document.documentElement.clientHeight });
     upd();
     V.addEventListener('resize', upd); V.addEventListener('scroll', upd);
     return () => { V.removeEventListener('resize', upd); V.removeEventListener('scroll', upd); };
-  }, [searching]);
-  const kb = !!(searching && vv && vv.h < vv.lh - 80);      // keyboard up
+  }, []);
+  const kb = !!(vv && vv.h < vv.lh - 80);                 // keyboard up (opening, open or closing)
   const kbGapTop = kb ? (vv.top < 4 ? safeTop + FULL_TOP : 8) : 0;
-  const fullH = kb ? Math.max(0, vv.h - kbGapTop - 8) : Math.max(0, m.bottom - (safeTop + FULL_TOP));
+  const fullH = kb && searching ? Math.max(0, vv.h - kbGapTop - 8) : Math.max(0, m.bottom - (safeTop + FULL_TOP));
   const hiddenH = HANDLE + CHROME;
   const restH = Math.max(hiddenH, Math.min(fullH, HANDLE + (hasTrip ? m.card : m.content) + CHROME));
-  const H = { hidden: hiddenH, rest: restH, half: kb ? fullH : Math.round((restH + fullH) / 2), full: fullH };
+  const H = { hidden: hiddenH, rest: restH, half: kb && searching ? fullH : Math.round((restH + fullH) / 2), full: fullH };
   // without a trip the panel goes no higher than half (there are no details to show)
   const topSnap = hasTrip ? 'full' : 'half';
   const maxH = H[topSnap];
@@ -789,11 +793,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (!live.current.searching || (a && a.tagName === 'INPUT' && a.closest('[data-sheet]'))) return;
     setSearching(false);
     setSnap('rest');                    // the keyboard closed: back to the card
-    // put the map back where it was before the keyboard came up
-    const y = scrollBack.current;
-    if (y != null && Math.abs(window.scrollY - y) > 2) setTimeout(() => window.scrollTo(0, y), 60);
-    scrollBack.current = null;
+    // the map goes back to where it was once the keyboard is gone (see below)
   };
+  React.useEffect(() => {
+    if (kb || searching || scrollBack.current == null) return;
+    const y = scrollBack.current; scrollBack.current = null;
+    if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
+  }, [kb, searching]);
   // new stations: show the trip card (once typing is over)
   const firstKey = React.useRef(true);
   React.useEffect(() => {

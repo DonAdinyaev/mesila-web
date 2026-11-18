@@ -2,6 +2,7 @@
 
 ## 2026-11-18
 
+- **No jumps when typing ends:** closing the keyboard used to move the panel several times in a row (snapped to the screen bottom while the keyboard was still up, then animated, then moved again as the page scrolled back and the panel was re-measured mid-animation). Now the panel rides down with the closing keyboard while it shrinks to the card, in one movement; its resting bottom comes from a fixed reference instead of the moving panel, and the map is put back only once the keyboard is gone.
 - **Swipes on the panel stay on the panel:** on phones the map is the page, so on iPhone a swipe in the trip details that had nothing left to scroll moved the map behind the panel. Now a swipe on the panel only scrolls something inside it that can still scroll that way (the details, the suggestions, the time wheel); otherwise it does nothing. Dragging the panel itself still works.
 - **Shorter suggestion list:** station suggestions show about four and a half rows and scroll for the rest (up to 30 matches instead of 8). Scrolling the list doesn't move the panel.
 - **Panel, refined:** the handle is thinner (3px bar, less padding). With no route yet, the panel goes no higher than half: dragging it up or tapping the handle starts typing in the first empty station (From, then To), and the panel rises to half. Closing the keyboard always returns the panel to the card. With a route, typing a station still opens the panel fully.
