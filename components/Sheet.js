@@ -65,7 +65,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
   const display = value ? window.I18N.station(value) : '';
   const query = (q || display || '').toLowerCase();
   const results = open && query
-    ? APP_STATIONS.filter(s => window.I18N.searchText(s.id).includes(query)).slice(0, 8)
+    ? APP_STATIONS.filter(s => window.I18N.searchText(s.id).includes(query)).slice(0, 30)
     : [];
 
   return (
@@ -128,12 +128,17 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
         )}
       </div>
       {results.length > 0 && (
-        <div style={{
+        // about four and a half rows tall, the rest scrolls (its touches are its own: they
+        // neither drag the panel nor scroll it)
+        <div data-own-scroll="true"
+          onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
+          style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
           background: 'var(--surface)', borderRadius: 14,
           boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
           border: '1px solid var(--chip-border)',
-          overflow: 'hidden', zIndex: 10,
+          maxHeight: 196, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
+          zIndex: 10,
         }}>
           {results.map(s => (
             <div
