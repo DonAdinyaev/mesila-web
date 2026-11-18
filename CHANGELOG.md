@@ -2,6 +2,7 @@
 
 ## 2026-11-18
 
+- **Location button above the panel:** the location-arrow button now floats at the bottom right, just above the panel at rest (it follows the panel as the panel changes size at rest, e.g. from the search card to the trip card). When the panel is opened or dragged up, the button stays where it is and the panel covers it. On computers the zoom buttons stay at the top right.
 - **No start hint:** the "Tap a station to start" pill is removed for now.
 - **Loading screen stays at least 1.5 s:** it now covers the app until both the app is ready and 1.5 seconds have passed since the page started loading, then fades out.
 - **No top bar:** the Mesila / Israel Railways bar is gone, so the map runs to the top of the screen. The language switch stays in the same corner as a separate button (top right in English, top left in Hebrew), the "Tap a station to start" hint moved up to the same row, and the map button sits under the language switch. The station search panel now rises to just under that row.
