@@ -106,7 +106,7 @@
 <script src="data/schedule.js?v=7"></script>
 <script src="data/live.js?v=2"></script>
 <script type="text/babel" src="components/MapSVG.js?v=106"></script>
-<script type="text/babel" src="components/Sheet.js?v=71"></script>
+<script type="text/babel" src="components/Sheet.js?v=73"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -272,7 +272,6 @@ function App() {
   }, []);
   const [to, setTo] = React.useState(null);
   const [popup, setPopup] = React.useState(null);
-  const [expanded, setExpanded] = React.useState(false);
   // every line is always shown and used for planning (the line filter was removed)
   const lineFilter = React.useMemo(() => new Set(ALL_LINES.map(l => l.id)), []);
   const [focusTick, setFocusTick] = React.useState(0);
@@ -353,11 +352,6 @@ function App() {
   const routeKey = routeRaw ? routeRaw.map(r => r.id + ':' + r.line).join(',') : '';
   const route = React.useMemo(() => routeRaw, [routeKey]);
 
-  // Once both stations are chosen, fold the sheet down to the trip card so the route
-  // shows on the map. Changing the time or the trip leaves it as the user left it.
-  React.useEffect(() => {
-    if (from && to && from !== to) setExpanded(false);
-  }, [from, to]);
 
   const onSwap = () => { setFrom(to); setTo(from); };
 
@@ -421,8 +415,7 @@ function App() {
         route={route}
         journey={journey} when={when} setWhen={setWhen}
         trips={trips.list} tripIndex={selIdx} onSelectTrip={selectTrip}
-        expanded={expanded}
-        setExpanded={setExpanded}
+        stationsKey={(from || '') + '>' + (to || '')}
       />
 
       {tweaksOpen && (
