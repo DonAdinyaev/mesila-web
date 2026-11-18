@@ -69,14 +69,14 @@
   :root { --sk-base: #DEDACF; --sk-hi: #FFFFFF; }
   [data-theme="dark"] { --sk-base: #2A2C31; --sk-hi: #3B3E45; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sk-base: #2A2C31; --sk-hi: #3B3E45; } }
-  .loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--land); }
+  .loading { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: var(--land); transition: opacity 300ms ease; }
 </style>
 </head>
 <body>
-<div id="root">
-  <!-- Loading screen: shown while the scripts load, replaced by the app. The logo's rails
+<div id="root"></div>
+  <!-- Loading screen: shown while the scripts load, kept for at least 1.5 s, then faded out once the app is up. The logo's rails
        are grey with a light band sweeping across them (a skeleton shimmer). -->
-  <div class="loading" aria-label="Mesila" role="img">
+  <div id="loader" class="loading" aria-label="Mesila" role="img">
     <svg width="96" height="98" viewBox="36 30 168 172" aria-hidden="true">
       <defs>
         <linearGradient id="sk" gradientUnits="userSpaceOnUse" x1="-120" y1="0" x2="0" y2="0">
@@ -91,7 +91,7 @@
       <g fill="url(#sk)"><circle cx="52" cy="56" r="14"/><circle cx="68" cy="186" r="14"/><circle cx="94" cy="186" r="14"/><circle cx="142" cy="186" r="14"/></g>
     </svg>
   </div>
-</div>
+
 <script>window.safeTop = () => { const p = document.getElementById('sat-probe'); return p ? p.offsetHeight : 0; };</script>
 <!-- measures env(safe-area-inset-top) for code that positions things below the status bar -->
 <div id="sat-probe" aria-hidden="true" style="position:absolute;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none"></div>
@@ -400,12 +400,6 @@ function App() {
         </button>
       </div>
 
-      {!popup && (!from || !to) && (
-        <div style={{ position:'fixed', insetInlineStart: 12, top: 'calc(env(safe-area-inset-top, 0px) + 12px)', zIndex: 4, maxWidth:'calc(100% - 80px)', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap: 8, padding:'8px 12px', borderRadius: 999, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', font:'500 13px var(--font)', color:'var(--text)', animation:'fadeIn 200ms', pointerEvents:'none' }}>
-          <span style={{ width: 10, height: 10, borderRadius: 10, flexShrink: 0, background: !from ? '#1A1A1C' : 'transparent', border: !from ? 'none' : '2px solid #1A1A1C' }}></span>
-          <span style={{ flexShrink: 0 }}>{!from ? T.t('tapStart') : T.t('tapDest')}</span>
-        </div>
-      )}
 
       <window.StationPopup
         stationId={popup}
@@ -434,6 +428,16 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+// Loading screen: shown for at least 1.5 s from the start of the page load, then it
+// fades out over the app (which has rendered behind it by then)
+(() => {
+  const el = document.getElementById('loader'); if (!el) return;
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 320);
+  }, Math.max(0, 1500 - performance.now()));
+})();
 </script>
 </body>
 </html>
