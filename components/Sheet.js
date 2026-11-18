@@ -727,7 +727,22 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
   }, [hasTrip]);
   const safeTop = window.safeTop ? window.safeTop() : 0;
-  const fullH = Math.max(0, m.bottom - (safeTop + FULL_TOP));
+  // While typing with the on-screen keyboard open, iOS Safari doesn't shrink the page: it
+  // slides the visible area ("visual viewport") over it to keep the field in view, so a
+  // panel sized to the whole page ends up above or below what you can see. Then the panel
+  // is fitted to the visible area instead (above the keyboard).
+  const [vv, setVv] = React.useState(null);
+  React.useEffect(() => {
+    const V = window.visualViewport;
+    if (!searching || !V) { setVv(null); return; }
+    const upd = () => setVv({ top: V.offsetTop, h: V.height, lh: document.documentElement.clientHeight });
+    upd();
+    V.addEventListener('resize', upd); V.addEventListener('scroll', upd);
+    return () => { V.removeEventListener('resize', upd); V.removeEventListener('scroll', upd); };
+  }, [searching]);
+  const kb = !!(searching && vv && vv.h < vv.lh - 80);      // keyboard up
+  const kbGapTop = kb ? (vv.top < 4 ? safeTop + FULL_TOP : 8) : 0;
+  const fullH = kb ? Math.max(0, vv.h - kbGapTop - 8) : Math.max(0, m.bottom - (safeTop + FULL_TOP));
   const hiddenH = HANDLE + CHROME;
   const restH = Math.max(hiddenH, Math.min(fullH, HANDLE + (hasTrip ? m.card : m.content) + CHROME));
   const H = { hidden: hiddenH, rest: restH, half: Math.round((restH + fullH) / 2), full: fullH };
@@ -747,9 +762,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (live.current.searching && t !== 'full') { const a = document.activeElement; if (a && a.blur) a.blur(); setSearching(false); }
     setSnap(t);
   };
+  const scrollBack = React.useRef(null);
   const startSearch = () => {
     if (!phone || live.current.searching) return;
     prevSnap.current = snap; changed.current = false;
+    scrollBack.current = window.scrollY;      // Safari may scroll the page (the map) to the field
     setSearching(true); setSnap('full');
   };
   const endSearch = () => {
@@ -757,6 +774,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (!live.current.searching || (a && a.tagName === 'INPUT' && a.closest('[data-sheet]'))) return;
     setSearching(false);
     setSnap(changed.current || !live.current.hasTrip ? 'rest' : prevSnap.current);
+    // put the map back where it was before the keyboard came up
+    const y = scrollBack.current;
+    if (y != null && Math.abs(window.scrollY - y) > 2) setTimeout(() => window.scrollTo(0, y), 60);
+    scrollBack.current = null;
   };
   // new stations: show the trip card (once typing is over)
   const firstKey = React.useRef(true);
@@ -820,8 +841,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     <div ref={sheetRef} data-sheet="" style={{
       // an island: floats 8px from the sides and from the bottom of the visible area
       // (above the home indicator), all corners rounded, the map showing around it
-      position:'fixed', left: 8, right: 8, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
-      height, transition: dy === null ? `height 300ms ${ease}` : 'none',
+      position:'fixed', left: 8, right: 8,
+      // with the keyboard up: sits on top of it (the visible area's bottom edge)
+      bottom: kb ? Math.max(0, vv.lh - (vv.top + vv.h)) + 8 : 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+      height, transition: dy === null ? `height 300ms ${ease}, bottom 250ms ${ease}` : 'none',
       display:'flex', flexDirection:'column',
       background: 'var(--surface)',
       borderRadius: 24, overflow: 'hidden',
