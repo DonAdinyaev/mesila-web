@@ -802,6 +802,16 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     return () => { el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); };
   }, [peek, searching]);
   const ease = 'cubic-bezier(.2,.7,.2,1)';
+  // The panel's height at rest (folded, or the search card with nothing planned), for
+  // things that float just above it, e.g. the location button: it follows the resting
+  // panel but stays put while the panel is opened or dragged over it
+  React.useLayoutEffect(() => {
+    if (phase !== 'off' || dy !== null || (peek && open) || !sheetRef.current) return;
+    // folded: the trip card strip + the details' top border + padding + the outer border
+    // (measured, not the panel itself, which may still be animating down)
+    const h = peek ? stripRef.current.offsetHeight + 1 + 6 + 2 : sheetRef.current.offsetHeight;
+    document.documentElement.style.setProperty('--sheet-rest', h + 'px');
+  });
 
   return (
     <div ref={sheetRef} data-sheet="" style={{

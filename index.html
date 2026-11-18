@@ -106,7 +106,7 @@
 <script src="data/schedule.js?v=7"></script>
 <script src="data/live.js?v=2"></script>
 <script type="text/babel" src="components/MapSVG.js?v=106"></script>
-<script type="text/babel" src="components/Sheet.js?v=70"></script>
+<script type="text/babel" src="components/Sheet.js?v=71"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -392,13 +392,18 @@ function App() {
           </button>
         </div>
         )}
-        <button onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
+      </div>
+
+      {/* show me / the trip / Tel Aviv */}
+      <button onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 12, zIndex: 4,
+          // just above the panel at rest; it stays put while the panel is opened over it
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px + var(--sheet-rest, 140px) + 10px)', transition: `bottom 260ms cubic-bezier(.2,.7,.2,1)`,
+          width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
           {/* location arrow */}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M20.6 3.4 3.9 10.6c-.8.4-.7 1.6.2 1.8l6.6 1.1 1.1 6.6c.2.9 1.4 1 1.8.2l7.2-16.7c.3-.8-.4-1.5-1.2-1.2z" fill="currentColor"/>
           </svg>
-        </button>
-      </div>
+      </button>
 
 
       <window.StationPopup
