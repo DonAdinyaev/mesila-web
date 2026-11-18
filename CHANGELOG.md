@@ -2,6 +2,8 @@
 
 ## 2026-11-18
 
+- **No start hint:** the "Tap a station to start" pill is removed for now.
+- **Loading screen stays at least 1.5 s:** it now covers the app until both the app is ready and 1.5 seconds have passed since the page started loading, then fades out.
 - **No top bar:** the Mesila / Israel Railways bar is gone, so the map runs to the top of the screen. The language switch stays in the same corner as a separate button (top right in English, top left in Hebrew), the "Tap a station to start" hint moved up to the same row, and the map button sits under the language switch. The station search panel now rises to just under that row.
 - **Location arrow:** the map button (show me / the trip / Tel Aviv) has a location arrow instead of the corner-brackets frame.
 - **Loading screen:** while the app loads, the Mesila logo shows in the middle of the screen in grey, with a light band sweeping across it (a skeleton shimmer); light and dark themes.
