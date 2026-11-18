@@ -83,7 +83,7 @@
 <script src="data/schedule.js?v=7"></script>
 <script src="data/live.js?v=2"></script>
 <script type="text/babel" src="components/MapSVG.js?v=105"></script>
-<script type="text/babel" src="components/Sheet.js?v=62"></script>
+<script type="text/babel" src="components/Sheet.js?v=63"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -368,11 +368,11 @@ function App() {
   const routeKey = routeRaw ? routeRaw.map(r => r.id + ':' + r.line).join(',') : '';
   const route = React.useMemo(() => routeRaw, [routeKey]);
 
-  // Open the trip details for a new search; switching between alternative trips
-  // (same search) leaves the sheet as the user left it.
+  // Once both stations are chosen, fold the sheet down to the trip card so the route
+  // shows on the map. Changing the time or the trip leaves it as the user left it.
   React.useEffect(() => {
-    if (from && to && from !== to) setExpanded(true);
-  }, [from, to, when]);
+    if (from && to && from !== to) setExpanded(false);
+  }, [from, to]);
 
   const onSwap = () => { setFrom(to); setTo(from); };
 

@@ -53,7 +53,7 @@ function nextDepartures(lineId, baseMins = 0) {
 }
 
 // One row of the search card. 16px text so iPhones don't zoom the page on focus.
-function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, autoFocus, note, onLocate, locating }) {
+function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, autoFocus, note, onLocate, locating }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
   const inputRef = React.useRef(null);
@@ -84,7 +84,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
             value={open ? q : display}
             onChange={e => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => { setOpen(true); setQ(''); onFocus?.(); }}
-            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onBlur={() => setTimeout(() => { setOpen(false); onBlur?.(); }, 150)}
             placeholder={placeholder}
             style={{
               width: '100%', border: 'none', outline: 'none', background: 'transparent',
@@ -695,7 +695,16 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   // search fields always show, since there's nothing to collapse to.
   // The details' visible height follows the finger while dragging, in both
   // directions, and they fade out as the panel nears the bottom.
-  const peek = real ? !!journey : hasRoute;
+  // Typing a station on a phone: the sheet rises to the top of the screen, search card
+  // first, so the suggestions have room above the keyboard
+  const [searching, setSearching] = React.useState(false);
+  const phone = window.innerWidth < 600;
+  const startSearch = () => { if (phone) setSearching(true); };
+  const endSearch = () => {
+    const a = document.activeElement;
+    if (!(a && a.tagName === 'INPUT' && a.closest('[data-sheet]'))) setSearching(false);
+  };
+  const peek = (real ? !!journey : hasRoute) && !searching;
   const rt = useLiveDelays(real ? journey : null);
   const open = expanded || !peek;
   const bodyRef = React.useRef(null), contentRef = React.useRef(null), stripRef = React.useRef(null);
@@ -734,7 +743,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   };
   const stripSwipe = useSwipe({ onDrag: (d) => peek && setDy(d), onEnd: (g) => onEnd(g, false) });
   const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => peek && top && setDy(Math.max(0, d)), onEnd: (g) => onEnd(g, true) });
-  React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, open]);
+  React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, open, searching]);
   // A downward drag that starts with the details scrolled to the top moves the
   // panel. Stop the browser from also scrolling/bouncing the content (iOS rubber
   // band), or the content would move twice as fast as the finger. React's touch
@@ -761,8 +770,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       // an island: floats 8px from the sides and from the bottom of the visible area
       // (above the home indicator), all corners rounded, the map showing around it
       position:'fixed', left: 8, right: 8, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+      ...(searching ? { top: 'calc(env(safe-area-inset-top, 0px) + 8px)' } : { maxHeight: '75vh' }),
       display:'flex', flexDirection:'column',
-      maxHeight: '75vh',
       background: 'var(--surface)',
       borderRadius: 24, overflow: 'hidden',
       // Shadow cast upward and kept within 8px below the island: iOS Safari clips fixed
@@ -770,7 +779,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       // shadow was cut off there in a hard grey band.
       boxShadow: '0 -6px 14px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.08)', border: '1px solid var(--chip-border)',
       paddingBottom: 6,
-      zIndex: 5,
+      zIndex: searching ? 30 : 5,      // while searching it covers the top bar too
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
       <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
@@ -779,7 +788,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           aria-label={peek ? T.t(open ? 'collapse' : 'expand') : undefined} aria-expanded={peek ? open : undefined}>
           <div style={{ width: 40, height: 4, borderRadius: 4, background: '#D7D4CC' }}/>
         </div>
-        {real && journey && (
+        {real && journey && !searching && (
           <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
             onPrev={() => go(-1)} onNext={() => go(1)}/>
         )}
@@ -813,9 +822,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   note={located && from === located.id ? T.t('kmAway', located.km) : null}
                   onLocate={real && navigator.geolocation ? onLocate : null} locating={locating}
+                  onFocus={startSearch} onBlur={endSearch}
                   onChange={onSetFrom} onPick={onSetFrom}/>
                 <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
+                  onFocus={startSearch} onBlur={endSearch}
                   onChange={onSetTo} onPick={onSetTo}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
@@ -832,7 +843,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           </div>
 
           {/* Real timetable: the selected trip's timeline */}
-          {real && journey && (
+          {real && journey && !searching && (
             <div key={tripIndex} style={{ padding: '0 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
               <JourneyTimeline j={journey} live={!when} rt={rt}/>
               <TimetableNote borrowed={journey.borrowed}/>
