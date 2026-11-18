@@ -48,7 +48,7 @@ Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) 
 ```bash
 npm install                      # once
 npx playwright install chromium  # once, if Playwright has no browser yet
-npm test
+npm test                         # or PW_CHANNEL=chrome npm test, to use an installed Google Chrome
 ```
 
 [`.github/workflows/tests.yml`](.github/workflows/tests.yml) runs them on every push to a branch and on pull requests.

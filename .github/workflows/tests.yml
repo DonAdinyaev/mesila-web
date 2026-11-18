@@ -9,6 +9,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:                     # a newer push replaces a run still going on the same branch
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,5 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # the runner's own Google Chrome: nothing to download or install
       - run: npm test
+        env:
+          PW_CHANNEL: chrome

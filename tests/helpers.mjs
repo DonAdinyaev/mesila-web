@@ -23,7 +23,9 @@ export function startServer() {
   return new Promise(ok => server.listen(0, '127.0.0.1', () => ok({ url: `http://127.0.0.1:${server.address().port}/`, close: () => server.close() })));
 }
 
-export const launch = () => chromium.launch();
+// PW_CHANNEL=chrome uses the installed Google Chrome (GitHub's Ubuntu runners have it),
+// otherwise Playwright's own Chromium
+export const launch = () => chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
 
 // A stand-in for Safari's visual viewport that a test can move like the on-screen keyboard
 // does: kb(top, height) = the part of the page left visible.
