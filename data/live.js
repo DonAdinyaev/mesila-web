@@ -1,8 +1,9 @@
-// Live train delays from Israel Railways, through our relay (relay/worker.js, a
-// Cloudflare Worker at mesila-live.mesila.workers.dev). The relay answers, per pair of
-// stations and day, the trains running right now: current delay, last/next station
-// and the predicted delay at each station still ahead. Planned times stay the base;
-// this only adds "x min late" / "on time" to the trip on screen.
+// Platforms and live train delays from Israel Railways, through our relay (relay/worker.js,
+// a Cloudflare Worker at mesila-live.mesila.workers.dev). The relay answers, per pair of
+// stations and day, every train's departure and arrival platform, and for the trains
+// running right now their delay, last/next station and the predicted delay at each
+// station still ahead. Planned times stay the base; this adds platforms and
+// "x min late" / "on time" to the trip on screen.
 
 window.LIVE = (() => {
   const URL = 'https://mesila-live.mesila.workers.dev/trains';
@@ -22,9 +23,10 @@ window.LIVE = (() => {
     return p;
   }
 
-  // Live state of each leg of journey j (from window.SCHEDULE), or null where there is
-  // none: a train not running now, a station without a number, or the relay down.
-  // -> [{ dep, arr } | null] : delay in minutes at the leg's first and last station
+  // Platforms and live state of each leg of journey j (from window.SCHEDULE), or null
+  // where there is nothing: a station without a number, an unknown train, the relay down.
+  // -> [{ pf, pt, dep, arr } | null]: platform at the leg's first / last station, and the
+  // delay in minutes there (dep / arr: null unless the train is running now)
   async function forJourney(j) {
     const S = window.SCHEDULE; if (!S || !j) return null;
     const now = S.israelNow(), nowAbs = now.day * 1440 + now.min;
@@ -33,16 +35,20 @@ window.LIVE = (() => {
       const a = leg.stationIds[0], b = leg.stationIds[leg.stationIds.length - 1];
       const ra = RAIL[a], rb = RAIL[b];
       const dep = base + leg.depart, arr = base + leg.arrive;
-      // a train only reports while it runs: look from 2 h before it reaches us until it arrives
-      if (!ra || !rb || nowAbs < dep - 120 || nowAbs > arr + 20) return null;
+      if (!ra || !rb) return null;
       const date = new Date(Math.floor(dep / 1440) * 864e5).toISOString().slice(0, 10);
       const data = await pair(ra, rb, date);
       const t = data && data.trains && data.trains[leg.train];
       if (!t) return null;
-      const at = (r) => (t.eta && t.eta[r] != null ? t.eta[r] : t.delay);
-      const d0 = at(ra), d1 = at(rb);
-      if (d0 == null && d1 == null) return null;
-      return { dep: d0 != null ? d0 : d1, arr: d1 != null ? d1 : d0 };
+      const out = { pf: t.pf || null, pt: t.pt || null, dep: null, arr: null };
+      // a train only reports while it runs: trust that from 2 h before it reaches us
+      // until it arrives (the same number runs every day)
+      if (nowAbs >= dep - 120 && nowAbs <= arr + 20) {
+        const at = (r) => (t.eta && t.eta[r] != null ? t.eta[r] : t.delay);
+        const d0 = at(ra), d1 = at(rb);
+        if (d0 != null || d1 != null) { out.dep = d0 != null ? d0 : d1; out.arr = d1 != null ? d1 : d0; }
+      }
+      return out.pf || out.pt || out.dep != null ? out : null;
     }));
   }
 

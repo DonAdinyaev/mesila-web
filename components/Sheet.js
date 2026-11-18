@@ -309,7 +309,8 @@ function Moon({ size = 12 }) {
   );
 }
 
-// ---- Live delays (data/live.js): rt = [{ dep, arr } | null] per leg, minutes late
+// ---- Platforms and live delays (data/live.js): rt = [{ pf, pt, dep, arr } | null] per leg
+// (pf / pt: platform at the leg's first / last station; dep / arr: minutes late, or null)
 const LATE = '#D2372D', ONTIME = '#2E8B4A';
 // Refreshed every 30 s while the trip is on screen and the page is visible
 function useLiveDelays(j) {
@@ -348,6 +349,12 @@ function LiveStatus({ d }) {
   );
 }
 
+// The platform, on the line of the station's name, after it
+function Plat({ text }) {
+  if (!text) return null;
+  return <span style={{ font:'600 12px var(--font)', color:'var(--text-dim)', letterSpacing: 0, marginInlineStart: 8, whiteSpace:'nowrap' }}>{text}</span>;
+}
+
 function JourneyTimeline({ j, live, rt }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
@@ -364,10 +371,12 @@ function JourneyTimeline({ j, live, rt }) {
     const color = colorOf(leg.line);
     const ids = leg.stationIds, n = ids.length - 1;
     const L = rt && rt[i], P = i > 0 && rt && rt[i - 1];
-    const wait = i === 0 ? leg.depart + (L ? L.dep : 0) - j.start
-      : leg.depart + (L ? L.dep : 0) - j.legs[i - 1].arrive - (P ? P.arr : 0);
+    const dDep = L && L.dep != null ? L.dep : 0, dArr = P && P.arr != null ? P.arr : 0;
+    const wait = i === 0 ? leg.depart + dDep - j.start : leg.depart + dDep - j.legs[i - 1].arrive - dArr;
     // with live delays, a change that leaves under 2 minutes is likely missed
-    const risky = i > 0 && (L || P) && wait < 2;
+    const risky = i > 0 && ((L && L.dep != null) || (P && P.arr != null)) && wait < 2;
+    // where to board: "Platform 2"; at a change, from the arrival platform to this one
+    const plat = !L || !L.pf ? null : i > 0 && P && P.pt && P.pt !== L.pf ? T.t('platformChange', P.pt, L.pf) : T.t('platform', L.pf);
     rows.push(
       <div key={'s'+i} style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
         <div style={timeCol}>
@@ -380,7 +389,7 @@ function JourneyTimeline({ j, live, rt }) {
           <TLNode kind={i === 0 ? 'start' : 'transfer'}/>
         </div>
         <div style={{ flex: 1, minWidth: 0, paddingBottom: 10 }}>
-          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[0])}</div>
+          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[0])}<Plat text={plat}/></div>
           {i > 0 && <div style={{ font:'500 12px var(--font)', color: risky ? LATE : 'var(--text-dim)', fontWeight: risky ? 600 : 500, marginTop: 2 }}>{risky ? T.t('tightTransfer') : T.t('transferWait', wait)}</div>}
         </div>
       </div>
@@ -396,7 +405,7 @@ function JourneyTimeline({ j, live, rt }) {
               <div style={{ font:'600 13px var(--font)', color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{T.t('toward', T.station(leg.terminus))}</div>
               <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)' }}>
                 {T.t('train', leg.train)}
-                {L && <> · <LiveStatus d={Math.max(L.dep, 0)}/></>}
+                {L && L.dep != null && <> · <LiveStatus d={Math.max(L.dep, 0)}/></>}
                 {leg.night && <> · <span style={{ display:'inline-flex', alignItems:'center', gap: 3, verticalAlign: '-1px' }}><Moon size={11}/>{T.t('nightTrain')}</span></>}
                 {i === 0 && live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
               </div>
@@ -430,7 +439,7 @@ function JourneyTimeline({ j, live, rt }) {
           <TLNode kind="end"/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[n])}</div>
+          <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[n])}<Plat text={L && L.pt ? T.t('platform', L.pt) : null}/></div>
           <div style={{ font:'500 12px var(--font)', color:'var(--text-dim)', marginTop: 2 }}>{T.t('arrive')}</div>
         </div>
       </div>
@@ -605,8 +614,8 @@ function useSwipe({ onDrag, onEnd, scrollRef }) {
 function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
   const T = window.I18N, rtl = T.dir === 'rtl';
   const first = rt && rt[0], last = rt && rt[rt.length - 1];
-  const wait = j.depart + (first ? first.dep : 0) - j.start;
-  const shown = rt && rt.find(Boolean);       // the status shown: the first leg with live data
+  const wait = j.depart + (first && first.dep != null ? first.dep : 0) - j.start;
+  const shown = rt && rt.find(x => x && x.dep != null);   // the status shown: the first leg with live data
   const arrow = (dir, disabled, onClick, label) => (
     <button onClick={onClick} disabled={disabled} aria-label={label} title={label} style={{
       width: 34, height: 34, borderRadius: 17, flexShrink: 0, border: '1px solid var(--chip-border)',
@@ -635,8 +644,11 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
               </React.Fragment>
             ))}
             <span style={{ marginInlineStart: 4 }}>
-              {j.transfers === 0 ? T.t('direct') : T.t('transfers', j.transfers)}
-              {live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}
+              {/* the badges already show how many trains it takes: when the platform is
+                  known it takes the place of "Direct" / "1 transfer", so the row stays one line */}
+              {first && first.pf
+                ? (live && wait > 0 ? T.t('platformIn', first.pf, wait) : T.t('platform', first.pf))
+                : <>{j.transfers === 0 ? T.t('direct') : T.t('transfers', j.transfers)}{live && wait > 0 ? ' · ' + T.t('departsInOnly', wait) : ''}</>}
               {shown && <> · <LiveStatus d={Math.max(shown.dep, 0)}/></>}
             </span>
           </div>
@@ -807,7 +819,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           {real && journey && (
             <div key={tripIndex} style={{ padding: '0 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
               <JourneyTimeline j={journey} live={!when} rt={rt}/>
-              <TimetableNote borrowed={journey.borrowed} live={!!rt}/>
+              <TimetableNote borrowed={journey.borrowed} live={!!(rt && rt.some(x => x && x.dep != null))}/>
             </div>
           )}
           {real && from && to && from !== to && !journey && (

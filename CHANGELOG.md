@@ -2,6 +2,7 @@
 
 ## 2026-11-18
 
+- **Platforms:** the trip card says where and when to board ("Platform 1 in 14 min"; the line badges already show how many trains it takes). The timeline shows the platform beside each station name: where to board at the start, the next train's platform at each change (or the move, e.g. "Platform 3 → platform 1", when you arrive on a different one), and the arrival platform. Platforms come from Israel Railways through the relay for every train of the day, not only trains running now.
 - **Trip timeline:** the line badge moved into the left column beside the ride, so "Train 157 · On time · Departs in 8 min" fits on one line. The live status ("On time", "x min late") now sits on the same baseline as the text around it, with its dot centred on the letters, in the timeline and on the trip card.
 
 ## 2026-11-17

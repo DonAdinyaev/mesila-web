@@ -52,9 +52,9 @@ python3 tools/build_timetable.py --zip feed.zip   # or use a feed you already do
 
 The script needs only Python 3's standard library.
 
-## Live delays
+## Platforms and live delays
 
-The trip card and timeline show live delays ("4 min late", new times in red, a warning when a change is likely missed) for trains running now, refreshed every 30 seconds. They come from Israel Railways' own API (`rail-api.rail.co.il`, unofficial: it is the API behind rail.co.il). That API only answers browsers on www.rail.co.il, so the app asks a small relay instead:
+The trip card and timeline show each train's platforms, and live delays ("4 min late", new times in red, a warning when a change is likely missed) for trains running now, refreshed every 30 seconds. They come from Israel Railways' own API (`rail-api.rail.co.il`, unofficial: it is the API behind rail.co.il). That API only answers browsers on www.rail.co.il, so the app asks a small relay instead:
 
 - [`relay/worker.js`](relay/worker.js) is a Cloudflare Worker, deployed as `mesila-live` at `https://mesila-live.mesila.workers.dev/trains?from=3300&to=3700&date=YYYY-MM-DD`. It keeps the API key as a Worker secret (`RAIL_KEY`), caches each answer for 30 seconds, and only answers this site (and `localhost` for development).
 - [`data/live.js`](data/live.js) has Israel Railways' station numbers for our stations (the Eastern line's Hadera East, Shomron and Tira are still missing) and applies the delays to the trip on screen.
