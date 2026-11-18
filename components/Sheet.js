@@ -770,7 +770,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       // an island: floats 8px from the sides and from the bottom of the visible area
       // (above the home indicator), all corners rounded, the map showing around it
       position:'fixed', left: 8, right: 8, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
-      ...(searching ? { top: 'calc(env(safe-area-inset-top, 0px) + 8px)' } : { maxHeight: '75vh' }),
+      // while searching it rises to just under the top bar (which ends ~64px below the safe area)
+      ...(searching ? { top: 'calc(env(safe-area-inset-top, 0px) + 72px)' } : { maxHeight: '75vh' }),
       display:'flex', flexDirection:'column',
       background: 'var(--surface)',
       borderRadius: 24, overflow: 'hidden',
@@ -779,7 +780,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       // shadow was cut off there in a hard grey band.
       boxShadow: '0 -6px 14px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.08)', border: '1px solid var(--chip-border)',
       paddingBottom: 6,
-      zIndex: searching ? 30 : 5,      // while searching it covers the top bar too
+      zIndex: searching ? 6 : 5,       // while searching, above the map buttons
     }}>
       {/* Top strip: always visible. Swipe up/down to open/close, left/right to change trip. */}
       <div ref={stripRef} {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
