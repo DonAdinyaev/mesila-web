@@ -2,6 +2,7 @@
 
 ## 2026-11-18
 
+- **Page frozen while typing (iPhone):** on phones the page is the map, and Safari scrolled it to bring the focused station field into view, which moved the map and jolted the panel on the way back. While you type, the page is now held in place with the usual iOS scroll lock (the body fixed at its current offset), and released at the same spot once the keyboard has gone, so the map stays still.
 - **No jumps when typing ends:** closing the keyboard used to move the panel several times in a row (snapped to the screen bottom while the keyboard was still up, then animated, then moved again as the page scrolled back and the panel was re-measured mid-animation). Now the panel rides down with the closing keyboard while it shrinks to the card, in one movement; its resting bottom comes from a fixed reference instead of the moving panel, and the map is put back only once the keyboard is gone.
 - **Swipes on the panel stay on the panel:** on phones the map is the page, so on iPhone a swipe in the trip details that had nothing left to scroll moved the map behind the panel. Now a swipe on the panel only scrolls something inside it that can still scroll that way (the details, the suggestions, the time wheel); otherwise it does nothing. Dragging the panel itself still works.
 - **Shorter suggestion list:** station suggestions show about four and a half rows and scroll for the rest (up to 30 matches instead of 8). Scrolling the list doesn't move the panel.
