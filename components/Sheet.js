@@ -154,7 +154,9 @@ const TL = {
   ring: 1.5,      // its black outline; the destination's is doubled (map ratio: 1.45)
   dot: 8,         // a line's colour dot (map ratio: 7.4)
   halo: 3,        // the gap kept clear around the marker (map ratio: 2.9)
-  step: 11,       // the distance between two lines' dots at a change (map ratio: 10.9)
+  // the distance between two lines' dots at a change: the dots are as far apart as each is
+  // from the outline ((14 - 2 * 1.5 - 8) / 2 = 1.5px), not twice that
+  step: 8 + 1.5,
 };
 // A station on the trip timeline: the map's station marker, stood upright. One dot per line
 // used there, one above the other: at a change, the line you arrive on above the one you
@@ -633,6 +635,8 @@ function usePageLock() {
     const y = saved.current; saved.current = null;
     Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '' });
     window.scrollTo(0, y);
+    // the map couldn't move while the page was held (e.g. to show a new route): it can now
+    window.dispatchEvent(new Event('mesila:pagefree'));
   }, []);
   React.useEffect(() => release, [release]);
   return { lock, release, isLocked: () => saved.current != null };
@@ -802,6 +806,12 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (!live.current.searching) setSnap('rest');
   }, [stationsKey]);
   const ease = 'cubic-bezier(.2,.7,.2,1)';
+  // picking a station when the other one is already set: typing is over, so the keyboard
+  // goes away (the panel then folds to the trip card and the map shows the route)
+  const pick = (set, other) => (id) => {
+    set(id);
+    if (other && other !== id) { const a = document.activeElement; if (a && a.blur) a.blur(); }
+  };
 
   return (
     <div ref={sheetRef} data-sheet="" style={{
@@ -862,11 +872,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                   note={located && from === located.id ? T.t('kmAway', located.km) : null}
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
                   onFocus={startSearch} onBlur={endSearch}
-                  onChange={onSetFrom} onPick={onSetFrom}/>
+                  onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
                 <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
                   onFocus={startSearch} onBlur={endSearch}
-                  onChange={onSetTo} onPick={onSetTo}/>
+                  onChange={onSetTo} onPick={pick(onSetTo, from)}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
                 width: 34, height: 34, borderRadius: 17, margin: '0 6px', flexShrink: 0,
