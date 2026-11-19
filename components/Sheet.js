@@ -143,24 +143,43 @@ function LineBadge({ lineId, size = 22 }) {
 }
 
 
-// A station on the trip timeline: the map's station marker, stood upright. A capsule with
-// a dot in the colour of each line used there, one above the other: at a change, the line
-// you arrive on above the one you leave on. As on the map the start is dark (dots ringed
-// in white) and the destination has a thicker outline; a halo in the panel's colour keeps
-// it clear of the line bars.
+// The trip timeline uses the map's proportions (MapSVG: line W, marker W + 3.6, white inside
+// W + 1.6, dot W - 0.4, outer halo W + 7.6, tracks GAP = 7.5 apart, at W = 5.5), scaled so
+// the timeline's line is TL_LINE wide.
+const TL_LINE = 8, TL_K = TL_LINE / 5.5;
+const TL = {
+  line: TL_LINE,
+  outer: (5.5 + 3.6) * TL_K,            // the marker's width (black outline included)
+  ring: 1 * TL_K,                        // its black outline; the destination's is doubled
+  dot: (5.5 - 0.4) * TL_K,               // a line's colour dot
+  halo: 2 * TL_K,                        // the gap kept clear around the marker (land colour on the map)
+  step: 7.5 * TL_K,                      // the distance between two lines' dots at a change
+};
+// A station on the trip timeline: the map's station marker, stood upright. One dot per line
+// used there, one above the other: at a change, the line you arrive on above the one you
+// leave on. As on the map, the start is dark (dots ringed in white) and the destination
+// has a thicker outline. kind: start | transfer | end | stop
 function TLNode({ kind, colors }) {
-  const DOT = 8, STEP = 12, W = 18;
-  const ring = kind === 'end' ? 3 : 2;
+  // drawn as an SVG, like the map: the same strokes in the same order, so the
+  // fractional sizes stay exact and the dots sit dead centre
+  const n = colors.length, hw = TL.outer / 2 + TL.halo;            // half width incl. the halo
+  const w = hw * 2, h = w + (n - 1) * TL.step, x = hw;
+  const y0 = hw, y1 = hw + (n - 1) * TL.step;                       // first and last dot centres
+  const ln = { x1: x, y1: y0, x2: x, y2: y1, strokeLinecap: 'round' };
+  const ring = kind === 'end' ? 2 * TL.ring : TL.ring;
   return (
-    <span style={{ position:'relative', zIndex: 1, boxSizing:'border-box', width: W, height: W + (colors.length - 1) * STEP,
-      borderRadius: W / 2, border: `${ring}px solid #1A1A1C`, background: kind === 'start' ? '#1A1A1C' : '#fff',
-      boxShadow: '0 0 0 2px var(--surface)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-around',
-      padding: `${(W - 2 * ring - DOT) / 2}px 0`, flexShrink: 0 }}>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true"
+      style={{ position:'relative', zIndex: 1, flexShrink: 0, margin: `${-TL.halo}px 0`, overflow:'visible' }}>
+      <line {...ln} stroke="var(--surface)" strokeWidth={TL.outer + 2 * TL.halo + (ring - TL.ring) * 2}/>
+      <line {...ln} stroke="#1A1A1C" strokeWidth={TL.outer + (ring - TL.ring) * 2}/>
+      <line {...ln} stroke={kind === 'start' ? '#1A1A1C' : '#fff'} strokeWidth={TL.outer - 2 * TL.ring}/>
       {colors.map((c, k) => (
-        <span key={k} style={{ width: DOT, height: DOT, borderRadius: DOT / 2, background: c,
-          boxShadow: kind === 'start' ? '0 0 0 1.5px #fff' : 'none' }}/>
+        <g key={k}>
+          {kind === 'start' && <circle cx={x} cy={y0 + k * TL.step} r={TL.dot / 2 + 0.6 * TL_K} fill="#fff"/>}
+          <circle cx={x} cy={y0 + k * TL.step} r={TL.dot / 2} fill={c}/>
+        </g>
       ))}
-    </span>
+    </svg>
   );
 }
 
@@ -242,7 +261,7 @@ function JourneyTimeline({ j, live, rt }) {
   const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
   const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
   const rail = { width: 24, flexShrink: 0, display:'flex', flexDirection:'column', alignItems:'center', position:'relative' };
-  const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: '50%', width: 6, marginLeft: -3, borderRadius: 3, background: c });
+  const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: '50%', width: TL.line, marginLeft: -TL.line / 2, borderRadius: TL.line / 2, background: c });
   const colorOf = (id) => (APP_LINES.find(l => l.id === id) || { color: '#888' }).color;
   const rows = [];
   j.legs.forEach((leg, i) => {
@@ -298,8 +317,8 @@ function JourneyTimeline({ j, live, rt }) {
           {open[i] && n > 1 && (
             <div style={{ marginTop: 6, display:'flex', flexDirection:'column', gap: 6 }}>
               {ids.slice(1, -1).map((id, k) => (
-                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -24 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 4, background: color, boxShadow:'0 0 0 2px var(--surface)', flexShrink: 0, position:'relative', zIndex: 1 }}></span>
+                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -20 - TL.outer / 2 - TL.halo }}>
+                  <TLNode kind="stop" colors={[color]}/>
                   <span style={{ font:'500 12px "JetBrains Mono", ui-monospace, monospace', color:'var(--text-dim)', flexShrink: 0 }}>{clockOf(j, leg.times[k + 1]).slice(-5)}</span>
                   <span style={{ font:'500 13px/1.3 var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{T.station(id)}</span>
                 </div>
