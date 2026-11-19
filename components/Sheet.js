@@ -261,9 +261,12 @@ function JourneyTimeline({ j, live, rt }) {
   const allTimes = j.legs.flatMap(l => l.times);
   const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
   const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
-  const rail = { width: 24, flexShrink: 0, display:'flex', flexDirection:'column', alignItems:'center', position:'relative' };
+  // the rail: a fixed-width column; the line, markers and stops are all centred inside a box
+  // of this width (flex / auto margins), so they share one centre whatever their sizes
+  const RAIL = 24;
+  const rail = { width: RAIL, flexShrink: 0, display:'flex', flexDirection:'column', alignItems:'center', position:'relative' };
   // square ends: the pieces of one line meet seamlessly from row to row (the ends are under markers)
-  const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: '50%', width: TL.line, marginLeft: -TL.line / 2, background: c });
+  const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: 0, right: 0, marginInline: 'auto', width: TL.line, background: c });
   // Station rows: the rail is as tall as the whole row, and the lines run into the marker's
   // dots (the line in from above to the first dot, the line out from the last dot down to
   // the row's end), so every marker meets its lines with the same small gap (its halo)
@@ -323,8 +326,11 @@ function JourneyTimeline({ j, live, rt }) {
           {open[i] && n > 1 && (
             <div style={{ marginTop: 6, display:'flex', flexDirection:'column', gap: 6 }}>
               {ids.slice(1, -1).map((id, k) => (
-                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -26 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 6, background: color, boxShadow:'0 0 0 2px var(--surface)', flexShrink: 0, position:'relative', zIndex: 1 }}></span>
+                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -(RAIL + 8) }}>
+                  {/* a rail-wide box right under the rail, the stop centred in it */}
+                  <span style={{ width: RAIL, flexShrink: 0, display:'flex', justifyContent:'center', position:'relative', zIndex: 1 }}>
+                    <span style={{ width: TL.line + 2, height: TL.line + 2, borderRadius: '50%', background: color, boxShadow:'0 0 0 2px var(--surface)' }}></span>
+                  </span>
                   <span style={{ font:'500 12px "JetBrains Mono", ui-monospace, monospace', color:'var(--text-dim)', flexShrink: 0 }}>{clockOf(j, leg.times[k + 1]).slice(-5)}</span>
                   <span style={{ font:'500 13px/1.3 var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{T.station(id)}</span>
                 </div>
