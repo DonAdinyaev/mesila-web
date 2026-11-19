@@ -28,7 +28,7 @@ test('loads on a phone and a computer, in English and Hebrew, without errors', a
   }
 });
 
-test('panel positions: card, half, full, hidden; drags, flicks and handle taps', async () => {
+test('panel positions: card, half, full; drags, flicks and handle taps', async () => {
   const app = await withRoute();
   const card = await app.panelTop();
   await app.drag(-240); const half = await app.panelTop();
@@ -42,9 +42,10 @@ test('panel positions: card, half, full, hidden; drags, flicks and handle taps',
   await app.flick(80);
   assert.ok(near(await app.panelTop(), card), 'flick down: half -> card');
   await app.flick(60);
-  const hidden = await app.panelTop();
-  assert.ok(hidden > card + 30, 'flick down: card -> hidden (only the handle)');
-  for (const [want, label] of [[card, 'hidden -> card'], [half, 'card -> half'], [FULL_TOP, 'half -> full'], [card, 'full -> card']]) {
+  assert.ok(near(await app.panelTop(), card), 'the card is the lowest: a flick down stays there');
+  await app.drag(150);
+  assert.ok(near(await app.panelTop(), card), 'and a drag down too');
+  for (const [want, label] of [[half, 'card -> half'], [FULL_TOP, 'half -> full'], [card, 'full -> card']]) {
     await app.handle().click(); await app.wait(500);
     assert.ok(near(await app.panelTop(), want), 'tap handle: ' + label);
   }

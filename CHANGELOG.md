@@ -2,6 +2,7 @@
 
 ## 2026-11-19
 
+- **No hidden position:** the panel no longer folds down to just its handle; the card (or the search box, with nothing planned) is the lowest it goes. Dragging or flicking it down stops there.
 - **One way to open the panel:** tapping a station field now unrolls the panel exactly like the handle does: the trip card stays at the top and the trip details stay below the search, instead of the card folding away and the details disappearing. (With the keyboard up the panel is still fitted above it.)
 
 ## 2026-11-18

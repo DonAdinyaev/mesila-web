@@ -632,8 +632,7 @@ function useTouchGuard(sheetRef, bodyRef, snapRef) {
   }, []);
 }
 
-// The panel rests in one of four positions ('snap'):
-//   'hidden': only the handle shows
+// The panel rests in one of three positions ('snap'):
 //   'rest':   the trip card (or, with nothing planned, the search card)
 //   'half':   halfway between the card and full
 //   'full':   its top edge just under the top row of buttons; the details scroll inside
@@ -683,23 +682,21 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const fitted = kb && searching;                         // typing: fit the visible area above the keyboard
   const fullH = fitted ? Math.max(0, vv.h - (vv.top < 4 ? safeTop + UI.BELOW_TOP_ROW : UI.EDGE) - UI.EDGE)
     : Math.max(0, m.bottom - (safeTop + UI.BELOW_TOP_ROW));
-  const hiddenH = UI.HANDLE + UI.PANEL_CHROME;
-  const restH = Math.max(hiddenH, Math.min(fullH, UI.HANDLE + (hasTrip ? m.card : m.content) + UI.PANEL_CHROME));
-  const H = { hidden: hiddenH, rest: restH, half: fitted ? fullH : Math.round((restH + fullH) / 2), full: fullH };
+  const restH = Math.min(fullH, UI.HANDLE + (hasTrip ? m.card : m.content) + UI.PANEL_CHROME);
+  const H = { rest: restH, half: fitted ? fullH : Math.round((restH + fullH) / 2), full: fullH };
   const topSnap = hasTrip ? 'full' : 'half';
-  const height = dy === null ? H[snap] : Math.max(hiddenH, Math.min(H[topSnap], H[snap] - dy));
+  // the card is the lowest the panel goes: a drag down stops there
+  const height = dy === null ? H[snap] : Math.max(restH, Math.min(H[topSnap], H[snap] - dy));
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
-  // the card fades as the panel goes down to the handle; with a trip, the details fade in
-  // as the panel rises above the card
-  const cardOpacity = clamp01((height - hiddenH) / Math.max(1, restH - hiddenH));
-  const bodyOpacity = hasTrip ? clamp01((height - restH) / 80) : cardOpacity;
+  // with a trip, the details fade in as the panel rises above the card
+  const bodyOpacity = hasTrip ? clamp01((height - restH) / 80) : 1;
   // the resting height, for what floats just above the panel (the location button)
   React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-rest', restH + 'px'); }, [restH]);
 
   // ---- moving between positions
   const goSnap = (t) => {
     if (!hasTrip && t === 'full') t = 'half';
-    if (live.current.searching && (t === 'rest' || t === 'hidden')) { const a = document.activeElement; if (a && a.blur) a.blur(); setSearching(false); }
+    if (live.current.searching && t === 'rest') { const a = document.activeElement; if (a && a.blur) a.blur(); setSearching(false); }
     // no route yet: opening the panel starts typing the first empty station
     if (!hasTrip && t === 'half' && !live.current.searching && (!from || !to) && sheetRef.current) {
       const el = sheetRef.current.querySelector(`[data-station-input="${!from ? 'from' : 'to'}"]`);
@@ -717,11 +714,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     }
     if (axis !== 'y') return;
     if (fromBody && snap === 'full' && (!top || ddy < 0)) return;     // that was a scroll, not a drag
-    const h = Math.max(hiddenH, Math.min(H[topSnap], H[snap] - ddy));
-    const order = hasTrip ? ['hidden', 'rest', 'half', 'full'] : ['hidden', 'rest', 'half'];
+    const h = Math.max(restH, Math.min(H[topSnap], H[snap] - ddy));
+    const order = hasTrip ? ['rest', 'half', 'full'] : ['rest', 'half'];
     let t;
     if (Math.abs(vy) > 0.4 && Math.abs(ddy) > 20)                    // a flick: the next position that way
-      t = vy < 0 ? order.find(k => H[k] > h + 1) || topSnap : [...order].reverse().find(k => H[k] < h - 1) || 'hidden';
+      t = vy < 0 ? order.find(k => H[k] > h + 1) || topSnap : [...order].reverse().find(k => H[k] < h - 1) || 'rest';
     else t = order.reduce((b, k) => Math.abs(H[k] - h) < Math.abs(H[b] - h) ? k : b, 'rest');
     goSnap(t);
   };
@@ -781,7 +778,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           <div style={{ width: 32, height: 3, borderRadius: 3, background: '#D7D4CC' }}/>
         </div>
         {journey && (
-          <div data-trip-card="" style={{ opacity: cardOpacity }}>
+          <div data-trip-card="">
             <div ref={sumRef} style={{ overflow:'hidden', minHeight: 0 }}>
               <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
                 onPrev={() => go(-1)} onNext={() => go(1)}/>
