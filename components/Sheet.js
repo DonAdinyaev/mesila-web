@@ -635,6 +635,8 @@ function usePageLock() {
     const y = saved.current; saved.current = null;
     Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '' });
     window.scrollTo(0, y);
+    // the map couldn't move while the page was held (e.g. to show a new route): it can now
+    window.dispatchEvent(new Event('mesila:pagefree'));
   }, []);
   React.useEffect(() => release, [release]);
   return { lock, release, isLocked: () => saved.current != null };
@@ -804,6 +806,12 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (!live.current.searching) setSnap('rest');
   }, [stationsKey]);
   const ease = 'cubic-bezier(.2,.7,.2,1)';
+  // picking a station when the other one is already set: typing is over, so the keyboard
+  // goes away (the panel then folds to the trip card and the map shows the route)
+  const pick = (set, other) => (id) => {
+    set(id);
+    if (other && other !== id) { const a = document.activeElement; if (a && a.blur) a.blur(); }
+  };
 
   return (
     <div ref={sheetRef} data-sheet="" style={{
@@ -864,11 +872,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                   note={located && from === located.id ? T.t('kmAway', located.km) : null}
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
                   onFocus={startSearch} onBlur={endSearch}
-                  onChange={onSetFrom} onPick={onSetFrom}/>
+                  onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
                 <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
                   onFocus={startSearch} onBlur={endSearch}
-                  onChange={onSetTo} onPick={onSetTo}/>
+                  onChange={onSetTo} onPick={pick(onSetTo, from)}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
                 width: 34, height: 34, borderRadius: 17, margin: '0 6px', flexShrink: 0,

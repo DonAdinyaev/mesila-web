@@ -145,3 +145,28 @@ test('station suggestions: a short list that scrolls', async () => {
   assert.ok(sh > h + 100, 'more matches than fit: it scrolls');
   await app.close();
 });
+
+test('picking the second station closes the keyboard and the map shows the route', async () => {
+  const app = await openApp(browser, server.url, { keyboard: true });
+  const { page } = app;
+  // a trip far from where the map opens (Tel Aviv), so the map has to move to show it
+  for (const [which, text, id] of [['from', 'Nahar', 'nahariya'], ['to', 'Akk', 'akko']]) {
+    await app.input(which).tap();
+    await page.evaluate(() => window.__kb(200, 330));
+    await page.keyboard.type(text);
+    await page.locator(`[data-suggestion="${id}"]`).dispatchEvent('mousedown');
+    await app.wait(400);
+  }
+  assert.equal(await app.focused(), null, 'no station field focused: the keyboard closes');
+  await page.evaluate(() => window.__kb(0, innerHeight));     // the keyboard goes away
+  await app.wait(1500);
+  const panelTop = await app.panelTop();
+  const inView = await page.evaluate((panelTop) => ['Nahariya', 'Akko'].map(n => {
+    const t = [...document.querySelectorAll('svg text')].find(x => x.textContent === n);
+    const r = t.getBoundingClientRect(); return r.top >= 0 && r.bottom <= panelTop;
+  }), panelTop);
+  assert.deepEqual(inView, [true, true], 'both stations on screen, above the panel');
+  assert.equal(await page.evaluate(() => document.body.style.position), '', 'page free again');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});

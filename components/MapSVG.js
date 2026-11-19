@@ -725,10 +725,17 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const vb = visibleBox();
     zoomAt({ x: vb.x + vb.w/2, y: vb.y + vb.h/2 }, zoomCmd.dir > 0 ? 1.6 : 1/1.6, true);
   }, [zoomCmd]);
+  // A new route: show it. While the page is held still (a station being typed on a phone)
+  // the map can't move, so then it waits until the page is free again (and the panel has
+  // folded down), and moves then.
   React.useEffect(() => {
     if (!route || route.length < 2) return;
-    const t = setTimeout(() => fitIds(route.map(r => r.id)), 300);
-    return () => clearTimeout(t);
+    const fit = () => fitIds(route.map(r => r.id));
+    let t = 0;
+    const onFree = () => { clearTimeout(t); t = setTimeout(fit, 350); };
+    if (document.body.style.position === 'fixed') window.addEventListener('mesila:pagefree', onFree, { once: true });
+    else t = setTimeout(fit, 300);
+    return () => { clearTimeout(t); window.removeEventListener('mesila:pagefree', onFree); };
   }, [route]);
 
   // Hit testing: nearest station within a generous screen radius, else nearest line
