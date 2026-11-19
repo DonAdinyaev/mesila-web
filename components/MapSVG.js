@@ -938,11 +938,19 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
 
   const routeSegments = React.useMemo(() => {
     if (!route || route.length < 2) return [];
+    // One piece per stretch ridden along one line in one direction. A trip can stay on the
+    // same line but turn back (ride past the destination on a train that doesn't stop
+    // there, then back on another): that starts a new piece, or the drawing would only
+    // span the first and last station and miss the ride out and back.
     const segs = [];
-    let cur = { line: route[1].line, ids: [route[0].id] };
+    const dirOf = (line, a, b) => { const p = PATHS[line]; return p ? Math.sign(p.indexOf(b) - p.indexOf(a)) : 0; };
+    let cur = { line: route[1].line, ids: [route[0].id], dir: 0 };
     for (let i = 1; i < route.length; i++) {
-      const step = route[i];
-      if (step.line !== cur.line && i > 1) { segs.push(cur); cur = { line: step.line, ids: [route[i-1].id] }; }
+      const step = route[i], d = dirOf(step.line, route[i - 1].id, step.id);
+      if (i > 1 && (step.line !== cur.line || (cur.dir && d && d !== cur.dir))) {
+        segs.push(cur); cur = { line: step.line, ids: [route[i - 1].id], dir: 0 };
+      }
+      if (d) cur.dir = d;
       cur.ids.push(step.id);
     }
     segs.push(cur);
