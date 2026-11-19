@@ -181,57 +181,5 @@ window.MESILA = (() => {
   const byId = Object.fromEntries(S.map(s => [s.id, s]));
   for (const s of S) s.lines = LINES.map(l => l.id).filter(id => PATHS[id].includes(s.id));
 
-  const inactive = new Set(LINES.filter(l => l.inactive).map(l => l.id));
-  const graph = {};
-  for (const s of S) graph[s.id] = [];
-  for (const [lineId, path] of Object.entries(PATHS)) {
-    if (inactive.has(lineId)) continue;
-    for (let i = 0; i < path.length - 1; i++) {
-      const a = path[i], b = path[i+1];
-      if (!byId[a] || !byId[b]) continue;
-      const d = Math.hypot(byId[a].x - byId[b].x, byId[a].y - byId[b].y);
-      graph[a].push({ to: b, line: lineId, cost: d });
-      graph[b].push({ to: a, line: lineId, cost: d });
-    }
-  }
-
-  // Dijkstra over (station, line) states so transfers are minimised correctly
-  // allowed: optional Set of line ids the trip may use (the lines shown on the map)
-  function route(from, to, allowed) {
-    if (from === to) return null;
-    const TRANSFER = 180;
-    const dist = new Map(), prev = new Map(), done = new Set();
-    const start = from + '|';
-    dist.set(start, 0);
-    const pq = [[0, from, null]];
-    let goal = null;
-    while (pq.length) {
-      pq.sort((x, y) => x[0] - y[0]);
-      const [c, u, ul] = pq.shift();
-      const key = u + '|' + (ul || '');
-      if (done.has(key)) continue;
-      done.add(key);
-      if (u === to) { goal = key; break; }
-      for (const e of graph[u]) {
-        if (allowed && !allowed.has(e.line)) continue;
-        const nc = c + e.cost + (ul && ul !== e.line ? TRANSFER : 0);
-        const nk = e.to + '|' + e.line;
-        if (nc < (dist.has(nk) ? dist.get(nk) : Infinity)) {
-          dist.set(nk, nc); prev.set(nk, { key, id: u }); pq.push([nc, e.to, e.line]);
-        }
-      }
-    }
-    if (!goal) return null;
-    const path = [];
-    let k = goal;
-    while (k !== start) {
-      const [id, line] = k.split('|');
-      path.unshift({ id, line });
-      k = prev.get(k).key;
-    }
-    path.unshift({ id: from, line: path[0]?.line || null });
-    return path;
-  }
-
-  return { LINES, STATIONS: S, BY_ID: byId, PATHS, GEO_PATHS, PASS, MOBILE, route, RING: null };
+  return { LINES, STATIONS: S, BY_ID: byId, PATHS, GEO_PATHS, PASS, MOBILE, RING: null };
 })();

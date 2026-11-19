@@ -102,13 +102,14 @@ window.safeBottom = () => { const p = document.getElementById('sab-probe'); retu
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<script src="data/network.js?v=57"></script>
+<script src="data/ui.js?v=1"></script>
+<script src="data/network.js?v=58"></script>
 <script src="data/i18n.js?v=20"></script>
 <script src="data/timetable.js?v=20261118"></script>
 <script src="data/schedule.js?v=7"></script>
 <script src="data/live.js?v=2"></script>
-<script type="text/babel" src="components/MapSVG.js?v=106"></script>
-<script type="text/babel" src="components/Sheet.js?v=80"></script>
+<script type="text/babel" src="components/MapSVG.js?v=107"></script>
+<script type="text/babel" src="components/Sheet.js?v=81"></script>
 
 <script type="text/babel">
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -140,8 +141,8 @@ function LangButton({ lang, onToggleLang }) {
   const T = window.I18N;
   return (
     <button onClick={onToggleLang} title={T.t('langTitle')} aria-label={T.t('langTitle')} lang={lang === 'he' ? 'en' : 'he'}
-      style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', insetInlineEnd: 12, zIndex: 7,
-        minWidth: 40, height: 40, padding: '0 10px', borderRadius: 14, cursor: 'pointer',
+      style={{ position: 'fixed', top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW}px)`, insetInlineEnd: 12, zIndex: 7,
+        minWidth: window.UI.BTN, height: window.UI.BTN, padding: '0 10px', borderRadius: 14, cursor: 'pointer',
         background: 'var(--surface)', border: '1px solid var(--chip-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         color: 'var(--text)', font: '600 14px var(--font)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {T.t('langBtn')}
@@ -350,7 +351,7 @@ function App() {
   // Map highlight; kept as the same object while its stations and lines don't change,
   // so the minute tick doesn't re-zoom the map or re-open the sheet.
   const routeRaw = !from || !to || from === to ? null
-    : window.SCHEDULE ? window.SCHEDULE.toPath(journey, lineFilter) : window.findRoute(from, to, lineFilter);
+    : window.SCHEDULE.toPath(journey, lineFilter);
   const routeKey = routeRaw ? routeRaw.map(r => r.id + ':' + r.line).join(',') : '';
   const route = React.useMemo(() => routeRaw, [routeKey]);
 
@@ -376,7 +377,7 @@ function App() {
         />
       </div>
 
-      <div style={{ position:'fixed', right: 12, top: 'calc(env(safe-area-inset-top, 0px) + 60px)', zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
+      <div style={{ position:'fixed', right: 12, top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.BELOW_TOP_ROW}px)`, zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
         {!narrow && (
         <div style={{ display:'flex', flexDirection:'column', background:'var(--surface)', border:'1px solid var(--chip-border)', borderRadius: 14, boxShadow:'0 4px 12px rgba(0,0,0,0.08)', overflow:'hidden' }}>
           <button onClick={() => zoom(1)} title={T.t('zoomIn')} aria-label={T.t('zoomIn')} style={{ width: 40, height: 40, border:'none', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
@@ -391,9 +392,9 @@ function App() {
       </div>
 
       {/* show me / the trip / Tel Aviv */}
-      <button onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 12, zIndex: 4,
+      <button data-locate="" onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 12, zIndex: 4,
           // just above the panel at rest; it stays put while the panel is opened over it
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px + var(--sheet-rest, 140px) + 10px)', transition: `bottom 260ms cubic-bezier(.2,.7,.2,1)`,
+          bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP}px + var(--sheet-rest, 140px))`, transition: `bottom 260ms cubic-bezier(.2,.7,.2,1)`,
           width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
           {/* location arrow */}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -414,7 +415,6 @@ function App() {
         onSetFrom={setFrom} onSetTo={setTo}
         located={located} locating={locating} onLocate={() => locate(true)}
         onSwap={onSwap}
-        route={route}
         journey={journey} when={when} setWhen={setWhen}
         trips={trips.list} tripIndex={selIdx} onSelectTrip={selectTrip}
         stationsKey={(from || '') + '>' + (to || '')}

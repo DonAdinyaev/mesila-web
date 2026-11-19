@@ -1,0 +1,29 @@
+name: Tests
+# Browser tests (tests/*.test.mjs): the trip panel's positions and gestures, typing a
+# station, the iPhone keyboard handling (simulated), and that the page loads cleanly.
+on:
+  push:
+    branches-ignore: [main]      # main is tested by the deploy workflow, before it deploys
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:                     # a newer push replaces a run still going on the same branch
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # the runner's own Google Chrome: nothing to download or install
+      - run: npm test
+        env:
+          PW_CHANNEL: chrome

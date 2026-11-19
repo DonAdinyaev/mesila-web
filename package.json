@@ -1,0 +1,14 @@
+{
+  "name": "mesila-web",
+  "private": true,
+  "description": "Mesila: Israel Railways map and trip planner (static site). npm is only used for the browser tests.",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "@babel/standalone": "7.29.0",
+    "playwright": "1.63.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

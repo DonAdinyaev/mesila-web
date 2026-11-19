@@ -11,13 +11,20 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
   deploy:
+    needs: test                 # only a version that passes the tests is published
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Cache-busting: every script's ?v=... becomes this commit's id, so phones always load
+      # the new files after a deploy (no need to bump the numbers in index.html by hand)
+      - name: Stamp script versions
+        run: sed -i -E "s/\?v=[A-Za-z0-9]+\"/?v=${GITHUB_SHA::8}\"/g" index.html && grep -o '?v=[A-Za-z0-9]*' index.html | sort | uniq -c
       - uses: actions/configure-pages@v5
         with:
           enablement: true

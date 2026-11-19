@@ -39,7 +39,19 @@ Then open <http://localhost:8000>. Opening `index.html` straight from disk (`fil
 
 ## Deploy
 
-Every push to `main` is published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). No configuration is needed beyond enabling Pages ("GitHub Actions" as the source) in the repository settings.
+Every push to `main` is tested and then published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml); a version that fails the tests is not published. The deploy also stamps every script's `?v=` in `index.html` with the commit id, so phones load the new files (no need to bump those numbers by hand). No configuration is needed beyond enabling Pages ("GitHub Actions" as the source) in the repository settings.
+
+## Tests
+
+Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) cover the trip panel: its positions and gestures (drags, flicks, the handle), typing a station with and without a route, the iPhone keyboard handling (with a simulated visual viewport: the panel fits above the keyboard, the map doesn't move, all is restored after), that swipes on the panel never scroll the map, and that the app loads cleanly on a phone and a computer in both languages. They run offline: React and Babel come from `node_modules` instead of the CDN, fonts are stubbed and the live-delays relay is blocked.
+
+```bash
+npm install                      # once
+npx playwright install chromium  # once, if Playwright has no browser yet
+npm test                         # or PW_CHANNEL=chrome npm test, to use an installed Google Chrome
+```
+
+[`.github/workflows/tests.yml`](.github/workflows/tests.yml) runs them on every push to a branch and on pull requests.
 
 ## Update the timetable
 
@@ -74,7 +86,8 @@ If the relay or the API is down, the app simply shows the planned times.
 
 ```
 index.html              App shell: loading screen, language switch, map buttons, Tweaks panel, fonts, theme
-data/network.js         Lines, stations, desktop + phone coordinates, fallback route planner
+data/ui.js              Shared screen layout sizes (button row, gaps, panel handle) used by the shell, map and panel
+data/network.js         Lines, stations, desktop + phone coordinates
 data/timetable.js       Planned Israel Railways timetable (GENERATED from GTFS, don't edit)
 data/schedule.js        Matches trains to map lines; timetable trip planner
 data/live.js            Live delays for the trip on screen (through relay/)
@@ -82,9 +95,10 @@ relay/worker.js         Cloudflare Worker relaying live delays from the Israel R
 tools/build_timetable.py  Builds data/timetable.js from the Ministry of Transport GTFS feed
 data/i18n.js            English/Hebrew strings, station, line and place names
 components/MapSVG.js    Map renderer: track layout, bends, markers, labels, pan/zoom
-components/Sheet.js     Bottom sheet: From/To search and trip timeline
+components/Sheet.js     The trip panel: positions and gestures, From/To search, trip card and timeline
+tests/                  Browser tests (npm test)
 assets/                 Logo files (light icon, dark icon, transparent mark), favicon and iPhone home-screen PNGs
-.github/workflows/      GitHub Pages deployment; twice-weekly timetable refresh
+.github/workflows/      Tests; GitHub Pages deployment (after the tests pass); twice-weekly timetable refresh
 ```
 
 React 18 and Babel are loaded from a CDN and the JSX is compiled in the browser, so editing a file and refreshing is the whole development loop.
