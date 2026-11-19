@@ -158,7 +158,7 @@ const TL = {
 // A station on the trip timeline: the map's station marker, stood upright. One dot per line
 // used there, one above the other: at a change, the line you arrive on above the one you
 // leave on. As on the map, the start is dark (dots ringed in white) and the destination
-// has a thicker outline. kind: start | transfer | end | stop
+// has a thicker outline. kind: start | transfer | end
 function TLNode({ kind, colors }) {
   // drawn as an SVG, like the map: the same strokes in the same order, so the
   // fractional sizes stay exact and the dots sit dead centre
@@ -261,7 +261,12 @@ function JourneyTimeline({ j, live, rt }) {
   const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
   const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
   const rail = { width: 24, flexShrink: 0, display:'flex', flexDirection:'column', alignItems:'center', position:'relative' };
-  const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: '50%', width: TL.line, marginLeft: -TL.line / 2, borderRadius: TL.line / 2, background: c });
+  // square ends: the pieces of one line meet seamlessly from row to row (the ends are under markers)
+  const bar = (c) => ({ position:'absolute', top: 0, bottom: 0, left: '50%', width: TL.line, marginLeft: -TL.line / 2, background: c });
+  // Station rows: the rail is as tall as the whole row, and the lines run into the marker's
+  // dots (the line in from above to the first dot, the line out from the last dot down to
+  // the row's end), so every marker meets its lines with the same small gap (its halo)
+  const dotY = (k) => 1 + TL.outer / 2 + k * TL.step;
   const colorOf = (id) => (APP_LINES.find(l => l.id === id) || { color: '#888' }).color;
   const rows = [];
   j.legs.forEach((leg, i) => {
@@ -280,9 +285,9 @@ function JourneyTimeline({ j, live, rt }) {
           {i > 0 && <div style={{ color:'var(--text-dim)', fontWeight: 500 }}><LiveClock j={j} m={j.legs[i - 1].arrive} d={P && P.arr}/></div>}
           <LiveClock j={j} m={leg.depart} d={L && L.dep}/>
         </div>
-        <div style={{ ...rail, paddingTop: 1 }}>
-          {i > 0 && <span style={{ ...bar(colorOf(j.legs[i-1].line)), bottom: '50%' }}></span>}
-          <span style={{ ...bar(color), top: 8 }}></span>
+        <div style={{ ...rail, paddingTop: 1, alignSelf: 'stretch' }}>
+          {i > 0 && <span style={{ ...bar(colorOf(j.legs[i-1].line)), bottom: 'auto', height: dotY(0) }}></span>}
+          <span style={{ ...bar(color), top: dotY(i > 0 ? 1 : 0) }}></span>
           <TLNode kind={i === 0 ? 'start' : 'transfer'} colors={i === 0 ? [color] : [colorOf(j.legs[i - 1].line), color]}/>
         </div>
         <div style={{ flex: 1, minWidth: 0, paddingBottom: 10 }}>
@@ -317,8 +322,8 @@ function JourneyTimeline({ j, live, rt }) {
           {open[i] && n > 1 && (
             <div style={{ marginTop: 6, display:'flex', flexDirection:'column', gap: 6 }}>
               {ids.slice(1, -1).map((id, k) => (
-                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -20 - TL.outer / 2 - TL.halo }}>
-                  <TLNode kind="stop" colors={[color]}/>
+                <div key={id} style={{ display:'flex', alignItems:'center', gap: 8, marginInlineStart: -26 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 6, background: color, boxShadow:'0 0 0 2px var(--surface)', flexShrink: 0, position:'relative', zIndex: 1 }}></span>
                   <span style={{ font:'500 12px "JetBrains Mono", ui-monospace, monospace', color:'var(--text-dim)', flexShrink: 0 }}>{clockOf(j, leg.times[k + 1]).slice(-5)}</span>
                   <span style={{ font:'500 13px/1.3 var(--font)', color:'var(--text-dim)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', minWidth: 0 }}>{T.station(id)}</span>
                 </div>
@@ -331,8 +336,8 @@ function JourneyTimeline({ j, live, rt }) {
     if (i === j.legs.length - 1) rows.push(
       <div key="end" style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
         <div style={timeCol}><LiveClock j={j} m={leg.arrive} d={L && L.arr}/></div>
-        <div style={{ ...rail, paddingTop: 1 }}>
-          <span style={{ ...bar(color), bottom: '50%' }}></span>
+        <div style={{ ...rail, paddingTop: 1, alignSelf: 'stretch' }}>
+          <span style={{ ...bar(color), bottom: 'auto', height: dotY(0) }}></span>
           <TLNode kind="end" colors={[color]}/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
