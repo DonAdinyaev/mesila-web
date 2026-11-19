@@ -497,21 +497,25 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
   const nowI = window.SCHEDULE.israelNow();
   const leftAgo = Math.round(nowI.day * 1440 + nowI.min - (Date.parse(j.day) / 864e5 * 1440 + j.depart + (first && first.dep != null ? first.dep : 0)));
   const gone = !live && leftAgo > 0 ? ' · ' + T.t('leftAgo', leftAgo) : '';
+  // Earlier / later: small chevron chips beside the page dots ("‹ ● ○ ○ ›"). The chip is
+  // 22px; the button around it is 32px, so it's still easy to hit.
   const arrow = (dir, disabled, onClick, label) => (
     <button onClick={onClick} disabled={disabled} aria-label={label} title={label} style={{
-      width: 34, height: 34, borderRadius: 17, flexShrink: 0, border: '1px solid var(--chip-border)',
-      background: 'var(--chip-bg)', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.35 : 1,
-      display:'flex', alignItems:'center', justifyContent:'center', padding: 0 }}>
-      <svg width="12" height="12" viewBox="0 0 12 12" style={{ transform: (dir < 0) !== rtl ? 'scaleX(-1)' : 'none' }}>
-        <path d="M4 2l4 4-4 4" stroke="var(--text)" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
+      width: 32, height: 26, flexShrink: 0, border: 'none', background: 'transparent', padding: 0,
+      cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.3 : 1,
+      display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <span style={{ width: 22, height: 22, borderRadius: 11, border: '1px solid var(--chip-border)', background: 'var(--chip-bg)',
+        display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true" style={{ transform: (dir < 0) !== rtl ? 'scaleX(-1)' : 'none' }}>
+          <path d="M2.8 1.2 5.6 4 2.8 6.8" stroke="var(--text)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </span>
     </button>
   );
   return (
     <div style={{ padding: '2px 16px 10px' }}>
-      <div style={{ display:'flex', alignItems:'center', gap: 10 }}>
-        {count > 1 && arrow(-1, index === 0, onPrev, T.t('earlier'))}
-        <div key={index} style={{ flex: 1, minWidth: 0, animation: 'fadeIn 180ms ease-out' }}>
+      <div>
+        <div key={index} style={{ minWidth: 0, animation: 'fadeIn 180ms ease-out' }}>
           <div style={{ display:'flex', alignItems:'baseline', gap: 10, flexWrap:'wrap' }}>
             <div style={{ font: '700 26px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(j.arrive - j.depart)}</div>
             <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}><LiveClock j={j} m={j.depart} d={first && first.dep} small/> {rtl ? '←' : '→'} <LiveClock j={j} m={j.arrive} d={last && last.arr} small/></div>
@@ -534,14 +538,17 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
             </span>
           </div>
         </div>
-        {count > 1 && arrow(1, index === count - 1, onNext, T.t('later'))}
       </div>
       {count > 1 && (
-        <div aria-label={T.t('tripN', index + 1, count)} style={{ display:'flex', justifyContent:'center', gap: 5, marginTop: 8 }}>
-          {Array.from({ length: count }, (_, k) => (
-            <span key={k} style={{ width: k === index ? 14 : 6, height: 6, borderRadius: 3, transition: 'width 150ms',
-              background: k === index ? 'var(--text)' : 'var(--chip-border)' }}/>
-          ))}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap: 4, marginTop: 4, marginBottom: -4 }}>
+          {arrow(-1, index === 0, onPrev, T.t('earlier'))}
+          <div aria-label={T.t('tripN', index + 1, count)} style={{ display:'flex', alignItems:'center', gap: 5 }}>
+            {Array.from({ length: count }, (_, k) => (
+              <span key={k} style={{ width: k === index ? 14 : 6, height: 6, borderRadius: 3, transition: 'width 150ms',
+                background: k === index ? 'var(--text)' : 'var(--chip-border)' }}/>
+            ))}
+          </div>
+          {arrow(1, index === count - 1, onNext, T.t('later'))}
         </div>
       )}
     </div>

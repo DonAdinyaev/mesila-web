@@ -2,6 +2,7 @@
 
 ## 2026-11-19
 
+- **Smaller trip arrows:** the earlier / later arrows are now small chevron chips beside the page dots under the trip card ("‹ ● ○ ○ ›"), instead of large round buttons on both sides, so the trip details use the full width. Their tap area stays comfortable (32px), and the swipe still works.
 - **No hidden position:** the panel no longer folds down to just its handle; the card (or the search box, with nothing planned) is the lowest it goes. Dragging or flicking it down stops there.
 - **One way to open the panel:** tapping a station field now unrolls the panel exactly like the handle does: the trip card stays at the top and the trip details stay below the search, instead of the card folding away and the details disappearing. (With the keyboard up the panel is still fitted above it.)
 
