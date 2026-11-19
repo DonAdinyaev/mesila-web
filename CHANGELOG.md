@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-19
+
+- **One way to open the panel:** tapping a station field now unrolls the panel exactly like the handle does: the trip card stays at the top and the trip details stay below the search, instead of the card folding away and the details disappearing. (With the keyboard up the panel is still fitted above it.)
+
 ## 2026-11-18
 
 - **Cleanup and tests (no visible change):** the trip panel's code is split into small parts (following the visible area, holding the page still while typing, one touch guard for the whole panel, the positions), the page lock is always released if the panel goes away, the old simulated-route fallback and the unused route planner are removed, and the screen sizes the shell, map and panel depend on are in one file (`data/ui.js`). New browser tests (`npm test`) cover the panel and the iPhone keyboard handling; they run on GitHub on every push, and the site is only deployed when they pass. Script versions are stamped automatically at deploy.

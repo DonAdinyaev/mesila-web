@@ -74,8 +74,13 @@ test('choosing both stations shows the trip card; editing a station opens full, 
   const card = await app.panelTop();
   assert.ok(card > 400, 'the trip card, folded');
   await app.handle().click(); await app.handle().click(); await app.wait(500);       // up to full, where the fields show
+  const cardAtFull = await app.page.locator('[data-trip-card]').boundingBox();
   await app.input('to').tap(); await app.wait(500);
   assert.ok(near(await app.panelTop(), FULL_TOP), 'typing with a route: full');
+  // the same unroll as from the handle: the trip card stays where it was, fully shown
+  const cardTyping = await app.page.locator('[data-trip-card]').boundingBox();
+  assert.ok(near(cardTyping.y, cardAtFull.y) && near(cardTyping.height, cardAtFull.height), 'trip card unchanged while typing');
+  assert.equal(await app.page.locator('[data-trip-card]').evaluate(el => getComputedStyle(el).opacity), '1');
   await app.blur(); await app.wait(600);
   assert.ok(near(await app.panelTop(), card), 'keyboard closed: the card');
   assert.deepEqual(app.errors, []);

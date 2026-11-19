@@ -640,8 +640,8 @@ function useTouchGuard(sheetRef, bodyRef, snapRef) {
 // Without a trip it goes no higher than half. Dragging the handle, the card or the details
 // moves it with the finger; on release it snaps to the nearest position (a flick goes to
 // the next one that way). The handle steps card -> half -> full -> card.
-// Typing a station (phones): the panel goes to full (half without a trip) with the trip
-// card folded away, the page is held still, and with the keyboard up the panel is fitted
+// Typing a station (phones): the panel unrolls exactly as from the handle, to full (half
+// without a trip); the page is held still, and with the keyboard up the panel is fitted
 // to the visible area above it. When the keyboard closes the panel returns to the card,
 // riding down with the keyboard in one movement.
 // All moves are one CSS transition of the panel's height (and bottom, with the keyboard).
@@ -692,7 +692,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   // the card fades as the panel goes down to the handle; with a trip, the details fade in
   // as the panel rises above the card
   const cardOpacity = clamp01((height - hiddenH) / Math.max(1, restH - hiddenH));
-  const bodyOpacity = hasTrip && !searching ? clamp01((height - restH) / 80) : cardOpacity;
+  const bodyOpacity = hasTrip ? clamp01((height - restH) / 80) : cardOpacity;
   // the resting height, for what floats just above the panel (the location button)
   React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-rest', restH + 'px'); }, [restH]);
 
@@ -781,9 +781,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           <div style={{ width: 32, height: 3, borderRadius: 3, background: '#D7D4CC' }}/>
         </div>
         {journey && (
-          // folds away (and back) smoothly while a station is being typed
-          <div style={{ display:'grid', gridTemplateRows: searching ? '0fr' : '1fr', opacity: searching ? 0 : cardOpacity,
-            transition: `grid-template-rows 300ms ${ease}, opacity 220ms ${ease}` }}>
+          <div data-trip-card="" style={{ opacity: cardOpacity }}>
             <div ref={sumRef} style={{ overflow:'hidden', minHeight: 0 }}>
               <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
                 onPrev={() => go(-1)} onNext={() => go(1)}/>
@@ -836,7 +834,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           </div>
 
           {/* the selected trip's timeline */}
-          {journey && !searching && (
+          {journey && (
             <div key={tripIndex} style={{ padding: '0 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
               <JourneyTimeline j={journey} live={!when} rt={rt}/>
               <TimetableNote borrowed={journey.borrowed}/>
