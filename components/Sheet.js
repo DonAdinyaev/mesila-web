@@ -143,12 +143,25 @@ function LineBadge({ lineId, size = 22 }) {
 }
 
 
-function TLNode({ kind, color }) {
-  // kind: start | transfer | end
-  const base = { width: 16, height: 16, borderRadius: 8, boxSizing:'border-box', position:'relative', zIndex: 1 };
-  if (kind === 'start') return <span style={{ ...base, background:'#1A1A1C', border:'4px solid #1A1A1C', boxShadow:'inset 0 0 0 2px #fff' }}></span>;
-  if (kind === 'end') return <span style={{ ...base, background:'#fff', border:'4px solid #1A1A1C' }}></span>;
-  return <span style={{ ...base, background:'#fff', border:'3px solid #1A1A1C' }}></span>;
+// A station on the trip timeline: the map's station marker, stood upright. A capsule with
+// a dot in the colour of each line used there, one above the other: at a change, the line
+// you arrive on above the one you leave on. As on the map the start is dark (dots ringed
+// in white) and the destination has a thicker outline; a halo in the panel's colour keeps
+// it clear of the line bars.
+function TLNode({ kind, colors }) {
+  const DOT = 8, STEP = 12, W = 18;
+  const ring = kind === 'end' ? 3 : 2;
+  return (
+    <span style={{ position:'relative', zIndex: 1, boxSizing:'border-box', width: W, height: W + (colors.length - 1) * STEP,
+      borderRadius: W / 2, border: `${ring}px solid #1A1A1C`, background: kind === 'start' ? '#1A1A1C' : '#fff',
+      boxShadow: '0 0 0 2px var(--surface)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-around',
+      padding: `${(W - 2 * ring - DOT) / 2}px 0`, flexShrink: 0 }}>
+      {colors.map((c, k) => (
+        <span key={k} style={{ width: DOT, height: DOT, borderRadius: DOT / 2, background: c,
+          boxShadow: kind === 'start' ? '0 0 0 1.5px #fff' : 'none' }}/>
+      ))}
+    </span>
+  );
 }
 
 // ---- Real timetable (window.SCHEDULE): times are minutes after midnight, Israel time,
@@ -251,7 +264,7 @@ function JourneyTimeline({ j, live, rt }) {
         <div style={{ ...rail, paddingTop: 1 }}>
           {i > 0 && <span style={{ ...bar(colorOf(j.legs[i-1].line)), bottom: '50%' }}></span>}
           <span style={{ ...bar(color), top: 8 }}></span>
-          <TLNode kind={i === 0 ? 'start' : 'transfer'}/>
+          <TLNode kind={i === 0 ? 'start' : 'transfer'} colors={i === 0 ? [color] : [colorOf(j.legs[i - 1].line), color]}/>
         </div>
         <div style={{ flex: 1, minWidth: 0, paddingBottom: 10 }}>
           <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[0])}<Plat text={plat}/></div>
@@ -301,7 +314,7 @@ function JourneyTimeline({ j, live, rt }) {
         <div style={timeCol}><LiveClock j={j} m={leg.arrive} d={L && L.arr}/></div>
         <div style={{ ...rail, paddingTop: 1 }}>
           <span style={{ ...bar(color), bottom: '50%' }}></span>
-          <TLNode kind="end"/>
+          <TLNode kind="end" colors={[color]}/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font:'700 15px var(--font)', color:'var(--text)', letterSpacing:'-0.01em' }}>{T.station(ids[n])}<Plat text={L && L.pt ? T.t('platform', L.pt) : null}/></div>
