@@ -154,7 +154,9 @@ const TL = {
   ring: 1.5,      // its black outline; the destination's is doubled (map ratio: 1.45)
   dot: 8,         // a line's colour dot (map ratio: 7.4)
   halo: 3,        // the gap kept clear around the marker (map ratio: 2.9)
-  step: 11,       // the distance between two lines' dots at a change (map ratio: 10.9)
+  // the distance between two lines' dots at a change: the dots are as far apart as each is
+  // from the outline ((14 - 2 * 1.5 - 8) / 2 = 1.5px), not twice that
+  step: 8 + 1.5,
 };
 // A station on the trip timeline: the map's station marker, stood upright. One dot per line
 // used there, one above the other: at a change, the line you arrive on above the one you

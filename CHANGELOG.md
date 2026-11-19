@@ -2,6 +2,7 @@
 
 ## 2026-11-19
 
+- **Tighter change marker:** in the timeline's change capsule the two dots are now as far apart as each is from the outline (1.5px), instead of twice that, so the capsule is shorter.
 - **Timeline stations look like the map's:** each station on the trip timeline is now the map's station marker stood upright, drawn the same way and with the map's proportions (marker, outline, dot size, the gap around it and the spacing between two lines' dots), scaled to a thicker timeline line (8px). A change of trains is one capsule with two dots, the line you arrive on above the line you leave on (level with the arrival and departure times); the start is dark and the destination has a thicker outline, as on the map. The lines run right up to every marker (start, changes and destination) with the same small gap, and continue without notches from row to row; the stops shown when a leg is expanded are plain colour circles just a little wider than the line. The line, markers and stops are all centred in one fixed-width rail.
 - **Smaller trip arrows:** the earlier / later arrows are now small chevron chips beside the page dots under the trip card ("‹ ● ○ ○ ›"), instead of large round buttons on both sides, so the trip details use the full width. Their tap area stays comfortable (32px), and the swipe still works.
 - **No hidden position:** the panel no longer folds down to just its handle; the card (or the search box, with nothing planned) is the lowest it goes. Dragging or flicking it down stops there.
