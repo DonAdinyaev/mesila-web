@@ -144,16 +144,17 @@ function LineBadge({ lineId, size = 22 }) {
 
 
 // The trip timeline uses the map's proportions (MapSVG: line W, marker W + 3.6, white inside
-// W + 1.6, dot W - 0.4, outer halo W + 7.6, tracks GAP = 7.5 apart, at W = 5.5), scaled so
-// the timeline's line is TL_LINE wide.
+// W + 1.6, dot W - 0.4, outer halo W + 7.6, tracks GAP = 7.5 apart, at W = 5.5), scaled to
+// an 8px line and rounded to whole, even sizes: the line, the markers and the stops then
+// share one pixel-exact centre (fractional widths got snapped half a pixel aside).
 const TL_LINE = 8, TL_K = TL_LINE / 5.5;
 const TL = {
   line: TL_LINE,
-  outer: (5.5 + 3.6) * TL_K,            // the marker's width (black outline included)
-  ring: 1 * TL_K,                        // its black outline; the destination's is doubled
-  dot: (5.5 - 0.4) * TL_K,               // a line's colour dot
-  halo: 2 * TL_K,                        // the gap kept clear around the marker (land colour on the map)
-  step: 7.5 * TL_K,                      // the distance between two lines' dots at a change
+  outer: 14,      // the marker's width, outline included (map ratio: 13.2)
+  ring: 1.5,      // its black outline; the destination's is doubled (map ratio: 1.45)
+  dot: 8,         // a line's colour dot (map ratio: 7.4)
+  halo: 3,        // the gap kept clear around the marker (map ratio: 2.9)
+  step: 11,       // the distance between two lines' dots at a change (map ratio: 10.9)
 };
 // A station on the trip timeline: the map's station marker, stood upright. One dot per line
 // used there, one above the other: at a change, the line you arrive on above the one you
