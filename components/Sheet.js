@@ -8,7 +8,7 @@ function fmtMin(m) {
 }
 
 // One row of the search card. 16px text so iPhones don't zoom the page on focus.
-function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, autoFocus, note, onLocate, locating }) {
+function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, onTouchStart, autoFocus, note, onLocate, locating }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
   const inputRef = React.useRef(null);
@@ -35,7 +35,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
         {/* station name, with an optional small note (distance) underneath so the name keeps the full width */}
         <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <input
-            ref={inputRef} data-station-input={label}
+            ref={inputRef} data-station-input={label} onTouchStart={onTouchStart}
             value={open ? q : display}
             onChange={e => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => { setOpen(true); setQ(''); onFocus?.(); }}
@@ -789,6 +789,19 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     pageLock.lock();
     setSearching(true); setSnap(live.current.hasTrip ? 'full' : 'half');
   };
+  // The finger lands on a station field: start raising the panel right away, before the
+  // field is focused. Safari slides the whole screen (map included) only if the field would
+  // end up behind the keyboard; by the time the keyboard is up the field is already high
+  // on the screen, so there should be nothing to slide. If no typing follows (the touch
+  // was a scroll), the panel goes back.
+  const prepareSearch = () => {
+    if (!phone || live.current.searching) return;
+    startSearch();
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (!(a && a.dataset && a.dataset.stationInput)) endSearch();
+    }, 700);
+  };
   // runs after a field loses focus (the field's own short delay): unless the other field
   // took the focus, typing is over
   const endSearch = () => {
@@ -871,11 +884,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   note={located && from === located.id ? T.t('kmAway', located.km) : null}
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
-                  onFocus={startSearch} onBlur={endSearch}
+                  onFocus={startSearch} onBlur={endSearch} onTouchStart={prepareSearch}
                   onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
                 <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
-                  onFocus={startSearch} onBlur={endSearch}
+                  onFocus={startSearch} onBlur={endSearch} onTouchStart={prepareSearch}
                   onChange={onSetTo} onPick={pick(onSetTo, from)}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{

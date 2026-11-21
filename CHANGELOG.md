@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-21
+
+- **Keyboard without the screen sliding (trial):** the panel now starts rising the moment a finger touches a station field, before the field is focused, so the field is already high on the screen when the keyboard comes up and Safari has no reason to slide the whole screen (map included). A touch that turns out to be a scroll lets the panel drop back. The page also declares `interactive-widget=overlays-content`, which tells browsers that support it (Chrome on Android) to let the keyboard cover the page instead of moving it.
+
 ## 2026-11-19
 
 - **Both stations chosen: keyboard away, route on the map.** Picking a station when the other one is already set now closes the keyboard; the panel folds to the trip card and the map moves to show the route. (The map used to try to move while the page was held still for typing, then snap back when it was released, so the route could stay off screen.)
