@@ -744,6 +744,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (!phone || !el || !layer) return;
     const lr = layer.getBoundingClientRect();
     if (searching) {
+      layer.scrollTop = layer.scrollTop;     // stops a glide in progress (setting the offset ends it)
       const r = el.getBoundingClientRect();
       setCover({ top: r.top, side: UI.EDGE, height: lr.bottom - r.top, radius: 24, safe: false, anim: false });
       let f2 = 0;
@@ -856,6 +857,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       borderRadius: '0 0 24px 24px',
       pointerEvents: 'none',            // the map gets touches around the panel
       zIndex: cover ? 8 : snap !== 'rest' ? 6 : 5,  // above the map buttons when up; above all while typing
+      // typing: the layer doesn't scroll (a pull up that started the typing would otherwise
+      // keep gliding, and Safari carried the full-screen panel along with it)
+      ...(cover && { overflowY: 'hidden', scrollSnapType: 'none' }),
     }}>
       <div style={{ position: 'relative' }}>
         {/* the stops: scrolled to 0 = card, to off.half = half, to off.full = full */}

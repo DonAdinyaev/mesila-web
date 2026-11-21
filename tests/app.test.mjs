@@ -263,3 +263,20 @@ test('a scroll of the map still gliding when typing starts does not move the pan
   assert.deepEqual(app.errors, []);
   await app.close();
 });
+
+test('typing started by pulling the panel up: the panel stays full screen and the layer stops scrolling', async () => {
+  const app = await openApp(browser, server.url);
+  const { page } = app;
+  await app.flick(-300);                       // a quick pull up: the layer would keep gliding
+  await app.wait(600);
+  assert.ok(await isCover(app), 'full screen');
+  const st = await page.locator('.sheet-layer').evaluate(el => [getComputedStyle(el).overflowY, el.scrollTop]);
+  assert.equal(st[0], 'hidden', 'the layer does not scroll while typing');
+  await app.wait(500);
+  assert.equal(await page.locator('.sheet-layer').evaluate(el => el.scrollTop), st[1], 'no glide');
+  assert.ok(await isCover(app), 'still full screen');
+  await app.blur(); await app.wait(900);
+  assert.equal(await page.locator('.sheet-layer').evaluate(el => getComputedStyle(el).overflowY), 'auto', 'scrolls again after');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
