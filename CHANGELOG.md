@@ -2,6 +2,7 @@
 
 ## 2026-11-21
 
+- **Pulling the panel up to type no longer glides it off screen:** the panel's scrolling layer stops scrolling the moment the panel goes full screen (a glide in progress is ended), so a pull up that started the typing can't carry the form away.
 - **Typing pins the page again:** while the panel covers the screen the page itself is pinned at its offset (the usual iOS lock), which also stops a scroll of the map that is still gliding; the panel is fixed again. Making the panel part of the page let that leftover glide carry it off screen. The page background is the panel's colour while pinned, so the areas iOS leaves around pinned layers (status bar, toolbar) read as part of the panel.
 - **Full screen means nothing behind scrolls:** while the panel covers the screen, finger drags may only scroll something inside it that can still scroll that way (the suggestions, long details); every other drag is cancelled. iOS scrolls the page under a finger whatever its overflow says, and since the panel is part of the page while typing, that dragged the panel off screen.
 - **Full-screen typing stays on screen:** while typing, the panel is now part of the page (position absolute, covering the screen where the page is held) instead of pinned (fixed). With the keyboard up Safari can move its view away from where it pins fixed elements, which took the form off screen in Safari and Chrome on iPhone; a part of the page moves with the page. It also covers the status bar area by itself now.
