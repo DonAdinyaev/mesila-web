@@ -2,6 +2,7 @@
 
 ## 2026-11-21
 
+- **Trip timeline closer together:** the time column is now exactly as wide as the widest time in the trip (measured as drawn), so the line sits right beside the times, also when they carry a weekday (Hebrew used a fixed 100px). The line badges (HS, 1, ...) sit next to the line instead of at the column's far edge.
 - **Hebrew weekdays shortened:** times on other days show just the letter (א׳, ב׳) instead of יום א׳, יום ב׳, in the trip and in the time wheel.
 - **Lighter search form:** the From/To form is now the panel's own colour with no border, its edge shown by a soft shadow, with smaller margins around it. The dividers (between the time and the stations, and between From and To) are light hairlines that fade in from transparent over the first quarter of their length and out over the last quarter.
 
