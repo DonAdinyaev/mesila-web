@@ -205,3 +205,24 @@ test('tapping a field or pulling the panel opens the keyboard on a hidden field 
   assert.deepEqual(app.errors, []);
   await app.close();
 });
+
+test('keyboard opening in several steps: the panel moves once, without going back', async () => {
+  const app = await openApp(browser, server.url, { keyboard: true });
+  const { page } = app;
+  const H = await page.evaluate(() => innerHeight);
+  await app.input('from').tap();
+  // iOS reports in-between sizes while the keyboard slides up; sample the panel meanwhile
+  const tops = await page.evaluate(async (H) => {
+    const out = [], sheet = document.querySelector('[data-sheet]');
+    const sample = setInterval(() => out.push(sheet.getBoundingClientRect().top), 16);
+    for (const h of [H - 80, H - 180, H - 300, H - 420, H - 500]) { window.__kb(0, h); await new Promise(r => setTimeout(r, 40)); }
+    await new Promise(r => setTimeout(r, 900));
+    clearInterval(sample);
+    return out;
+  }, H);
+  for (let i = 1; i < tops.length; i++) assert.ok(tops[i] <= tops[i - 1] + 1, `the panel went back down at sample ${i}: ${tops[i - 1]} -> ${tops[i]}`);
+  const r = await app.panel();
+  assert.ok(r.y + r.height <= H - 500 + 1, 'ends above the keyboard');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
