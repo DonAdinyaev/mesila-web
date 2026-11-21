@@ -1,9 +1,5 @@
 # Changelog
 
-## 2026-11-21
-
-- **Map stays still when the keyboard opens (iPhone):** besides scrolling the page, Safari slides the whole visible screen up when the keyboard opens, which moved the map. While typing, that slide is now undone at once; the panel, fitted above the keyboard, keeps the field in view.
-
 ## 2026-11-19
 
 - **Both stations chosen: keyboard away, route on the map.** Picking a station when the other one is already set now closes the keyboard; the panel folds to the trip card and the map moves to show the route. (The map used to try to move while the page was held still for typing, then snap back when it was released, so the route could stay off screen.)
