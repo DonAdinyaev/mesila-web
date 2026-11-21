@@ -97,12 +97,11 @@ test('typing (iPhone): the panel covers the screen, the map does not move, all i
   const map0 = await app.mapTop(), scroll0 = await page.evaluate(() => scrollY);
   await app.input('from').tap(); await app.wait(700);
   assert.ok(await isCover(app), 'typing: the whole screen');
-  // part of the page, not pinned (Safari moves its view away from fixed elements with the keyboard up)
-  assert.equal(await page.locator('.sheet-layer').evaluate(el => getComputedStyle(el).position), 'absolute', 'the panel is part of the page while typing');
+  // the page is pinned while typing (nothing can scroll it, not even a scroll still gliding)
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'fixed', 'the page is pinned while typing');
   await page.mouse.move(195, 30); await page.mouse.wheel(0, 400);   // trying to scroll the map
   await app.wait(300);
   assert.equal(await app.mapTop(), map0, 'the map stays put while typing');
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'static', 'the page stays a normal page (not a fixed layer)');
   await page.keyboard.type('Netan');
   await page.locator('[data-suggestion="netanya"]').dispatchEvent('mousedown');
   await app.blur(); await app.wait(900);
@@ -110,9 +109,11 @@ test('typing (iPhone): the panel covers the screen, the map does not move, all i
   assert.equal(await app.mapTop(), map0, 'the map is where it was');
   assert.equal(await page.evaluate(() => scrollY), scroll0, 'page scroll restored');
   assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'scroll lock released');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'static', 'the page is a normal page again');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
+
 test('swipes on the panel never scroll the page (the map)', async () => {
   const app = await withRoute();
   await app.handle().click(); await app.handle().click(); await app.wait(500);   // full
@@ -244,6 +245,21 @@ test('typing full screen: finger drags never scroll the page (only lists inside 
   assert.ok((await page.evaluate(() => window.__moves)).some(p => !p), 'drags on the list are let through');
   assert.ok(await list.evaluate(el => el.scrollTop) > 0, 'the suggestions scroll');
   assert.equal(await page.evaluate(() => scrollY), y0, 'and the page still did not');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
+
+test('a scroll of the map still gliding when typing starts does not move the panel', async () => {
+  const app = await openApp(browser, server.url);
+  const { page } = app;
+  await page.evaluate(() => window.scrollBy({ top: 600, behavior: 'smooth' }));   // the map still gliding
+  await app.input('from').tap(); await app.wait(900);
+  assert.ok(await isCover(app), 'the panel covers the screen');
+  const y = await page.evaluate(() => document.body.style.top);
+  await app.wait(400);
+  assert.equal(await page.evaluate(() => document.body.style.top), y, 'the page stopped');
+  assert.ok(await isCover(app), 'and the panel stays put');
+  await app.blur(); await app.wait(900);
   assert.deepEqual(app.errors, []);
   await app.close();
 });

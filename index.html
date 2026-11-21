@@ -58,6 +58,8 @@
   html.page-scroll #root { position: relative; height: auto; min-height: 100vh; }
   /* held still while typing a station (the map doesn't scroll under the keyboard) */
   html.page-scroll.page-held, html.page-scroll.page-held body { overflow: hidden; }
+  /* ...and the page background is the panel's colour, around the pinned page (Sheet.js usePageLock) */
+  html.page-held, html.page-held body { background: var(--surface); }
   /* the trip panel's scrolling layer (Sheet.js): no scrollbar */
   .sheet-layer { scrollbar-width: none; }
   .sheet-layer::-webkit-scrollbar { display: none; }
