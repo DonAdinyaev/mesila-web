@@ -8,6 +8,9 @@ function fmtMin(m) {
 }
 
 // One row of the search card. 16px text so iPhones don't zoom the page on focus.
+// a hairline divider that fades in from transparent ends to dark in the middle
+const FADE_LINE = (dir) => `linear-gradient(${dir}, transparent, color-mix(in srgb, var(--text) 35%, transparent), transparent)`;
+
 function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, onTap, autoFocus, note, onLocate, locating }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
@@ -620,18 +623,21 @@ function useVisualViewport(enabled) {
   React.useEffect(() => {
     const V = window.visualViewport;
     if (!enabled || !V) return;
-    const upd = () => setVv({ top: V.offsetTop, h: V.height, lh: document.documentElement.clientHeight });
-    upd();
+    const read = () => setVv({ top: V.offsetTop, h: V.height, lh: document.documentElement.clientHeight });
+    // only once the visible area has settled: while the keyboard slides, iOS reports many
+    // in-between sizes, and following each one restarted the panel's movement (it stuttered)
+    let t = 0;
+    const upd = () => { clearTimeout(t); t = setTimeout(read, 120); };
+    read();
     V.addEventListener('resize', upd); V.addEventListener('scroll', upd);
-    return () => { V.removeEventListener('resize', upd); V.removeEventListener('scroll', upd); };
+    return () => { clearTimeout(t); V.removeEventListener('resize', upd); V.removeEventListener('scroll', upd); };
   }, [enabled]);
   return vv;
 }
 
-// Holds the page still: the usual iOS scroll lock (the body fixed at its current offset).
-// On phones the page is the map, and Safari scrolls the page to bring a focused field into
-// view; while locked it has nothing to scroll. release() puts the body back at the same
-// place, so nothing moves. Always released when the panel goes away.
+// Holds the page still while typing: on phones the page is the map, and it must not scroll
+// behind the panel. release() puts the scroll back if anything moved it. Always released
+// when the panel goes away.
 function usePageLock() {
   const saved = React.useRef(null);
   const lock = React.useCallback(() => {
@@ -856,9 +862,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       // an island: floats 8px from the sides and from the bottom of the visible area
       // (above the home indicator), all corners rounded, the map showing around it
       position:'fixed', left: UI.EDGE, right: UI.EDGE,
-      // with the keyboard up: sits on top of it (the visible area's bottom edge)
-      bottom: kb ? Math.max(0, vv.lh - (vv.top + vv.h)) + UI.EDGE : `calc(env(safe-area-inset-bottom, 0px) + ${UI.EDGE}px)`,
-      height, transition: dy === null ? `height 300ms ${ease}, bottom 250ms ${ease}` : 'none',
+      bottom: `calc(env(safe-area-inset-bottom, 0px) + ${UI.EDGE}px)`,
+      // with the keyboard up: lifted to sit on top of it (the visible area's bottom edge).
+      // A transform, so the lift is drawn by the graphics chip, in step with the height
+      transform: kb ? `translateY(${-Math.max(0, vv.lh - (vv.top + vv.h) - (window.safeBottom ? window.safeBottom() : 0))}px)` : 'none',
+      height, transition: dy === null ? `height 300ms ${ease}, transform 300ms ${ease}` : 'none',
       display:'flex', flexDirection:'column',
       background: 'var(--surface)',
       borderRadius: 24, overflow: 'hidden',
@@ -869,10 +877,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       paddingBottom: 6,
       zIndex: snap === 'full' || dy !== null ? 6 : 5,   // above the map buttons when up
     }}>
-      {/* the invisible field that opens the keyboard at the top of the screen (focusVia) */}
-      <input ref={proxyRef} aria-hidden="true" tabIndex={-1} onInput={handOver} onBlur={() => setTimeout(endSearch, 150)}
+      {/* the invisible field that opens the keyboard at the top of the screen (focusVia); on the
+          page itself, since inside the lifted (transformed) panel 'fixed' would mean the panel */}
+      {ReactDOM.createPortal(<input ref={proxyRef} aria-hidden="true" tabIndex={-1} onInput={handOver} onBlur={() => setTimeout(endSearch, 150)}
         style={{ position: 'fixed', top: 0, left: 0, width: 40, height: 20, opacity: 0, border: 0, padding: 0,
-          font: '16px var(--font)', caretColor: 'transparent', pointerEvents: 'none', zIndex: -1 }}/>
+          font: '16px var(--font)', caretColor: 'transparent', pointerEvents: 'none', zIndex: -1 }}/>, document.body)}
       {/* Top strip: handle + trip card. Drag up/down to move the panel, swipe sideways to change trip. */}
       <div {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '6px 0 4px', cursor: 'pointer' }}
@@ -898,11 +907,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
         <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0 }}>
         <div ref={contentRef}>
           {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
-          <div style={{ padding: '10px 16px 10px' }}>
+          <div style={{ padding: '4px 8px 2px' }}>
+            {/* the panel's own colour, no border: its edge is a soft shadow */}
             <div style={{ position:'relative', display:'flex', alignItems:'center',
-              background: 'var(--chip-bg)', border: '1px solid var(--chip-border)', borderRadius: 14 }}>
+              background: 'var(--surface)', borderRadius: 16,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)' }}>
               <TimeWheel when={when} setWhen={setWhen}/>
-              <div aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', margin: '8px 0', background: 'var(--chip-border)' }}/>
+              <div aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', margin: '10px 0', background: FADE_LINE('to bottom') }}/>
               <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                 {/* route line: three dots spread evenly between the two station markers
                     (marker centres sit 21px from the rows' top and bottom; 5px radius) */}
@@ -915,7 +926,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
                   onFocus={startSearch} onBlur={endSearch} onTap={focusVia}
                   onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
-                <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
+                <div style={{ height: 1, background: FADE_LINE('to right'), marginInlineStart: 34, marginInlineEnd: 4 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
                   onFocus={startSearch} onBlur={endSearch} onTap={focusVia}
                   onChange={onSetTo} onPick={pick(onSetTo, from)}/>
