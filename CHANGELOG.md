@@ -2,6 +2,7 @@
 
 ## 2026-11-21
 
+- **Full screen means nothing behind scrolls:** while the panel covers the screen, finger drags may only scroll something inside it that can still scroll that way (the suggestions, long details); every other drag is cancelled. iOS scrolls the page under a finger whatever its overflow says, and since the panel is part of the page while typing, that dragged the panel off screen.
 - **Full-screen typing stays on screen:** while typing, the panel is now part of the page (position absolute, covering the screen where the page is held) instead of pinned (fixed). With the keyboard up Safari can move its view away from where it pins fixed elements, which took the form off screen in Safari and Chrome on iPhone; a part of the page moves with the page. It also covers the status bar area by itself now.
 - **Typing full screen:** tapping a station field (or pulling the panel up with no route) grows the panel from where it is to the whole screen, edge to edge, in one short transition, with the keyboard opening alongside (iOS opens the keyboard only from the tap itself); typing moves into the field once the panel is full screen. Picking the second station, or dragging the panel down (it follows the finger), closes the keyboard and the panel shrinks back to the card.
 - **Hebrew weekdays shortened:** times on other days show just the letter (א׳, ב׳) instead of יום א׳, יום ב׳, in the trip and in the time wheel.
