@@ -263,11 +263,19 @@ function Plat({ text }) {
 function JourneyTimeline({ j, live, rt }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
-  // One width for the whole trip, so the line and markers stay in one straight column:
-  // wider when any time carries a weekday ("Tue 00:56" / "ג׳ 00:56").
+  // One width for the whole trip, so the line and markers stay in one straight column: the
+  // widest time as drawn (e.g. "Tue 00:56" / "ג׳ 00:56"), measured, so the line sits just
+  // beside the times
   const allTimes = j.legs.flatMap(l => l.times);
   const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
-  const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
+  const boxRef = React.useRef(null);
+  const [timeW, setTimeW] = React.useState(withDay ? 70 : 46);
+  React.useLayoutEffect(() => {
+    const box = boxRef.current; if (!box) return;
+    const w = Math.ceil(Math.max(0, ...[...box.querySelectorAll('[data-tl-time]')].map(el => el.getBoundingClientRect().width)));
+    if (w && w !== timeW) setTimeW(w);
+  });
+  const timeCol = { width: timeW, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
   // the rail: a fixed-width column; the line, markers and stops are all centred inside a box
   // of this width (flex / auto margins), so they share one centre whatever their sizes
   const RAIL = 24;
@@ -292,10 +300,10 @@ function JourneyTimeline({ j, live, rt }) {
     const plat = !L || !L.pf ? null : i > 0 && P && P.pt && P.pt !== L.pf ? T.t('platformChange', P.pt, L.pf) : T.t('platform', L.pf);
     rows.push(
       <div key={'s'+i} style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
-        <div style={timeCol}>
+        <div style={timeCol}><span data-tl-time="" style={{ display: 'inline-block' }}>
           {i > 0 && <div style={{ color:'var(--text-dim)', fontWeight: 500 }}><LiveClock j={j} m={j.legs[i - 1].arrive} d={P && P.arr}/></div>}
           <LiveClock j={j} m={leg.depart} d={L && L.dep}/>
-        </div>
+        </span></div>
         <div style={{ ...rail, paddingTop: 1, alignSelf: 'stretch' }}>
           {i > 0 && <span style={{ ...bar(colorOf(j.legs[i-1].line)), bottom: 'auto', height: dotY(0) }}></span>}
           <span style={{ ...bar(color), top: dotY(i > 0 ? 1 : 0) }}></span>
@@ -309,8 +317,8 @@ function JourneyTimeline({ j, live, rt }) {
     );
     rows.push(
       <div key={'r'+i} style={{ display:'flex', gap: 8, alignItems:'stretch' }}>
-        {/* the line's badge sits in the time column, beside the ride, leaving the text the full width */}
-        <div style={{ ...timeCol, display:'flex', alignItems:'center', paddingTop: 0, paddingBottom: 12 }}><LineBadge lineId={leg.line} size={24}/></div>
+        {/* the line's badge sits in the time column next to the line, beside the ride, leaving the text the full width */}
+        <div style={{ ...timeCol, display:'flex', alignItems:'center', justifyContent:'flex-end', paddingTop: 0, paddingBottom: 12 }}><LineBadge lineId={leg.line} size={24}/></div>
         <div style={rail}><span style={bar(color)}></span></div>
         <div style={{ flex: 1, minWidth: 0, padding: '2px 0 14px' }}>
           <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
@@ -349,7 +357,7 @@ function JourneyTimeline({ j, live, rt }) {
     );
     if (i === j.legs.length - 1) rows.push(
       <div key="end" style={{ display:'flex', gap: 8, alignItems:'flex-start' }}>
-        <div style={timeCol}><LiveClock j={j} m={leg.arrive} d={L && L.arr}/></div>
+        <div style={timeCol}><span data-tl-time="" style={{ display: 'inline-block' }}><LiveClock j={j} m={leg.arrive} d={L && L.arr}/></span></div>
         <div style={{ ...rail, paddingTop: 1, alignSelf: 'stretch' }}>
           <span style={{ ...bar(color), bottom: 'auto', height: dotY(0) }}></span>
           <TLNode kind="end" colors={[color]}/>
@@ -361,7 +369,7 @@ function JourneyTimeline({ j, live, rt }) {
       </div>
     );
   });
-  return <div style={{ borderTop:'1px solid var(--chip-border)', paddingTop: 14 }}>{rows}</div>;
+  return <div ref={boxRef} style={{ borderTop:'1px solid var(--chip-border)', paddingTop: 14 }}>{rows}</div>;
 }
 
 function TimetableNote({ borrowed }) {
