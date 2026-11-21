@@ -97,6 +97,8 @@ test('typing (iPhone): the panel covers the screen, the map does not move, all i
   const map0 = await app.mapTop(), scroll0 = await page.evaluate(() => scrollY);
   await app.input('from').tap(); await app.wait(700);
   assert.ok(await isCover(app), 'typing: the whole screen');
+  // part of the page, not pinned (Safari moves its view away from fixed elements with the keyboard up)
+  assert.equal(await page.locator('.sheet-layer').evaluate(el => getComputedStyle(el).position), 'absolute', 'the panel is part of the page while typing');
   await page.mouse.move(195, 30); await page.mouse.wheel(0, 400);   // trying to scroll the map
   await app.wait(300);
   assert.equal(await app.mapTop(), map0, 'the map stays put while typing');
