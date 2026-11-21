@@ -585,24 +585,27 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
 
 // ---- Panel building blocks
 
-// Holds the page still while typing: on phones the page is the map, and it must not scroll
-// behind the panel. release() puts the scroll back if anything moved it. Always released
-// when the panel goes away.
+// Holds the page still while typing (the panel covers the whole screen then): on phones
+// the page is the map, and it must not scroll behind the panel. The usual iOS lock: the
+// page itself is pinned at its current offset, which also stops a scroll that is still
+// gliding, and gives Safari nothing to scroll when the keyboard opens. iOS crops pinned
+// layers to the space between its status bar and toolbar; the page background there is
+// the panel's colour meanwhile (index.html), so it reads as part of the panel. release()
+// puts the page back at the same offset. Always released when the panel goes away.
 function usePageLock() {
   const saved = React.useRef(null);
   const lock = React.useCallback(() => {
     if (saved.current != null) return;
     saved.current = window.scrollY;
-    // only stops scrolling (overflow hidden, see index.html): making the page a fixed layer
-    // would also hold it, but iOS Safari crops fixed layers to the space between its status
-    // bar and toolbar, so the map went white above and below
     document.documentElement.classList.add('page-held');
+    Object.assign(document.body.style, { position: 'fixed', top: -saved.current + 'px', left: '0', right: '0', width: '100%' });
   }, []);
   const release = React.useCallback(() => {
     if (saved.current == null) return;
     const y = saved.current; saved.current = null;
     document.documentElement.classList.remove('page-held');
-    if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+    Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '' });
+    window.scrollTo(0, y);
     // the map couldn't move while the page was held (e.g. to show a new route): it can now
     window.dispatchEvent(new Event('mesila:pagefree'));
   }, []);
@@ -734,23 +737,14 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   };
   // Typing: the panel grows from where it is to the whole screen (one CSS transition of its
   // edges); when typing ends it shrinks back to the card and returns to the layer, scrolled
-  // to the card. Meanwhile the layer is part of the page (position absolute, covering the
-  // screen where the page is held), not fixed: with the keyboard up Safari may move what
-  // it shows away from where it pins fixed elements, which took the form off screen; a
-  // part of the page moves with the page. (Safari also draws the page, unlike fixed
-  // layers, behind the status bar, so the panel covers that too.)
+  // to the card. Meanwhile the page is pinned (usePageLock), so nothing can scroll it away.
   const [cover, setCover] = React.useState(null);     // null: in the layer; else the panel's box on the screen
-  const coverAt = React.useRef(0);                    // the screen's top, in the layer's containing block
   React.useEffect(() => {
     const el = sheetRef.current, layer = layerRef.current;
     if (!phone || !el || !layer) return;
     const lr = layer.getBoundingClientRect();
     if (searching) {
       const r = el.getBoundingClientRect();
-      // the layer's containing block: its nearest positioned ancestor (else the page)
-      let cb = layer.parentElement;
-      while (cb && cb !== document.body && getComputedStyle(cb).position === 'static') cb = cb.parentElement;
-      coverAt.current = cb && cb !== document.body ? -cb.getBoundingClientRect().top : window.scrollY;
       setCover({ top: r.top, side: UI.EDGE, height: lr.bottom - r.top, radius: 24, safe: false, anim: false });
       let f2 = 0;
       const f1 = requestAnimationFrame(() => { f2 = requestAnimationFrame(() =>
@@ -862,9 +856,6 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       borderRadius: '0 0 24px 24px',
       pointerEvents: 'none',            // the map gets touches around the panel
       zIndex: cover ? 8 : snap !== 'rest' ? 6 : 5,  // above the map buttons when up; above all while typing
-      // typing: a block of the page exactly covering the screen (see cover)
-      ...(cover && { position: 'absolute', top: coverAt.current, left: 0, right: 0, bottom: 'auto',
-        height: document.documentElement.clientHeight, overflowY: 'visible', scrollSnapType: 'none', borderRadius: 0 }),
     }}>
       <div style={{ position: 'relative' }}>
         {/* the stops: scrolled to 0 = card, to off.half = half, to off.full = full */}
@@ -875,7 +866,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           background: 'var(--surface)', borderRadius: '24px 24px 0 0',
           border: '1px solid var(--chip-border)', borderBottom: 'none',
           ...(cover && {
-            position: 'absolute', top: cover.top, left: cover.side, right: cover.side, height: cover.height,
+            position: 'fixed', top: cover.top, left: cover.side, right: cover.side, height: cover.height,
             borderRadius: cover.radius, borderBottom: cover.radius ? '1px solid var(--chip-border)' : 'none',
             borderColor: cover.radius ? 'var(--chip-border)' : 'transparent',
             paddingTop: cover.safe ? 'env(safe-area-inset-top, 0px)' : 0,
