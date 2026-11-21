@@ -733,7 +733,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     const fit = () => fitIds(route.map(r => r.id));
     let t = 0;
     const onFree = () => { clearTimeout(t); t = setTimeout(fit, 350); };
-    if (document.body.style.position === 'fixed') window.addEventListener('mesila:pagefree', onFree, { once: true });
+    if (document.documentElement.classList.contains('page-held')) window.addEventListener('mesila:pagefree', onFree, { once: true });
     else t = setTimeout(fit, 300);
     return () => { clearTimeout(t); window.removeEventListener('mesila:pagefree', onFree); };
   }, [route]);

@@ -97,9 +97,10 @@ test('keyboard (iPhone): the panel fits above it, the map does not move, all is 
   await app.wait(500);
   const r = await app.panel();
   assert.ok(r.y >= 200 && r.y + r.height <= 530 + 1, `panel ${Math.round(r.y)}-${Math.round(r.y + r.height)} inside the visible area`);
-  await page.evaluate(() => window.scrollBy(0, 400));     // what Safari does to reveal the field
-  await app.wait(200);
+  await page.mouse.move(195, 100); await page.mouse.wheel(0, 400);   // trying to scroll the map
+  await app.wait(300);
   assert.equal(await app.mapTop(), map0, 'the map stays put while typing');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'static', 'the page stays a normal page (not a fixed layer)');
   await page.keyboard.type('Netan');
   await page.locator('[data-suggestion="netanya"]').dispatchEvent('mousedown');
   await app.blur();
@@ -108,7 +109,7 @@ test('keyboard (iPhone): the panel fits above it, the map does not move, all is 
   await app.wait(700);
   assert.equal(await app.mapTop(), map0, 'the map is where it was');
   assert.equal(await page.evaluate(() => scrollY), scroll0, 'page scroll restored');
-  assert.equal(await page.evaluate(() => document.body.style.position), '', 'scroll lock released');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'scroll lock released');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
@@ -166,7 +167,7 @@ test('picking the second station closes the keyboard and the map shows the route
     const r = t.getBoundingClientRect(); return r.top >= 0 && r.bottom <= panelTop;
   }), panelTop);
   assert.deepEqual(inView, [true, true], 'both stations on screen, above the panel');
-  assert.equal(await page.evaluate(() => document.body.style.position), '', 'page free again');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'page free again');
   assert.deepEqual(app.errors, []);
   await app.close();
 });

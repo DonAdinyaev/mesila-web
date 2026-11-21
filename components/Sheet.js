@@ -637,13 +637,16 @@ function usePageLock() {
   const lock = React.useCallback(() => {
     if (saved.current != null) return;
     saved.current = window.scrollY;
-    Object.assign(document.body.style, { position: 'fixed', top: -saved.current + 'px', left: '0', right: '0', width: '100%' });
+    // only stops scrolling (overflow hidden, see index.html): making the page a fixed layer
+    // would also hold it, but iOS Safari crops fixed layers to the space between its status
+    // bar and toolbar, so the map went white above and below
+    document.documentElement.classList.add('page-held');
   }, []);
   const release = React.useCallback(() => {
     if (saved.current == null) return;
     const y = saved.current; saved.current = null;
-    Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '' });
-    window.scrollTo(0, y);
+    document.documentElement.classList.remove('page-held');
+    if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
     // the map couldn't move while the page was held (e.g. to show a new route): it can now
     window.dispatchEvent(new Event('mesila:pagefree'));
   }, []);
