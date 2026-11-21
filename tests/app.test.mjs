@@ -171,28 +171,36 @@ test('picking the second station closes the keyboard and the map shows the route
   await app.close();
 });
 
-test('touching a station field raises the panel before the field is focused; a scroll lets it drop back', async () => {
+test('tapping a field or pulling the panel opens the keyboard on a hidden field at the top first, then moves to the real one', async () => {
   const app = await openApp(browser, server.url);
   const { page } = app;
   const cdp = await app.ctx.newCDPSession(page);
   const card = await app.panelTop();
   const r = await app.input('from').boundingBox();
   const x = r.x + 40, y = r.y + r.height / 2;
-  // finger down, held: nothing is focused yet, but the panel is already on its way up
+  // the first thing focused is a field at the top of the screen (Safari has nothing to slide)
+  await page.evaluate(() => { window.__firstFocus = null;
+    document.addEventListener('focusin', e => { if (window.__firstFocus === null) window.__firstFocus = e.target.getBoundingClientRect().top; }); });
+  // a scroll that starts on a field: nothing happens
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-  await app.wait(350);
-  assert.equal(await app.focused(), null, 'not focused yet');
-  assert.ok(await app.panelTop() < card - 100, 'the panel rises as the finger lands');
-  // the finger moves away (a scroll, not a tap) and lifts: no typing, so the panel goes back
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + 60 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await app.wait(1200);
-  assert.ok(near(await app.panelTop(), card), 'back to the card');
-  assert.equal(await page.evaluate(() => document.body.style.position), '', 'page free');
-  // a real tap: rises and stays up, typing
+  await app.wait(500);
+  assert.equal(await app.focused(), null, 'a scroll does not start typing');
+  assert.ok(near(await app.panelTop(), card), 'still the card');
+  // a tap: the panel rises and stays up, and the real field ends up focused
   await app.input('from').tap(); await app.wait(900);
+  assert.equal(await page.evaluate(() => window.__firstFocus), 0, 'first focus at the top of the screen');
   assert.equal(await app.focused(), 'from');
   assert.ok(await app.panelTop() < card - 100, 'up while typing');
+  // closing the keyboard: back to the card
+  await page.evaluate(() => document.activeElement.blur()); await app.wait(900);
+  assert.ok(near(await app.panelTop(), card), 'back to the card');
+  // pulling the handle: the same way in
+  await page.evaluate(() => { window.__firstFocus = null; });
+  await page.locator('[data-handle]').tap(); await app.wait(900);
+  assert.equal(await page.evaluate(() => window.__firstFocus), 0, 'first focus at the top of the screen');
+  assert.equal(await app.focused(), 'from');
   assert.deepEqual(app.errors, []);
   await app.close();
 });

@@ -2,6 +2,7 @@
 
 ## 2026-11-21
 
+- **Keyboard opens at the top, then moves to the field:** tapping a station field, or pulling the panel up, now opens the keyboard on an invisible field at the very top of the screen (so Safari has nothing to slide), raises the panel, and then moves the typing to the real field, which is high on the screen by then. Letters typed in that first moment are carried over. This replaces the earlier trial below, where the panel rising under the finger made Safari drop the tap (the panel opened and fell straight back) and pulling the panel still slid the map.
 - **Keyboard without the screen sliding (trial):** the panel now starts rising the moment a finger touches a station field, before the field is focused, so the field is already high on the screen when the keyboard comes up and Safari has no reason to slide the whole screen (map included). A touch that turns out to be a scroll lets the panel drop back. The page also declares `interactive-widget=overlays-content`, which tells browsers that support it (Chrome on Android) to let the keyboard cover the page instead of moving it.
 
 ## 2026-11-19

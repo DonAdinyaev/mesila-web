@@ -8,10 +8,10 @@ function fmtMin(m) {
 }
 
 // One row of the search card. 16px text so iPhones don't zoom the page on focus.
-function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, onTouchStart, autoFocus, note, onLocate, locating }) {
+function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, onTap, autoFocus, note, onLocate, locating }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
-  const inputRef = React.useRef(null);
+  const inputRef = React.useRef(null), tapY = React.useRef(null);
 
   React.useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -35,7 +35,16 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
         {/* station name, with an optional small note (distance) underneath so the name keeps the full width */}
         <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <input
-            ref={inputRef} data-station-input={label} onTouchStart={onTouchStart}
+            ref={inputRef} data-station-input={label}
+            // a tap (not a scroll) on a field that isn't being typed in yet: the panel decides
+            // how the focus gets here (see focusVia in BottomSheet)
+            onTouchStart={e => { tapY.current = e.touches[0].clientY; }}
+            onTouchEnd={e => {
+              const t = e.changedTouches[0];
+              if (onTap && document.activeElement !== inputRef.current && tapY.current !== null
+                && Math.abs(t.clientY - tapY.current) < 10 && onTap(inputRef.current)) e.preventDefault();
+              tapY.current = null;
+            }}
             value={open ? q : display}
             onChange={e => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => { setOpen(true); setQ(''); onFocus?.(); }}
@@ -755,7 +764,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     // no route yet: opening the panel starts typing the first empty station
     if (!hasTrip && t === 'half' && !live.current.searching && (!from || !to) && sheetRef.current) {
       const el = sheetRef.current.querySelector(`[data-station-input="${!from ? 'from' : 'to'}"]`);
-      if (el) { el.focus(); if (!phone) setSnap('half'); return; }   // on phones the focus opens it
+      if (el) { if (!focusVia(el)) { el.focus(); if (!phone) setSnap('half'); } return; }
     }
     setSnap(t);
   };
@@ -789,18 +798,31 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     pageLock.lock();
     setSearching(true); setSnap(live.current.hasTrip ? 'full' : 'half');
   };
-  // The finger lands on a station field: start raising the panel right away, before the
-  // field is focused. Safari slides the whole screen (map included) only if the field would
-  // end up behind the keyboard; by the time the keyboard is up the field is already high
-  // on the screen, so there should be nothing to slide. If no typing follows (the touch
-  // was a scroll), the panel goes back.
-  const prepareSearch = () => {
-    if (!phone || live.current.searching) return;
+  // Focusing a field low on the screen makes Safari slide the whole page (map included)
+  // up so the field clears the keyboard. So the keyboard is opened on an invisible field
+  // at the top of the screen (nothing to slide), the panel rises, and then the focus moves
+  // to the real field, which is by then high on the screen. Safari keeps the keyboard up
+  // when the focus moves from one field to another.
+  const proxyRef = React.useRef(null), proxyFor = React.useRef(null);
+  const handOver = () => {
+    const p = proxyRef.current, el = proxyFor.current;
+    proxyFor.current = null;
+    if (!el || document.activeElement !== p) return;
+    const typed = p.value; p.value = '';
+    el.focus({ preventScroll: true });
+    if (typed) {   // letters typed before the hand-over go to the real field
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, typed);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
+  const focusVia = (el) => {
+    const p = proxyRef.current;
+    if (!phone || !p || live.current.searching) return false;
     startSearch();
-    setTimeout(() => {
-      const a = document.activeElement;
-      if (!(a && a.dataset && a.dataset.stationInput)) endSearch();
-    }, 700);
+    proxyFor.current = el;
+    p.focus({ preventScroll: true });
+    setTimeout(handOver, 320);
+    return true;
   };
   // runs after a field loses focus (the field's own short delay): unless the other field
   // took the focus, typing is over
@@ -844,6 +866,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       paddingBottom: 6,
       zIndex: snap === 'full' || dy !== null ? 6 : 5,   // above the map buttons when up
     }}>
+      {/* the invisible field that opens the keyboard at the top of the screen (focusVia) */}
+      <input ref={proxyRef} aria-hidden="true" tabIndex={-1} onInput={handOver} onBlur={() => setTimeout(endSearch, 150)}
+        style={{ position: 'fixed', top: 0, left: 0, width: 40, height: 20, opacity: 0, border: 0, padding: 0,
+          font: '16px var(--font)', caretColor: 'transparent', pointerEvents: 'none', zIndex: -1 }}/>
       {/* Top strip: handle + trip card. Drag up/down to move the panel, swipe sideways to change trip. */}
       <div {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '6px 0 4px', cursor: 'pointer' }}
@@ -884,11 +910,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   note={located && from === located.id ? T.t('kmAway', located.km) : null}
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
-                  onFocus={startSearch} onBlur={endSearch} onTouchStart={prepareSearch}
+                  onFocus={startSearch} onBlur={endSearch} onTap={focusVia}
                   onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
                 <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
-                  onFocus={startSearch} onBlur={endSearch} onTouchStart={prepareSearch}
+                  onFocus={startSearch} onBlur={endSearch} onTap={focusVia}
                   onChange={onSetTo} onPick={pick(onSetTo, from)}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
