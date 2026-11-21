@@ -43,7 +43,7 @@ Every push to `main` is tested and then published to GitHub Pages by [`.github/w
 
 ## Tests
 
-Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) cover the trip panel: its positions (natively scrolled and snapped: drags and the handle), typing a station with and without a route (the keyboard opens on a hidden field at the top first, the map doesn't move, all is restored after), that swipes on the panel never scroll the map, and that the app loads cleanly on a phone and a computer in both languages. They run offline: React and Babel come from `node_modules` instead of the CDN, fonts are stubbed and the live-delays relay is blocked.
+Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) cover the trip panel: its positions and gestures (drags, flicks, the handle), typing a station with and without a route, the iPhone keyboard handling (with a simulated visual viewport: the panel fits above the keyboard, the map doesn't move, all is restored after), that swipes on the panel never scroll the map, and that the app loads cleanly on a phone and a computer in both languages. They run offline: React and Babel come from `node_modules` instead of the CDN, fonts are stubbed and the live-delays relay is blocked.
 
 ```bash
 npm install                      # once
