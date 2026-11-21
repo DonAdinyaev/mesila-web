@@ -732,18 +732,25 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     pageLock.lock();
     setSearching(true);
   };
-  // Typing: the panel leaves the layer and grows from where it is to the whole screen
-  // (position fixed, one CSS transition of its edges); when typing ends it shrinks back to
-  // the card and returns to the layer, scrolled to the card.
-  const [cover, setCover] = React.useState(null);     // null: in the layer; else its fixed box
-  const coverFrom = React.useRef(0);
+  // Typing: the panel grows from where it is to the whole screen (one CSS transition of its
+  // edges); when typing ends it shrinks back to the card and returns to the layer, scrolled
+  // to the card. Meanwhile the layer is part of the page (position absolute, covering the
+  // screen where the page is held), not fixed: with the keyboard up Safari may move what
+  // it shows away from where it pins fixed elements, which took the form off screen; a
+  // part of the page moves with the page. (Safari also draws the page, unlike fixed
+  // layers, behind the status bar, so the panel covers that too.)
+  const [cover, setCover] = React.useState(null);     // null: in the layer; else the panel's box on the screen
+  const coverAt = React.useRef(0);                    // the screen's top, in the layer's containing block
   React.useEffect(() => {
     const el = sheetRef.current, layer = layerRef.current;
     if (!phone || !el || !layer) return;
     const lr = layer.getBoundingClientRect();
     if (searching) {
       const r = el.getBoundingClientRect();
-      coverFrom.current = window.scrollY;
+      // the layer's containing block: its nearest positioned ancestor (else the page)
+      let cb = layer.parentElement;
+      while (cb && cb !== document.body && getComputedStyle(cb).position === 'static') cb = cb.parentElement;
+      coverAt.current = cb && cb !== document.body ? -cb.getBoundingClientRect().top : window.scrollY;
       setCover({ top: r.top, side: UI.EDGE, height: lr.bottom - r.top, radius: 24, safe: false, anim: false });
       let f2 = 0;
       const f1 = requestAnimationFrame(() => { f2 = requestAnimationFrame(() =>
@@ -754,9 +761,15 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     // back to the card: the card's box at the bottom of the layer, then into the layer again
     const restNow = offRef.current.full >= 0 ? layer.clientHeight - offRef.current.full : 0;
     setCover({ top: lr.bottom - restNow, side: UI.EDGE, height: restNow, radius: 24, safe: false, anim: true });
-    const t = setTimeout(() => { layer.scrollTop = 0; setCover(null); }, COVER_MS + 30);
+    const t = setTimeout(() => setCover(null), COVER_MS + 30);
     return () => clearTimeout(t);
   }, [searching]);
+  // back in the layer (scrollable again): at the card
+  const wasCover = React.useRef(false);
+  React.useLayoutEffect(() => {
+    if (!cover && wasCover.current && layerRef.current) layerRef.current.scrollTop = 0;
+    wasCover.current = !!cover;
+  }, [cover]);
   // Focusing a field low on the screen makes Safari slide the whole page (map included)
   // up so the field clears the keyboard. So the keyboard is opened on an invisible field
   // at the top of the screen (nothing to slide), the panel rises, and then the focus moves
@@ -809,10 +822,6 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     <input ref={proxyRef} aria-hidden="true" tabIndex={-1} onInput={handOver} onBlur={() => setTimeout(endSearch, 150)}
       style={{ position: 'fixed', top: 0, left: 0, width: 40, height: 20, opacity: 0, border: 0, padding: 0,
         font: '16px var(--font)', caretColor: 'transparent', pointerEvents: 'none', zIndex: -1 }}/>
-    {/* full screen while typing: the status bar area too (Safari draws the page there, not
-        fixed layers), so a plain block on the page covers it */}
-    {cover && cover.safe && <div aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: coverFrom.current,
-      height: 'calc(env(safe-area-inset-top, 0px) + 1px)', background: 'var(--surface)', zIndex: 8 }}/>}
     {/* the layer: from under the top row to the panel's resting bottom edge, scrolling natively */}
     <div ref={layerRef} className="sheet-layer" style={{
       position: 'fixed', left: UI.EDGE, right: UI.EDGE,
@@ -823,6 +832,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       borderRadius: '0 0 24px 24px',
       pointerEvents: 'none',            // the map gets touches around the panel
       zIndex: cover ? 8 : snap !== 'rest' ? 6 : 5,  // above the map buttons when up; above all while typing
+      // typing: a block of the page exactly covering the screen (see cover)
+      ...(cover && { position: 'absolute', top: coverAt.current, left: 0, right: 0, bottom: 'auto',
+        height: document.documentElement.clientHeight, overflowY: 'visible', scrollSnapType: 'none', borderRadius: 0 }),
     }}>
       <div style={{ position: 'relative' }}>
         {/* the stops: scrolled to 0 = card, to off.half = half, to off.full = full */}
@@ -833,7 +845,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           background: 'var(--surface)', borderRadius: '24px 24px 0 0',
           border: '1px solid var(--chip-border)', borderBottom: 'none',
           ...(cover && {
-            position: 'fixed', top: cover.top, left: cover.side, right: cover.side, height: cover.height,
+            position: 'absolute', top: cover.top, left: cover.side, right: cover.side, height: cover.height,
             borderRadius: cover.radius, borderBottom: cover.radius ? '1px solid var(--chip-border)' : 'none',
             borderColor: cover.radius ? 'var(--chip-border)' : 'transparent',
             paddingTop: cover.safe ? 'env(safe-area-inset-top, 0px)' : 0,
