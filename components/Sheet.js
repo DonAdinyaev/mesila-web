@@ -799,6 +799,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   };
   // the page is let go once the keyboard has gone, so it doesn't move under the closing keyboard
   React.useEffect(() => { if (!kb && !searching) pageLock.release(); }, [kb, searching]);
+  // When the keyboard opens, Safari also slides the whole visible screen up (the visual
+  // viewport's offsetTop) to keep the field in view, which moves the map with it. While
+  // typing that slide is undone at once: the screen stays where it was, and the panel,
+  // fitted above the keyboard, keeps the field in view itself.
+  React.useEffect(() => {
+    if (searching && vv && vv.top > 0) window.scrollTo(0, 0);
+  }, [searching, vv && vv.top]);
   // new stations: the trip card (once typing is over)
   const firstKey = React.useRef(true);
   React.useEffect(() => {
