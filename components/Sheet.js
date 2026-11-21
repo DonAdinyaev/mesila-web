@@ -8,6 +8,11 @@ function fmtMin(m) {
 }
 
 // One row of the search card. 16px text so iPhones don't zoom the page on focus.
+// a hairline divider: fades in over the first quarter of its length, solid (light) in the
+// middle half, fades out over the last quarter
+const FADE_LINE = (dir) => { const c = 'color-mix(in srgb, var(--text) 20%, transparent)';
+  return `linear-gradient(${dir}, transparent, ${c} 25%, ${c} 75%, transparent)`; };
+
 function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, autoFocus, note, onLocate, locating }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
@@ -195,7 +200,7 @@ function clockOf(j, m) {
   const today = window.SCHEDULE.israelNow().day;
   const day = Date.parse(j.day) / 864e5 + off;
   if (day === today) return `${hh}:${mm}`;
-  const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' });
+  const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' }).replace(/יום\s*/, '');   // Hebrew: just א׳, ב׳ (not יום א׳)
   return `${wd} ${hh}:${mm}`;
 }
 
@@ -259,7 +264,7 @@ function JourneyTimeline({ j, live, rt }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
   // One width for the whole trip, so the line and markers stay in one straight column:
-  // wider when any time carries a weekday ("Tue 00:56" / "יום ג׳ 00:56").
+  // wider when any time carries a weekday ("Tue 00:56" / "ג׳ 00:56").
   const allTimes = j.legs.flatMap(l => l.times);
   const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
   const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
@@ -444,7 +449,7 @@ function TimeWheel({ when, setWhen }) {
     }
     const m = slotAt(i), day = Math.floor(m / 1440);
     const d = day === now.day ? '' : day === now.day + 1 ? T.t('tomorrow')
-      : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+      : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).replace(/יום\s*/, '');
     return { time: `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}`, day: d };
   };
   // only render the slots near the centre; spacers keep the scroll length right
@@ -856,11 +861,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
         <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0 }}>
         <div ref={contentRef}>
           {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
-          <div style={{ padding: '10px 16px 10px' }}>
+          <div style={{ padding: '4px 8px 2px' }}>
+            {/* the panel's own colour, no border: its edge is a soft shadow */}
             <div style={{ position:'relative', display:'flex', alignItems:'center',
-              background: 'var(--chip-bg)', border: '1px solid var(--chip-border)', borderRadius: 14 }}>
+              background: 'var(--surface)', borderRadius: 16,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)' }}>
               <TimeWheel when={when} setWhen={setWhen}/>
-              <div aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', margin: '8px 0', background: 'var(--chip-border)' }}/>
+              <div aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', margin: '10px 0', background: FADE_LINE('to bottom') }}/>
               <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                 {/* route line: three dots spread evenly between the two station markers
                     (marker centres sit 21px from the rows' top and bottom; 5px radius) */}
@@ -873,7 +880,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
                   onFocus={startSearch} onBlur={endSearch}
                   onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
-                <div style={{ height: 1, background: 'var(--chip-border)', marginInlineStart: 34 }}/>
+                <div style={{ height: 1, background: FADE_LINE('to right'), marginInlineStart: 34, marginInlineEnd: 4 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
                   onFocus={startSearch} onBlur={endSearch}
                   onChange={onSetTo} onPick={pick(onSetTo, from)}/>
