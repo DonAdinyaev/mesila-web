@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-21
+
+- **Hebrew weekdays shortened:** times on other days show just the letter (א׳, ב׳) instead of יום א׳, יום ב׳, in the trip and in the time wheel.
+- **Lighter search form:** the From/To form is now the panel's own colour with no border, its edge shown by a soft shadow, with smaller margins around it. The dividers (between the time and the stations, and between From and To) are light hairlines that fade in from transparent over the first quarter of their length and out over the last quarter.
+
 ## 2026-11-19
 
 - **Both stations chosen: keyboard away, route on the map.** Picking a station when the other one is already set now closes the keyboard; the panel folds to the trip card and the map moves to show the route. (The map used to try to move while the page was held still for typing, then snap back when it was released, so the route could stay off screen.)
