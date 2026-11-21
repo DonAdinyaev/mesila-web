@@ -28,38 +28,38 @@ test('loads on a phone and a computer, in English and Hebrew, without errors', a
   }
 });
 
-test('panel positions: card, half, full; drags, flicks and handle taps', async () => {
+test('panel positions: card, half, full; drags and handle taps (the browser scrolls and snaps)', async () => {
   const app = await withRoute();
   const card = await app.panelTop();
   await app.drag(-240); const half = await app.panelTop();
   assert.ok(half < card - 100 && half > FULL_TOP + 100, `half ${half} between full and card ${card}`);
   await app.drag(-240);
-  assert.ok(near(await app.panelTop(), FULL_TOP), 'slow drag up again reaches full');
-  await app.drag(100, { from: 6 });
+  assert.ok(near(await app.panelTop(), FULL_TOP), 'drag up again reaches full');
+  await app.drag(60);
   assert.ok(near(await app.panelTop(), FULL_TOP), 'a short drag down springs back to full');
-  await app.flick(80);
-  assert.ok(near(await app.panelTop(), half), 'flick down: full -> half');
-  await app.flick(80);
-  assert.ok(near(await app.panelTop(), card), 'flick down: half -> card');
-  await app.flick(60);
-  assert.ok(near(await app.panelTop(), card), 'the card is the lowest: a flick down stays there');
+  await app.drag(200);
+  assert.ok(near(await app.panelTop(), half), 'drag down: full -> half');
+  await app.drag(200);
+  assert.ok(near(await app.panelTop(), card), 'drag down: half -> card');
   await app.drag(150);
-  assert.ok(near(await app.panelTop(), card), 'and a drag down too');
+  assert.ok(near(await app.panelTop(), card), 'the card is the lowest');
   for (const [want, label] of [[half, 'card -> half'], [FULL_TOP, 'half -> full'], [card, 'full -> card']]) {
-    await app.handle().click(); await app.wait(500);
+    await app.handle().click(); await app.wait(700);
     assert.ok(near(await app.panelTop(), want), 'tap handle: ' + label);
   }
+  // the panel never changes size: only the layer under it scrolls
+  const h = (await app.panel()).height;
+  await app.handle().click(); await app.wait(700);
+  assert.equal((await app.panel()).height, h, 'same height at every position');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
-
-test('no route yet: opening the panel starts typing, no higher than half; closing the keyboard returns to the card', async () => {
+test('no route yet: opening the panel starts typing (at full); closing the keyboard returns to the card', async () => {
   const app = await openApp(browser, server.url);
   const card = await app.panelTop();
-  await app.drag(-500);
+  await app.drag(-500); await app.wait(500);
   assert.equal(await app.focused(), 'from', 'dragging up starts typing in From');
-  const top = await app.panelTop();
-  assert.ok(top > FULL_TOP + 100 && top < card, `no higher than half (top ${top})`);
+  assert.ok(near(await app.panelTop(), FULL_TOP), 'typing: full, so the keyboard covers no field');
   await app.blur(); await app.wait(500);
   assert.ok(near(await app.panelTop(), card), 'keyboard closed: back to the card');
   await app.choose('from', 'Netan', 'netanya');
@@ -88,47 +88,27 @@ test('choosing both stations shows the trip card; editing a station opens full, 
   await app.close();
 });
 
-test('keyboard (iPhone): the panel fits above it, the map does not move, all is restored after', async () => {
-  const app = await openApp(browser, server.url, { keyboard: true });
+test('typing (iPhone): the panel goes to full, the map does not move, all is restored after', async () => {
+  const app = await openApp(browser, server.url);
   const { page } = app;
+  const card = await app.panelTop();
   const map0 = await app.mapTop(), scroll0 = await page.evaluate(() => scrollY);
-  await app.input('from').tap();
-  await page.evaluate(() => window.__kb(200, 330));        // visible part of the page: 200..530
-  await app.wait(500);
-  const r = await app.panel();
-  assert.ok(r.y >= 200 && r.y + r.height <= 530 + 1, `panel ${Math.round(r.y)}-${Math.round(r.y + r.height)} inside the visible area`);
-  await page.mouse.move(195, 100); await page.mouse.wheel(0, 400);   // trying to scroll the map
+  await app.input('from').tap(); await app.wait(700);
+  assert.ok(near(await app.panelTop(), FULL_TOP), 'typing: full');
+  await page.mouse.move(195, 30); await page.mouse.wheel(0, 400);   // trying to scroll the map
   await app.wait(300);
   assert.equal(await app.mapTop(), map0, 'the map stays put while typing');
   assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'static', 'the page stays a normal page (not a fixed layer)');
   await page.keyboard.type('Netan');
   await page.locator('[data-suggestion="netanya"]').dispatchEvent('mousedown');
-  await app.blur();
-  await app.wait(150);
-  await page.evaluate(() => window.__kb(0, innerHeight));  // keyboard gone
-  await app.wait(700);
+  await app.blur(); await app.wait(900);
+  assert.ok(near(await app.panelTop(), card), 'back to the card');
   assert.equal(await app.mapTop(), map0, 'the map is where it was');
   assert.equal(await page.evaluate(() => scrollY), scroll0, 'page scroll restored');
   assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'scroll lock released');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
-
-test('closing the keyboard moves the panel down in one movement (no jumps back up)', async () => {
-  const app = await openApp(browser, server.url, { keyboard: true });
-  const { page } = app;
-  await app.input('from').tap();
-  await page.evaluate(() => window.__kb(200, 330)); await app.wait(500);
-  await page.keyboard.type('Netan');
-  await page.evaluate(() => { window.__tops = []; const t0 = performance.now(); const tick = () => { window.__tops.push(document.querySelector('[data-sheet]').getBoundingClientRect().top); if (performance.now() - t0 < 900) setTimeout(tick, 30); }; tick(); });
-  await page.locator('[data-suggestion="netanya"]').dispatchEvent('mousedown');
-  await app.blur(); await app.wait(150);
-  await page.evaluate(() => window.__kb(0, innerHeight)); await app.wait(900);
-  const tops = await page.evaluate(() => window.__tops);
-  for (let i = 1; i < tops.length; i++) assert.ok(tops[i] >= tops[i - 1] - 0.5, `moved back up at sample ${i}: ${tops.map(Math.round).join(' ')}`);
-  await app.close();
-});
-
 test('swipes on the panel never scroll the page (the map)', async () => {
   const app = await withRoute();
   await app.handle().click(); await app.handle().click(); await app.wait(500);   // full
@@ -202,27 +182,6 @@ test('tapping a field or pulling the panel opens the keyboard on a hidden field 
   await page.locator('[data-handle]').tap(); await app.wait(900);
   assert.equal(await page.evaluate(() => window.__firstFocus), 0, 'first focus at the top of the screen');
   assert.equal(await app.focused(), 'from');
-  assert.deepEqual(app.errors, []);
-  await app.close();
-});
-
-test('keyboard opening in several steps: the panel moves once, without going back', async () => {
-  const app = await openApp(browser, server.url, { keyboard: true });
-  const { page } = app;
-  const H = await page.evaluate(() => innerHeight);
-  await app.input('from').tap();
-  // iOS reports in-between sizes while the keyboard slides up; sample the panel meanwhile
-  const tops = await page.evaluate(async (H) => {
-    const out = [], sheet = document.querySelector('[data-sheet]');
-    const sample = setInterval(() => out.push(sheet.getBoundingClientRect().top), 16);
-    for (const h of [H - 80, H - 180, H - 300, H - 420, H - 500]) { window.__kb(0, h); await new Promise(r => setTimeout(r, 40)); }
-    await new Promise(r => setTimeout(r, 900));
-    clearInterval(sample);
-    return out;
-  }, H);
-  for (let i = 1; i < tops.length; i++) assert.ok(tops[i] <= tops[i - 1] + 1, `the panel went back down at sample ${i}: ${tops[i - 1]} -> ${tops[i]}`);
-  const r = await app.panel();
-  assert.ok(r.y + r.height <= H - 500 + 1, 'ends above the keyboard');
   assert.deepEqual(app.errors, []);
   await app.close();
 });

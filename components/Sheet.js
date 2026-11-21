@@ -209,7 +209,7 @@ function clockOf(j, m) {
   const today = window.SCHEDULE.israelNow().day;
   const day = Date.parse(j.day) / 864e5 + off;
   if (day === today) return `${hh}:${mm}`;
-  const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' });
+  const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' }).replace(/יום\s*/, '');   // Hebrew: just א׳, ב׳ (not יום א׳)
   return `${wd} ${hh}:${mm}`;
 }
 
@@ -273,7 +273,7 @@ function JourneyTimeline({ j, live, rt }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
   // One width for the whole trip, so the line and markers stay in one straight column:
-  // wider when any time carries a weekday ("Tue 00:56" / "יום ג׳ 00:56").
+  // wider when any time carries a weekday ("Tue 00:56" / "ג׳ 00:56").
   const allTimes = j.legs.flatMap(l => l.times);
   const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
   const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
@@ -458,7 +458,7 @@ function TimeWheel({ when, setWhen }) {
     }
     const m = slotAt(i), day = Math.floor(m / 1440);
     const d = day === now.day ? '' : day === now.day + 1 ? T.t('tomorrow')
-      : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+      : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).replace(/יום\s*/, '');
     return { time: `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}`, day: d };
   };
   // only render the slots near the centre; spacers keep the scroll length right
@@ -512,38 +512,6 @@ function TimeWheel({ when, setWhen }) {
         style={{ position:'absolute', left: 0, bottom: 0, width: 1, height: 1, opacity: 0, border: 0, padding: 0, pointerEvents: 'none' }}/>
     </div>
   );
-}
-
-// Touch gestures. The axis is locked after the first few pixels, so a sideways
-// swipe never moves the panel and a vertical drag never changes the trip.
-// onDrag(dy) runs while a vertical drag is in progress; onEnd({dx, dy, axis, top, vy})
-// on release, vy being the finger's recent vertical speed in px/ms. With `scrollRef`, `top` says whether that element was scrolled to its
-// top when the touch began (only then may a downward drag move the panel).
-function useSwipe({ onDrag, onEnd, scrollRef }) {
-  const st = React.useRef(null);
-  return {
-    onTouchStart: (e) => {
-      const t = e.touches[0];
-      st.current = { x: t.clientX, y: t.clientY, axis: null, ly: t.clientY, lt: e.timeStamp, vy: 0,
-        top: !scrollRef || !scrollRef.current || scrollRef.current.scrollTop <= 0 };
-    },
-    onTouchMove: (e) => {
-      const s0 = st.current; if (!s0) return;
-      const t = e.touches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y;
-      if (!s0.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 8) s0.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-      const dt = e.timeStamp - s0.lt;
-      if (dt > 0) { s0.vy = 0.6 * ((t.clientY - s0.ly) / dt) + 0.4 * s0.vy; s0.ly = t.clientY; s0.lt = e.timeStamp; }
-      if (s0.axis === 'y' && onDrag) onDrag(dy, s0.top);
-    },
-    onTouchEnd: (e) => {
-      const s0 = st.current; st.current = null; if (!s0) return;
-      const t = e.changedTouches[0];
-      // a finger that stopped before lifting has no speed left
-      const vy = e.timeStamp - s0.lt > 100 ? 0 : s0.vy;
-      onEnd({ dx: t.clientX - s0.x, dy: t.clientY - s0.y, axis: s0.axis, top: s0.top, vy });
-    },
-    onTouchCancel: () => { const s0 = st.current; st.current = null; if (s0) onEnd({ dx: 0, dy: 0, axis: null, top: s0.top }); },
-  };
 }
 
 // Compact trip card: always visible at the top of the sheet. Arrows (and swipes)
@@ -617,26 +585,6 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
 
 // ---- Panel building blocks
 
-// The part of the page the phone actually shows (Safari's visual viewport), kept up to
-// date. With the on-screen keyboard up, iOS doesn't shrink the page: it slides this visible
-// area over it. null on computers and where the browser has no visual viewport.
-function useVisualViewport(enabled) {
-  const [vv, setVv] = React.useState(null);
-  React.useEffect(() => {
-    const V = window.visualViewport;
-    if (!enabled || !V) return;
-    const read = () => setVv({ top: V.offsetTop, h: V.height, lh: document.documentElement.clientHeight });
-    // only once the visible area has settled: while the keyboard slides, iOS reports many
-    // in-between sizes, and following each one restarted the panel's movement (it stuttered)
-    let t = 0;
-    const upd = () => { clearTimeout(t); t = setTimeout(read, 120); };
-    read();
-    V.addEventListener('resize', upd); V.addEventListener('scroll', upd);
-    return () => { clearTimeout(t); V.removeEventListener('resize', upd); V.removeEventListener('scroll', upd); };
-  }, [enabled]);
-  return vv;
-}
-
 // Holds the page still while typing: on phones the page is the map, and it must not scroll
 // behind the panel. release() puts the scroll back if anything moved it. Always released
 // when the panel goes away.
@@ -662,63 +610,18 @@ function usePageLock() {
   return { lock, release, isLocked: () => saved.current != null };
 }
 
-// One native touch listener for the whole panel (React's touch handlers are passive, so
-// they can't cancel the browser's own scrolling):
-//  - a vertical drag that moves the panel (on the details below 'full', or pulling down
-//    from their top at 'full') must not also scroll or bounce the content;
-//  - a swipe never reaches the page behind (the map, on phones): it scrolls something in
-//    the panel that can still scroll that way (details, suggestions, time wheel) or nothing.
-// The panel's own drag runs on the touch events, which still arrive either way.
-function useTouchGuard(sheetRef, bodyRef, snapRef) {
-  React.useEffect(() => {
-    const sheet = sheetRef.current; if (!sheet) return;
-    let x0 = 0, y0 = 0, lastY = 0, mode = null, panelDrag = false;
-    const start = (e) => {
-      const t = e.touches[0], body = bodyRef.current;
-      x0 = t.clientX; y0 = lastY = t.clientY; mode = null;
-      const own = e.target.closest && e.target.closest('[data-own-scroll]');
-      const inBody = !!(body && body.contains(e.target)) && !own;
-      // on the details, this gesture moves the panel if the panel isn't fully up, or (decided
-      // on the first move) if it's a pull down from the top
-      panelDrag = inBody && (snapRef.current !== 'full' ? 'yes' : body.scrollTop <= 0 ? 'if-down' : false);
-    };
-    const move = (e) => {
-      if (!e.cancelable) return;
-      const t = e.touches[0], step = t.clientY - lastY;
-      lastY = t.clientY;
-      if (!mode && Math.max(Math.abs(t.clientX - x0), Math.abs(t.clientY - y0)) > 8)
-        mode = Math.abs(t.clientX - x0) > Math.abs(t.clientY - y0) ? 'x'
-          : panelDrag === 'yes' || (panelDrag === 'if-down' && t.clientY > y0) ? 'panel' : 'scroll';
-      if (mode === 'x') return;
-      if (mode === 'panel') return e.preventDefault();
-      if (!step) return;
-      for (let el = e.target; el && el !== sheet.parentNode; el = el.parentElement) {
-        const st = getComputedStyle(el);
-        if ((st.overflowY === 'auto' || st.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 1) {
-          const canUp = el.scrollTop > 0, canDown = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
-          if ((step > 0 && canUp) || (step < 0 && canDown)) return;     // this one scrolls: let it
-        }
-      }
-      e.preventDefault();
-    };
-    sheet.addEventListener('touchstart', start, { passive: true });
-    sheet.addEventListener('touchmove', move, { passive: false });
-    return () => { sheet.removeEventListener('touchstart', start); sheet.removeEventListener('touchmove', move); };
-  }, []);
-}
-
 // The panel rests in one of three positions ('snap'):
 //   'rest':   the trip card (or, with nothing planned, the search card)
 //   'half':   halfway between the card and full
 //   'full':   its top edge just under the top row of buttons; the details scroll inside
-// Without a trip it goes no higher than half. Dragging the handle, the card or the details
-// moves it with the finger; on release it snaps to the nearest position (a flick goes to
-// the next one that way). The handle steps card -> half -> full -> card.
-// Typing a station (phones): the panel unrolls exactly as from the handle, to full (half
-// without a trip); the page is held still, and with the keyboard up the panel is fitted
-// to the visible area above it. When the keyboard closes the panel returns to the card,
-// riding down with the keyboard in one movement.
-// All moves are one CSS transition of the panel's height (and bottom, with the keyboard).
+// Without a trip it goes no higher than half (full only while typing).
+// The browser moves it: the panel sits in a transparent layer that scrolls natively, with
+// CSS scroll-snap stops at the three positions. Dragging, momentum, bounce and snapping
+// are the browser's own; the panel itself never changes size. The layer lets touches
+// through to the map (pointer-events) except on the panel, and overscroll-behavior keeps
+// its scrolling from reaching the map. The handle steps card -> half -> full -> card.
+// Typing a station (phones): the panel goes to full and the page is held still; the
+// keyboard simply covers the panel's lower part. When typing ends it goes back to the card.
 function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, onLocate, journey, when, setWhen, trips = [], tripIndex = 0, onSelectTrip, stationsKey }) {
   const T = window.I18N, UI = window.UI;
   const phone = window.innerWidth < 600;
@@ -726,89 +629,95 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const rt = useLiveDelays(journey);
   const [snap, setSnap] = React.useState('rest');
   const [searching, setSearching] = React.useState(false);
-  const [dy, setDy] = React.useState(null);           // finger offset while dragging, else null
-  const sheetRef = React.useRef(null), sumRef = React.useRef(null), bodyRef = React.useRef(null), contentRef = React.useRef(null);
+  const layerRef = React.useRef(null), sheetRef = React.useRef(null), sumRef = React.useRef(null), bodyRef = React.useRef(null), contentRef = React.useRef(null);
   const snapRef = React.useRef(snap); snapRef.current = snap;
-  // the latest values, for callbacks that run later (blur timers)
-  const live = React.useRef({}); live.current = { searching, hasTrip };
-  const vv = useVisualViewport(phone);
+  // the latest values, for callbacks that run later (blur timers, touch end)
+  const live = React.useRef({}); live.current = { searching, hasTrip, from, to };
   const pageLock = usePageLock();
-  useTouchGuard(sheetRef, bodyRef, snapRef);
 
-  // ---- heights of the four positions
-  // natural heights of the trip card and of the content, and where the panel's bottom sits
-  // at rest (screen bottom - home indicator - edge gap; not read from the panel itself,
-  // which may be mid-animation or riding on the keyboard)
-  const [m, setM] = React.useState({ card: 0, content: 0, bottom: window.innerHeight - UI.EDGE });
+  // ---- the three positions, as scroll offsets of the layer
+  // V: the layer's height (from under the top row to above the home indicator) = the panel's
+  // height at full; card / content: natural heights of the trip card and of the content
+  const [m, setM] = React.useState({ card: 0, content: 0, V: 0 });
   React.useLayoutEffect(() => {
     const measure = () => setM({
       card: sumRef.current ? sumRef.current.scrollHeight : 0,
       content: contentRef.current ? contentRef.current.offsetHeight : 0,
-      bottom: document.documentElement.clientHeight - (window.safeBottom ? window.safeBottom() : 0) - UI.EDGE });
+      V: layerRef.current ? layerRef.current.clientHeight : 0 });
     measure();
     const ro = new ResizeObserver(measure);
-    if (contentRef.current) ro.observe(contentRef.current);
-    if (sumRef.current && sumRef.current.firstChild) ro.observe(sumRef.current.firstChild);
-    window.addEventListener('resize', measure);
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+    for (const el of [contentRef.current, layerRef.current, sumRef.current && sumRef.current.firstChild]) if (el) ro.observe(el);
+    return () => ro.disconnect();
   }, [hasTrip]);
-  const safeTop = window.safeTop ? window.safeTop() : 0;
-  const kb = !!(vv && vv.h < vv.lh - 80);                 // keyboard up (opening, open or closing)
-  const fitted = kb && searching;                         // typing: fit the visible area above the keyboard
-  const fullH = fitted ? Math.max(0, vv.h - (vv.top < 4 ? safeTop + UI.BELOW_TOP_ROW : UI.EDGE) - UI.EDGE)
-    : Math.max(0, m.bottom - (safeTop + UI.BELOW_TOP_ROW));
-  const restH = Math.min(fullH, UI.HANDLE + (hasTrip ? m.card : m.content) + UI.PANEL_CHROME);
-  const H = { rest: restH, half: fitted ? fullH : Math.round((restH + fullH) / 2), full: fullH };
-  const topSnap = hasTrip ? 'full' : 'half';
-  // the card is the lowest the panel goes: a drag down stops there
-  const height = dy === null ? H[snap] : Math.max(restH, Math.min(H[topSnap], H[snap] - dy));
-  const clamp01 = (x) => Math.max(0, Math.min(1, x));
-  // with a trip, the details fade in as the panel rises above the card
-  const bodyOpacity = hasTrip ? clamp01((height - restH) / 80) : 1;
+  const V = m.V;
+  // with a trip the card ends right where the details' divider starts, so the divider
+  // stays out of sight at rest
+  const restH = Math.min(V, UI.HANDLE + (hasTrip ? m.card : m.content + UI.PANEL_CHROME));
+  const off = { rest: 0, half: Math.round((V - restH) / 2), full: V - restH };
+  const order = hasTrip || searching ? ['rest', 'half', 'full'] : ['rest', 'half'];
+  const offRef = React.useRef(off); offRef.current = off;
   // the resting height, for what floats just above the panel (the location button)
   React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-rest', restH + 'px'); }, [restH]);
+  // which position the layer is at (or nearest to), for the handle and the details' scrolling
+  React.useEffect(() => {
+    const el = layerRef.current; if (!el) return;
+    const onScroll = () => {
+      const y = el.scrollTop, o = offRef.current;
+      const k = ['rest', 'half', 'full'].reduce((b, k) => Math.abs(o[k] - y) < Math.abs(o[b] - y) ? k : b, 'rest');
+      if (k !== snapRef.current) setSnap(k);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
-  // ---- moving between positions
+  // ---- moving between positions: a native smooth scroll of the layer
+  const scrollTo = (t) => { const el = layerRef.current; if (el) el.scrollTo({ top: offRef.current[t], behavior: 'smooth' }); };
+  // no route yet: opening the panel starts typing the first empty station
+  const startTyping = () => {
+    const { from, to } = live.current;
+    const el = sheetRef.current && sheetRef.current.querySelector(`[data-station-input="${!from ? 'from' : 'to'}"]`);
+    if (!el) return false;
+    if (!focusVia(el)) el.focus();
+    return true;
+  };
   const goSnap = (t) => {
     if (!hasTrip && t === 'full') t = 'half';
     if (live.current.searching && t === 'rest') { const a = document.activeElement; if (a && a.blur) a.blur(); setSearching(false); }
-    // no route yet: opening the panel starts typing the first empty station
-    if (!hasTrip && t === 'half' && !live.current.searching && (!from || !to) && sheetRef.current) {
-      const el = sheetRef.current.querySelector(`[data-station-input="${!from ? 'from' : 'to'}"]`);
-      if (el) { if (!focusVia(el)) { el.focus(); if (!phone) setSnap('half'); } return; }
-    }
-    setSnap(t);
+    if (!hasTrip && t === 'half' && !live.current.searching && (!from || !to) && startTyping()) { if (!phone) scrollTo('half'); return; }
+    scrollTo(t);
   };
   const tapHandle = () => goSnap(snap === 'rest' ? 'half' : snap === 'half' && hasTrip ? 'full' : 'rest');
   const go = (d) => { if (onSelectTrip && tripIndex + d >= 0 && tripIndex + d < trips.length) onSelectTrip(tripIndex + d); };
-  const onEnd = ({ dx, dy: ddy, axis, top, vy = 0 }, fromBody) => {
-    setDy(null);
-    if (axis === 'x') {
-      if (!searching && Math.abs(dx) > 50) go((dx < 0) !== (T.dir === 'rtl') ? 1 : -1);
-      return;
-    }
-    if (axis !== 'y') return;
-    if (fromBody && snap === 'full' && (!top || ddy < 0)) return;     // that was a scroll, not a drag
-    const h = Math.max(restH, Math.min(H[topSnap], H[snap] - ddy));
-    const order = hasTrip ? ['rest', 'half', 'full'] : ['rest', 'half'];
-    let t;
-    if (Math.abs(vy) > 0.4 && Math.abs(ddy) > 20)                    // a flick: the next position that way
-      t = vy < 0 ? order.find(k => H[k] > h + 1) || topSnap : [...order].reverse().find(k => H[k] < h - 1) || 'rest';
-    else t = order.reduce((b, k) => Math.abs(H[k] - h) < Math.abs(H[b] - h) ? k : b, 'rest');
-    goSnap(t);
+  // Two things the browser's scrolling doesn't do, read from where the finger went (passive,
+  // nothing is cancelled): a sideways swipe changes the trip; pulling the panel up with no
+  // route yet starts typing (from the touch itself, so the phone may open the keyboard).
+  const touch = React.useRef(null);
+  const onTouchStart = (e) => { const t = e.touches[0]; touch.current = { x: t.clientX, y: t.clientY, own: !!(e.target.closest && e.target.closest('[data-own-scroll]')) }; };
+  const onTouchEnd = (e) => {
+    const s0 = touch.current; touch.current = null; if (!s0 || s0.own) return;
+    const t = e.changedTouches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y;
+    if (!live.current.searching && Math.abs(dx) > 50 && Math.abs(dx) > 2 * Math.abs(dy)) return go((dx < 0) !== (T.dir === 'rtl') ? 1 : -1);
+    const { hasTrip, searching, from, to } = live.current;
+    if (!hasTrip && !searching && (!from || !to) && dy < -30) startTyping();
   };
-  const stripSwipe = useSwipe({ onDrag: (d) => setDy(d), onEnd: (g) => onEnd(g, false) });
-  // on the details: below 'full' any vertical drag moves the panel; at 'full' only a pull
-  // down from the top does (otherwise it scrolls)
-  const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => { if (snap !== 'full' || (top && d > 0)) setDy(d); }, onEnd: (g) => onEnd(g, true) });
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, snap, searching]);
 
   // ---- typing a station (phones)
   const startSearch = () => {
     if (!phone || live.current.searching) return;
     pageLock.lock();
-    setSearching(true); setSnap(live.current.hasTrip ? 'full' : 'half');
+    setSearching(true);
   };
+  // Up to full once the 'full' stop exists (only with a trip or while typing): at half the
+  // keyboard would cover the fields. Asked again shortly after, since a pull that started
+  // the typing ends with the browser's own snap, which wins over the first request.
+  React.useEffect(() => {
+    if (!searching) return;
+    scrollTo('full');
+    const t = setTimeout(() => { const el = layerRef.current;
+      if (live.current.searching && el && el.scrollTop < offRef.current.full - 2) scrollTo('full'); }, 400);
+    return () => clearTimeout(t);
+  }, [searching]);
   // Focusing a field low on the screen makes Safari slide the whole page (map included)
   // up so the field clears the keyboard. So the keyboard is opened on an invisible field
   // at the top of the screen (nothing to slide), the panel rises, and then the focus moves
@@ -841,17 +750,15 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     const a = document.activeElement;
     if (!live.current.searching || (a && a.dataset && a.dataset.stationInput)) return;
     setSearching(false);
-    setSnap('rest');
+    scrollTo('rest');
   };
-  // the page is let go once the keyboard has gone, so it doesn't move under the closing keyboard
-  React.useEffect(() => { if (!kb && !searching) pageLock.release(); }, [kb, searching]);
+  React.useEffect(() => { if (!searching) pageLock.release(); }, [searching]);
   // new stations: the trip card (once typing is over)
   const firstKey = React.useRef(true);
   React.useEffect(() => {
     if (firstKey.current) { firstKey.current = false; return; }
-    if (!live.current.searching) setSnap('rest');
+    if (!live.current.searching) scrollTo('rest');
   }, [stationsKey]);
-  const ease = 'cubic-bezier(.2,.7,.2,1)';
   // picking a station when the other one is already set: typing is over, so the keyboard
   // goes away (the panel then folds to the trip card and the map shows the route)
   const pick = (set, other) => (id) => {
@@ -859,33 +766,33 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     if (other && other !== id) { const a = document.activeElement; if (a && a.blur) a.blur(); }
   };
 
-  return (
-    <div ref={sheetRef} data-sheet="" style={{
-      // an island: floats 8px from the sides and from the bottom of the visible area
-      // (above the home indicator), all corners rounded, the map showing around it
-      position:'fixed', left: UI.EDGE, right: UI.EDGE,
+  return (<>
+    {/* the invisible field that opens the keyboard at the top of the screen (focusVia) */}
+    <input ref={proxyRef} aria-hidden="true" tabIndex={-1} onInput={handOver} onBlur={() => setTimeout(endSearch, 150)}
+      style={{ position: 'fixed', top: 0, left: 0, width: 40, height: 20, opacity: 0, border: 0, padding: 0,
+        font: '16px var(--font)', caretColor: 'transparent', pointerEvents: 'none', zIndex: -1 }}/>
+    {/* the layer: from under the top row to the panel's resting bottom edge, scrolling natively */}
+    <div ref={layerRef} className="sheet-layer" style={{
+      position: 'fixed', left: UI.EDGE, right: UI.EDGE,
+      top: `calc(env(safe-area-inset-top, 0px) + ${UI.BELOW_TOP_ROW}px)`,
       bottom: `calc(env(safe-area-inset-bottom, 0px) + ${UI.EDGE}px)`,
-      // with the keyboard up: lifted to sit on top of it (the visible area's bottom edge).
-      // A transform, so the lift is drawn by the graphics chip, in step with the height
-      transform: kb ? `translateY(${-Math.max(0, vv.lh - (vv.top + vv.h) - (window.safeBottom ? window.safeBottom() : 0))}px)` : 'none',
-      height, transition: dy === null ? `height 300ms ${ease}, transform 300ms ${ease}` : 'none',
-      display:'flex', flexDirection:'column',
-      background: 'var(--surface)',
-      borderRadius: 24, overflow: 'hidden',
-      // Shadow cast upward and kept within 8px below the island: iOS Safari clips fixed
-      // elements at the top of its toolbar zone, just 8px under the island, so a deeper
-      // shadow was cut off there in a hard grey band.
-      boxShadow: '0 -6px 14px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.08)', border: '1px solid var(--chip-border)',
-      paddingBottom: 6,
-      zIndex: snap === 'full' || dy !== null ? 6 : 5,   // above the map buttons when up
+      overflowY: 'auto', overscrollBehavior: 'contain', scrollSnapType: 'y mandatory',
+      // the panel's bottom corners (its lower part is always below this edge)
+      borderRadius: '0 0 24px 24px',
+      pointerEvents: 'none',            // the map gets touches around the panel
+      zIndex: snap !== 'rest' ? 6 : 5,  // above the map buttons when up
     }}>
-      {/* the invisible field that opens the keyboard at the top of the screen (focusVia); on the
-          page itself, since inside the lifted (transformed) panel 'fixed' would mean the panel */}
-      {ReactDOM.createPortal(<input ref={proxyRef} aria-hidden="true" tabIndex={-1} onInput={handOver} onBlur={() => setTimeout(endSearch, 150)}
-        style={{ position: 'fixed', top: 0, left: 0, width: 40, height: 20, opacity: 0, border: 0, padding: 0,
-          font: '16px var(--font)', caretColor: 'transparent', pointerEvents: 'none', zIndex: -1 }}/>, document.body)}
-      {/* Top strip: handle + trip card. Drag up/down to move the panel, swipe sideways to change trip. */}
-      <div {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
+      <div style={{ position: 'relative' }}>
+        {/* the stops: scrolled to 0 = card, to off.half = half, to off.full = full */}
+        {order.map(k => <div key={k} aria-hidden="true" style={{ position: 'absolute', left: 0, width: 1, height: 1, top: off[k], scrollSnapAlign: 'start' }}/>)}
+        <div style={{ height: V - restH }}/>
+        <div ref={sheetRef} data-sheet="" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{
+          height: V, display: 'flex', flexDirection: 'column', pointerEvents: 'auto',
+          background: 'var(--surface)', borderRadius: '24px 24px 0 0',
+          border: '1px solid var(--chip-border)', borderBottom: 'none',
+        }}>
+      {/* Top strip: handle + trip card. Swipe sideways to change trip. */}
+      <div style={{ flexShrink: 0 }}>
         <div style={{ display:'flex', justifyContent:'center', padding: '6px 0 4px', cursor: 'pointer' }}
           onClick={tapHandle} role="button" data-handle=""
           aria-label={T.t(snap === 'rest' ? 'expand' : 'collapse')} aria-expanded={snap === 'full'}>
@@ -901,12 +808,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
         )}
       </div>
 
-      <div aria-hidden={bodyOpacity < 0.5 ? true : undefined} style={{
+      <div style={{
           flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          borderTop: hasTrip ? '1px solid var(--chip-border)' : 'none',
-          opacity: bodyOpacity, pointerEvents: bodyOpacity < 0.5 ? 'none' : 'auto',
-          transition: dy === null ? `opacity 260ms ${ease}` : 'none' }}>
-        <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0 }}>
+          borderTop: hasTrip ? '1px solid var(--chip-border)' : 'none' }}>
+        {/* the details scroll on their own only at full; below that a drag moves the panel */}
+        <div ref={bodyRef} style={{ overflowY: snap === 'full' ? 'auto' : 'hidden', flex: 1, minHeight: 0 }}>
         <div ref={contentRef}>
           {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
           <div style={{ padding: '4px 8px 2px' }}>
@@ -968,8 +874,15 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
         </div>
         </div>
       </div>
+        </div>
+      </div>
     </div>
-  );
+    {/* the panel's outline along its bottom edge (the layer cuts the panel's own border there) */}
+    <div aria-hidden="true" style={{ position: 'fixed', left: UI.EDGE, right: UI.EDGE, height: 24, pointerEvents: 'none',
+      bottom: `calc(env(safe-area-inset-bottom, 0px) + ${UI.EDGE}px)`, zIndex: snap !== 'rest' ? 6 : 5,
+      border: '1px solid var(--chip-border)', borderTop: 'none', borderRadius: '0 0 24px 24px',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }}/>
+  </>);
 }
 
 function StationPopup({ stationId, onClose, onSetFrom, onSetTo }) {
