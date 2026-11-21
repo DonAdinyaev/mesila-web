@@ -209,7 +209,7 @@ function clockOf(j, m) {
   const today = window.SCHEDULE.israelNow().day;
   const day = Date.parse(j.day) / 864e5 + off;
   if (day === today) return `${hh}:${mm}`;
-  const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' });
+  const wd = new Date(day * 864e5).toLocaleDateString(window.I18N.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', timeZone: 'UTC' }).replace(/יום\s*/, '');   // Hebrew: just א׳, ב׳ (not יום א׳)
   return `${wd} ${hh}:${mm}`;
 }
 
@@ -273,7 +273,7 @@ function JourneyTimeline({ j, live, rt }) {
   const [open, setOpen] = React.useState({});
   const T = window.I18N;
   // One width for the whole trip, so the line and markers stay in one straight column:
-  // wider when any time carries a weekday ("Tue 00:56" / "יום ג׳ 00:56").
+  // wider when any time carries a weekday ("Tue 00:56" / "ג׳ 00:56").
   const allTimes = j.legs.flatMap(l => l.times);
   const withDay = allTimes.some(m => clockOf(j, m).includes(' '));
   const timeCol = { width: withDay ? (T.lang === 'he' ? 100 : 78) : 46, flexShrink: 0, font:'600 13px "JetBrains Mono", ui-monospace, monospace', color:'var(--text)', paddingTop: 1, whiteSpace:'nowrap' };
@@ -458,7 +458,7 @@ function TimeWheel({ when, setWhen }) {
     }
     const m = slotAt(i), day = Math.floor(m / 1440);
     const d = day === now.day ? '' : day === now.day + 1 ? T.t('tomorrow')
-      : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+      : new Date(day * 864e5).toLocaleDateString(T.lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).replace(/יום\s*/, '');
     return { time: `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}`, day: d };
   };
   // only render the slots near the centre; spacers keep the scroll length right
