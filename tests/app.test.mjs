@@ -215,3 +215,35 @@ test('typing full screen: dragging the panel down closes the keyboard and return
   assert.deepEqual(app.errors, []);
   await app.close();
 });
+
+test('typing full screen: finger drags never scroll the page (only lists inside the panel)', async () => {
+  const app = await openApp(browser, server.url);
+  const { page } = app;
+  const cdp = await app.ctx.newCDPSession(page);
+  await app.input('from').tap(); await app.wait(600);
+  const y0 = await page.evaluate(() => scrollY), top0 = await app.panelTop();
+  const swipe = async (x, y, d) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let k = 1; k <= 8; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + d * k / 8 }] }); await app.wait(16); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await app.wait(400);
+  };
+  // iOS scrolls the page under a finger even with its overflow hidden (Chromium doesn't), so
+  // check what stops iOS: the drags are cancelled
+  await page.evaluate(() => { window.__moves = []; document.addEventListener('touchmove', e => window.__moves.push(e.defaultPrevented), true); });   // after the app's own (capture, added first)
+  for (const [y, d] of [[500, -300], [300, -250], [700, -400]]) await swipe(195, y, d);   // swipes up on the empty panel
+  assert.ok((await page.evaluate(() => window.__moves)).every(Boolean), 'every drag on the panel is cancelled');
+  assert.equal(await page.evaluate(() => scrollY), y0, 'the page did not scroll');
+  assert.equal(await app.panelTop(), top0, 'the panel did not move');
+  // the suggestions list still scrolls
+  await page.keyboard.type('a'); await app.wait(300);
+  const list = page.locator('[data-suggestions]');
+  const b = await list.boundingBox();
+  await page.evaluate(() => { window.__moves = []; });
+  await swipe(b.x + b.width / 2, b.y + b.height - 10, -120);
+  assert.ok((await page.evaluate(() => window.__moves)).some(p => !p), 'drags on the list are let through');
+  assert.ok(await list.evaluate(el => el.scrollTop) > 0, 'the suggestions scroll');
+  assert.equal(await page.evaluate(() => scrollY), y0, 'and the page still did not');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});

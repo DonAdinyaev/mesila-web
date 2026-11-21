@@ -764,6 +764,36 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     const t = setTimeout(() => setCover(null), COVER_MS + 30);
     return () => clearTimeout(t);
   }, [searching]);
+  // Full screen: nothing behind the panel may scroll (iOS scrolls the page under a finger,
+  // keyboard up or not, whatever its overflow says, and the panel is part of the page now).
+  // A drag may only scroll something inside the panel that can still scroll that way (the
+  // suggestions, long details, the time wheel); any other drag is cancelled.
+  React.useEffect(() => {
+    if (!cover) return;
+    let lastY = 0, lastX = 0;
+    const start = (e) => { lastY = e.touches[0].clientY; lastX = e.touches[0].clientX; };
+    const move = (e) => {
+      if (!e.cancelable) return;
+      const t = e.touches[0], stepY = t.clientY - lastY, stepX = t.clientX - lastX;
+      lastY = t.clientY; lastX = t.clientX;
+      const sheet = sheetRef.current;
+      if (sheet && sheet.contains(e.target)) {
+        const vertical = Math.abs(stepY) >= Math.abs(stepX);
+        for (let el = e.target; el && el !== sheet.parentNode; el = el.parentElement) {
+          const st = getComputedStyle(el);
+          if (vertical && /auto|scroll/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+            if ((stepY > 0 && el.scrollTop > 0) || (stepY < 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1)) return;
+          }
+          if (!vertical && /auto|scroll/.test(st.overflowX) && el.scrollWidth > el.clientWidth + 1) return;
+        }
+      }
+      e.preventDefault();
+    };
+    // capture: before anything in the panel stops the event (the suggestions list does)
+    document.addEventListener('touchstart', start, { passive: true, capture: true });
+    document.addEventListener('touchmove', move, { passive: false, capture: true });
+    return () => { document.removeEventListener('touchstart', start, true); document.removeEventListener('touchmove', move, true); };
+  }, [!!cover]);
   // back in the layer (scrollable again): at the card
   const wasCover = React.useRef(false);
   React.useLayoutEffect(() => {
