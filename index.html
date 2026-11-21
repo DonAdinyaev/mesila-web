@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Mesila · Israel Railways</title>
 <link rel="icon" type="image/svg+xml" href="assets/mesila-logo.svg" media="(prefers-color-scheme: light)"/>
 <link rel="icon" type="image/svg+xml" href="assets/mesila-logo-dark.svg" media="(prefers-color-scheme: dark)"/>
@@ -56,13 +56,6 @@
      overlays on top of it. */
   html.page-scroll, html.page-scroll body { height: auto; overflow-x: hidden; overflow-y: auto; }
   html.page-scroll #root { position: relative; height: auto; min-height: 100vh; }
-  /* held still while typing a station (the map doesn't scroll under the keyboard) */
-  html.page-scroll.page-held, html.page-scroll.page-held body { overflow: hidden; }
-  /* ...and the page background is the panel's colour, around the pinned page (Sheet.js usePageLock) */
-  html.page-held, html.page-held body { background: var(--surface); }
-  /* the trip panel's scrolling layer (Sheet.js): no scrollbar */
-  .sheet-layer { scrollbar-width: none; }
-  .sheet-layer::-webkit-scrollbar { display: none; }
   @keyframes mesilaFade { from { opacity: 0; } to { opacity: 1; } }
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
