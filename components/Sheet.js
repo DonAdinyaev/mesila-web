@@ -8,8 +8,10 @@ function fmtMin(m) {
 }
 
 // One row of the search card. 16px text so iPhones don't zoom the page on focus.
-// a hairline divider that fades in from transparent ends to dark in the middle
-const FADE_LINE = (dir) => `linear-gradient(${dir}, transparent, color-mix(in srgb, var(--text) 35%, transparent), transparent)`;
+// a hairline divider: fades in over the first quarter of its length, solid (light) in the
+// middle half, fades out over the last quarter
+const FADE_LINE = (dir) => { const c = 'color-mix(in srgb, var(--text) 20%, transparent)';
+  return `linear-gradient(${dir}, transparent, ${c} 25%, ${c} 75%, transparent)`; };
 
 function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, onTap, autoFocus, note, onLocate, locating }) {
   const [open, setOpen] = React.useState(false);
