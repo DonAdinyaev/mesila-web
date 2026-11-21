@@ -610,6 +610,9 @@ function usePageLock() {
   return { lock, release, isLocked: () => saved.current != null };
 }
 
+// typing: how the panel grows to the whole screen and back
+const COVER_MS = 260, COVER_EASE = 'cubic-bezier(.2,.7,.2,1)';
+
 // The panel rests in one of three positions ('snap'):
 //   'rest':   the trip card (or, with nothing planned, the search card)
 //   'half':   halfway between the card and full
@@ -620,8 +623,9 @@ function usePageLock() {
 // are the browser's own; the panel itself never changes size. The layer lets touches
 // through to the map (pointer-events) except on the panel, and overscroll-behavior keeps
 // its scrolling from reaching the map. The handle steps card -> half -> full -> card.
-// Typing a station (phones): the panel goes to full and the page is held still; the
-// keyboard simply covers the panel's lower part. When typing ends it goes back to the card.
+// Typing a station (phones): the panel grows to the whole screen and the page is held
+// still; the keyboard covers the panel's lower part. Picking the second station or dragging
+// the panel down ends the typing, and it shrinks back to the card.
 function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, onLocate, journey, when, setWhen, trips = [], tripIndex = 0, onSelectTrip, stationsKey }) {
   const T = window.I18N, UI = window.UI;
   const phone = window.innerWidth < 600;
@@ -691,11 +695,31 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   // Two things the browser's scrolling doesn't do, read from where the finger went (passive,
   // nothing is cancelled): a sideways swipe changes the trip; pulling the panel up with no
   // route yet starts typing (from the touch itself, so the phone may open the keyboard).
+  // While typing (full screen): dragging the panel down follows the finger (a transform set
+  // directly, no re-render) and, far enough, ends the typing: the keyboard closes.
   const touch = React.useRef(null);
-  const onTouchStart = (e) => { const t = e.touches[0]; touch.current = { x: t.clientX, y: t.clientY, own: !!(e.target.closest && e.target.closest('[data-own-scroll]')) }; };
+  const onTouchStart = (e) => {
+    const t = e.touches[0], body = bodyRef.current;
+    touch.current = { x: t.clientX, y: t.clientY, own: !!(e.target.closest && e.target.closest('[data-own-scroll]')),
+      // a drag on scrolled details scrolls them back first
+      scrolled: !!(body && body.contains(e.target) && body.scrollTop > 0) };
+  };
+  const onTouchMove = (e) => {
+    const s0 = touch.current, el = sheetRef.current;
+    if (!s0 || s0.own || s0.scrolled || !live.current.searching || !el) return;
+    const dy = e.touches[0].clientY - s0.y;
+    el.style.transition = 'none';
+    el.style.transform = dy > 0 ? `translateY(${dy}px)` : '';
+  };
   const onTouchEnd = (e) => {
     const s0 = touch.current; touch.current = null; if (!s0 || s0.own) return;
     const t = e.changedTouches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y;
+    const el = sheetRef.current;
+    if (live.current.searching && el && el.style.transform) {
+      el.style.transition = `transform ${COVER_MS}ms ${COVER_EASE}`; el.style.transform = '';
+      if (dy > 80) { const a = document.activeElement; if (a && a.blur) a.blur(); }
+      return;
+    }
     if (!live.current.searching && Math.abs(dx) > 50 && Math.abs(dx) > 2 * Math.abs(dy)) return go((dx < 0) !== (T.dir === 'rtl') ? 1 : -1);
     const { hasTrip, searching, from, to } = live.current;
     if (!hasTrip && !searching && (!from || !to) && dy < -30) startTyping();
@@ -708,14 +732,29 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     pageLock.lock();
     setSearching(true);
   };
-  // Up to full once the 'full' stop exists (only with a trip or while typing): at half the
-  // keyboard would cover the fields. Asked again shortly after, since a pull that started
-  // the typing ends with the browser's own snap, which wins over the first request.
+  // Typing: the panel leaves the layer and grows from where it is to the whole screen
+  // (position fixed, one CSS transition of its edges); when typing ends it shrinks back to
+  // the card and returns to the layer, scrolled to the card.
+  const [cover, setCover] = React.useState(null);     // null: in the layer; else its fixed box
+  const coverFrom = React.useRef(0);
   React.useEffect(() => {
-    if (!searching) return;
-    scrollTo('full');
-    const t = setTimeout(() => { const el = layerRef.current;
-      if (live.current.searching && el && el.scrollTop < offRef.current.full - 2) scrollTo('full'); }, 400);
+    const el = sheetRef.current, layer = layerRef.current;
+    if (!phone || !el || !layer) return;
+    const lr = layer.getBoundingClientRect();
+    if (searching) {
+      const r = el.getBoundingClientRect();
+      coverFrom.current = window.scrollY;
+      setCover({ top: r.top, side: UI.EDGE, height: lr.bottom - r.top, radius: 24, safe: false, anim: false });
+      let f2 = 0;
+      const f1 = requestAnimationFrame(() => { f2 = requestAnimationFrame(() =>
+        setCover({ top: 0, side: 0, height: document.documentElement.clientHeight, radius: 0, safe: true, anim: true })); });
+      return () => { cancelAnimationFrame(f1); cancelAnimationFrame(f2); };
+    }
+    if (!cover) return;
+    // back to the card: the card's box at the bottom of the layer, then into the layer again
+    const restNow = offRef.current.full >= 0 ? layer.clientHeight - offRef.current.full : 0;
+    setCover({ top: lr.bottom - restNow, side: UI.EDGE, height: restNow, radius: 24, safe: false, anim: true });
+    const t = setTimeout(() => { layer.scrollTop = 0; setCover(null); }, COVER_MS + 30);
     return () => clearTimeout(t);
   }, [searching]);
   // Focusing a field low on the screen makes Safari slide the whole page (map included)
@@ -750,7 +789,6 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     const a = document.activeElement;
     if (!live.current.searching || (a && a.dataset && a.dataset.stationInput)) return;
     setSearching(false);
-    scrollTo('rest');
   };
   React.useEffect(() => { if (!searching) pageLock.release(); }, [searching]);
   // new stations: the trip card (once typing is over)
@@ -771,6 +809,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     <input ref={proxyRef} aria-hidden="true" tabIndex={-1} onInput={handOver} onBlur={() => setTimeout(endSearch, 150)}
       style={{ position: 'fixed', top: 0, left: 0, width: 40, height: 20, opacity: 0, border: 0, padding: 0,
         font: '16px var(--font)', caretColor: 'transparent', pointerEvents: 'none', zIndex: -1 }}/>
+    {/* full screen while typing: the status bar area too (Safari draws the page there, not
+        fixed layers), so a plain block on the page covers it */}
+    {cover && cover.safe && <div aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: coverFrom.current,
+      height: 'calc(env(safe-area-inset-top, 0px) + 1px)', background: 'var(--surface)', zIndex: 8 }}/>}
     {/* the layer: from under the top row to the panel's resting bottom edge, scrolling natively */}
     <div ref={layerRef} className="sheet-layer" style={{
       position: 'fixed', left: UI.EDGE, right: UI.EDGE,
@@ -780,16 +822,23 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       // the panel's bottom corners (its lower part is always below this edge)
       borderRadius: '0 0 24px 24px',
       pointerEvents: 'none',            // the map gets touches around the panel
-      zIndex: snap !== 'rest' ? 6 : 5,  // above the map buttons when up
+      zIndex: cover ? 8 : snap !== 'rest' ? 6 : 5,  // above the map buttons when up; above all while typing
     }}>
       <div style={{ position: 'relative' }}>
         {/* the stops: scrolled to 0 = card, to off.half = half, to off.full = full */}
         {order.map(k => <div key={k} aria-hidden="true" style={{ position: 'absolute', left: 0, width: 1, height: 1, top: off[k], scrollSnapAlign: 'start' }}/>)}
         <div style={{ height: V - restH }}/>
-        <div ref={sheetRef} data-sheet="" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{
+        <div ref={sheetRef} data-sheet="" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{
           height: V, display: 'flex', flexDirection: 'column', pointerEvents: 'auto',
           background: 'var(--surface)', borderRadius: '24px 24px 0 0',
           border: '1px solid var(--chip-border)', borderBottom: 'none',
+          ...(cover && {
+            position: 'fixed', top: cover.top, left: cover.side, right: cover.side, height: cover.height,
+            borderRadius: cover.radius, borderBottom: cover.radius ? '1px solid var(--chip-border)' : 'none',
+            borderColor: cover.radius ? 'var(--chip-border)' : 'transparent',
+            paddingTop: cover.safe ? 'env(safe-area-inset-top, 0px)' : 0,
+            transition: cover.anim ? ['top', 'left', 'right', 'height', 'border-radius', 'padding-top'].map(k => `${k} ${COVER_MS}ms ${COVER_EASE}`).join(', ') : 'none',
+          }),
         }}>
       {/* Top strip: handle + trip card. Swipe sideways to change trip. */}
       <div style={{ flexShrink: 0 }}>
@@ -812,7 +861,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden',
           borderTop: hasTrip ? '1px solid var(--chip-border)' : 'none' }}>
         {/* the details scroll on their own only at full; below that a drag moves the panel */}
-        <div ref={bodyRef} style={{ overflowY: snap === 'full' ? 'auto' : 'hidden', flex: 1, minHeight: 0 }}>
+        <div ref={bodyRef} style={{ overflowY: snap === 'full' || cover ? 'auto' : 'hidden', flex: 1, minHeight: 0 }}>
         <div ref={contentRef}>
           {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
           <div style={{ padding: '4px 8px 2px' }}>
@@ -879,7 +928,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     </div>
     {/* the panel's outline along its bottom edge (the layer cuts the panel's own border there) */}
     <div aria-hidden="true" style={{ position: 'fixed', left: UI.EDGE, right: UI.EDGE, height: 24, pointerEvents: 'none',
-      bottom: `calc(env(safe-area-inset-bottom, 0px) + ${UI.EDGE}px)`, zIndex: snap !== 'rest' ? 6 : 5,
+      bottom: `calc(env(safe-area-inset-bottom, 0px) + ${UI.EDGE}px)`, zIndex: snap !== 'rest' ? 6 : 5, display: cover ? 'none' : 'block',
       border: '1px solid var(--chip-border)', borderTop: 'none', borderRadius: '0 0 24px 24px',
       boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }}/>
   </>);

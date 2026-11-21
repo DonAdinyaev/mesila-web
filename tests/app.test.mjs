@@ -9,6 +9,8 @@ before(async () => { server = await startServer(); browser = await launch(); });
 after(async () => { await browser.close(); server.close(); });
 
 const FULL_TOP = 60;                  // the panel's top edge at 'full' (no safe area in the emulator)
+const isCover = async (app) => { const r = await app.panel(); const H = await app.page.evaluate(() => document.documentElement.clientHeight);
+  return near(r.y, 0) && near(r.x, 0) && near(r.height, H); };   // typing: the whole screen
 const near = (a, b, tol = 3) => Math.abs(a - b) <= tol;
 
 // a phone with Netanya -> Tel Aviv Savidor planned (there are trains in any 30-hour window)
@@ -54,12 +56,12 @@ test('panel positions: card, half, full; drags and handle taps (the browser scro
   assert.deepEqual(app.errors, []);
   await app.close();
 });
-test('no route yet: opening the panel starts typing (at full); closing the keyboard returns to the card', async () => {
+test('no route yet: opening the panel starts typing (full screen); closing the keyboard returns to the card', async () => {
   const app = await openApp(browser, server.url);
   const card = await app.panelTop();
   await app.drag(-500); await app.wait(500);
   assert.equal(await app.focused(), 'from', 'dragging up starts typing in From');
-  assert.ok(near(await app.panelTop(), FULL_TOP), 'typing: full, so the keyboard covers no field');
+  assert.ok(await isCover(app), 'typing: the whole screen');
   await app.blur(); await app.wait(500);
   assert.ok(near(await app.panelTop(), card), 'keyboard closed: back to the card');
   await app.choose('from', 'Netan', 'netanya');
@@ -77,10 +79,10 @@ test('choosing both stations shows the trip card; editing a station opens full, 
   await app.handle().click(); await app.handle().click(); await app.wait(500);       // up to full, where the fields show
   const cardAtFull = await app.page.locator('[data-trip-card]').boundingBox();
   await app.input('to').tap(); await app.wait(500);
-  assert.ok(near(await app.panelTop(), FULL_TOP), 'typing with a route: full');
-  // the same unroll as from the handle: the trip card stays where it was, fully shown
+  assert.ok(await isCover(app), 'typing with a route: the whole screen');
+  // the trip card is still there, whole, at the top
   const cardTyping = await app.page.locator('[data-trip-card]').boundingBox();
-  assert.ok(near(cardTyping.y, cardAtFull.y) && near(cardTyping.height, cardAtFull.height), 'trip card unchanged while typing');
+  assert.ok(near(cardTyping.height, cardAtFull.height) && cardTyping.y < cardAtFull.y, 'trip card shown while typing');
   assert.equal(await app.page.locator('[data-trip-card]').evaluate(el => getComputedStyle(el).opacity), '1');
   await app.blur(); await app.wait(600);
   assert.ok(near(await app.panelTop(), card), 'keyboard closed: the card');
@@ -88,13 +90,13 @@ test('choosing both stations shows the trip card; editing a station opens full, 
   await app.close();
 });
 
-test('typing (iPhone): the panel goes to full, the map does not move, all is restored after', async () => {
+test('typing (iPhone): the panel covers the screen, the map does not move, all is restored after', async () => {
   const app = await openApp(browser, server.url);
   const { page } = app;
   const card = await app.panelTop();
   const map0 = await app.mapTop(), scroll0 = await page.evaluate(() => scrollY);
   await app.input('from').tap(); await app.wait(700);
-  assert.ok(near(await app.panelTop(), FULL_TOP), 'typing: full');
+  assert.ok(await isCover(app), 'typing: the whole screen');
   await page.mouse.move(195, 30); await page.mouse.wheel(0, 400);   // trying to scroll the map
   await app.wait(300);
   assert.equal(await app.mapTop(), map0, 'the map stays put while typing');
@@ -182,6 +184,32 @@ test('tapping a field or pulling the panel opens the keyboard on a hidden field 
   await page.locator('[data-handle]').tap(); await app.wait(900);
   assert.equal(await page.evaluate(() => window.__firstFocus), 0, 'first focus at the top of the screen');
   assert.equal(await app.focused(), 'from');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
+
+test('typing full screen: dragging the panel down closes the keyboard and returns to the card', async () => {
+  const app = await withRoute();
+  const { page } = app;
+  const card = await app.panelTop();
+  const cdp = await app.ctx.newCDPSession(page);
+  await app.input('to').tap(); await app.wait(600);
+  assert.ok(await isCover(app), 'full screen');
+  // a short drag down springs back
+  const x = 195, y0 = 20;
+  const drag = async (d) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] });
+    for (let k = 1; k <= 6; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y0 + d * k / 6 }] }); await app.wait(20); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await app.wait(800);
+  };
+  await drag(40);
+  assert.equal(await app.focused(), 'to', 'a short drag: still typing');
+  assert.ok(await isCover(app), 'still full screen');
+  await drag(200);
+  assert.equal(await app.focused(), null, 'a long drag: the keyboard closes');
+  assert.ok(near(await app.panelTop(), card), 'back to the card');
+  assert.equal(await page.locator('[data-sheet]').evaluate(el => getComputedStyle(el).position), 'static', 'back in its layer');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
