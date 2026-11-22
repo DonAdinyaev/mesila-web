@@ -124,7 +124,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
               onMouseEnter={e => e.currentTarget.style.background = 'var(--chip-bg)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
             >
-              <div style={{ width: cols ? cols.time : 74, flexShrink: 0, display:'flex', flexWrap:'wrap', justifyContent:'center', gap: 3 }}>
+              <div style={{ width: cols ? cols.time : 74, flexShrink: 0, display:'flex', flexWrap:'wrap', justifyContent:'flex-start', gap: 2, paddingInlineStart: 8, boxSizing: 'border-box' }}>
                 {s.lines.map(l => {
                   const c = APP_LINES.find(x=>x.id===l)?.color;
                   return <span key={l} style={{ width: 7, height: 7, borderRadius: 7, background: c }}/>;
