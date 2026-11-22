@@ -17,6 +17,9 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
   const inputRef = React.useRef(null);
+  // where, inside the search card, the time column ends and the typed text starts (from the
+  // card's start edge): the suggestions line up with them
+  const [cols, setCols] = React.useState(null);
 
   React.useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -87,6 +90,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
           }} title={window.I18N.t('clear')} aria-label={window.I18N.t('clear')}>×</button>
         )}
       </div>
+      <SuggestCols slot={slot} inputRef={inputRef} show={results.length > 0} onCols={setCols}/>
       {results.length > 0 && (() => {
         // The list slides out from under the search card: as wide as the card, tucked under
         // its bottom edge, with the card's rounded corners at the bottom (drawn into the
@@ -100,31 +104,33 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
           }}>
           <div data-own-scroll="true" data-suggestions=""
             onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
-            style={{ maxHeight: 196, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', borderTop: '1px solid var(--chip-border)' }}>
+            style={{ maxHeight: 196, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
           {results.map((s, i) => (
+            // a rounded row like the card; the station's lines in the column under the time,
+            // the name starting where the typed text starts
             <div
               key={s.id} data-suggestion={s.id}
               onMouseDown={(e) => { e.preventDefault(); onPick(s.id); setOpen(false); setQ(''); }}
               style={{
-                padding: '10px 14px', cursor: 'pointer',
-                borderTop: i > 0 ? '1px solid var(--chip-border)' : 'none',
-                display:'flex', alignItems:'center', gap: 10,
+                margin: `${i ? 4 : 6}px ${ROW_INSET}px 0`, padding: '10px 0', borderRadius: 16, cursor: 'pointer',
+                background: 'var(--chip-bg)',
+                display:'flex', alignItems:'center',
                 font: '500 14px var(--font)',
                 color: 'var(--text)',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--chip-bg)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--chip-border)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--chip-bg)'}
             >
-              <span>{window.I18N.station(s.id)}</span>
-              {/* the station's lines, at the end of the row */}
-              <div style={{ display:'flex', gap: 3, marginInlineStart: 'auto', flexShrink: 0 }}>
+              <div style={{ width: (cols ? cols.time : 74) - ROW_INSET, flexShrink: 0, display:'flex', flexWrap:'wrap', justifyContent:'center', gap: 3 }}>
                 {s.lines.map(l => {
                   const c = APP_LINES.find(x=>x.id===l)?.color;
-                  return <span key={l} style={{ width: 8, height: 8, borderRadius: 8, background: c }}/>;
+                  return <span key={l} style={{ width: 7, height: 7, borderRadius: 7, background: c }}/>;
                 })}
               </div>
+              <span style={{ marginInlineStart: cols ? cols.text - cols.time : 32, paddingInlineEnd: 12, minWidth: 0 }}>{window.I18N.station(s.id)}</span>
             </div>
           ))}
+          <div style={{ height: 6 }}/>
           </div>
           </div>
         );
@@ -132,6 +138,22 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
       })()}
     </div>
   );
+}
+
+// the suggestion rows' inset from the card's sides
+const ROW_INSET = 6;
+// Measures, inside the search card (the suggestions' slot is in it), where the time column
+// ends and where this field's text starts, from the card's start edge (either direction)
+function SuggestCols({ slot, inputRef, show, onCols }) {
+  React.useLayoutEffect(() => {
+    const card = slot && slot.parentElement, input = inputRef.current, wheel = card && card.querySelector('[data-time-wheel]');
+    if (!show || !card || !input || !wheel) return;
+    const c = card.getBoundingClientRect(), i = input.getBoundingClientRect(), w = wheel.getBoundingClientRect();
+    const rtl = getComputedStyle(card).direction === 'rtl';
+    const text = Math.round(rtl ? c.right - i.right : i.left - c.left), time = Math.round(rtl ? c.right - w.left : w.right - c.left);
+    onCols(prev => prev && prev.text === text && prev.time === time ? prev : { text, time });
+  });
+  return null;
 }
 
 function LineBadge({ lineId, size = 22 }) {
@@ -475,7 +497,7 @@ function TimeWheel({ when, setWhen }) {
   };
   const stop = (e) => e.stopPropagation();   // the sheet's own swipe handling must not see wheel drags
   return (
-    <div style={{ position:'relative', width: 74, flexShrink: 0, alignSelf: 'stretch' }}>
+    <div data-time-wheel="" style={{ position:'relative', width: 74, flexShrink: 0, alignSelf: 'stretch' }}>
       {/* centre band */}
       <div aria-hidden="true" style={{ position:'absolute', left: 6, right: 6, top: '50%', height: ITEM_H, marginTop: -ITEM_H / 2,
         borderRadius: 8, background: 'var(--surface)', boxShadow: '0 0 0 1px var(--chip-border)' }}/>
