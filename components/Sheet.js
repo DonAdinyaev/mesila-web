@@ -369,7 +369,7 @@ function JourneyTimeline({ j, live, rt }) {
       </div>
     );
   });
-  return <div ref={boxRef} style={{ borderTop:'1px solid var(--chip-border)', paddingTop: 14 }}>{rows}</div>;
+  return <div ref={boxRef}>{rows}</div>;
 }
 
 function TimetableNote({ borrowed }) {
@@ -547,7 +547,7 @@ function useSwipe({ onDrag, onEnd, scrollRef }) {
 
 // Compact trip card: always visible at the top of the sheet. Arrows (and swipes)
 // move between alternative trips, ordered by departure time.
-function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
+function TripSummary({ j, live, rt, index, count, onPrev, onNext, onSwap }) {
   const T = window.I18N, rtl = T.dir === 'rtl';
   const first = rt && rt[0], last = rt && rt[rt.length - 1];
   const wait = j.depart + (first && first.dep != null ? first.dep : 0) - j.start;
@@ -578,6 +578,15 @@ function TripSummary({ j, live, rt, index, count, onPrev, onNext }) {
           <div style={{ display:'flex', alignItems:'baseline', gap: 10, flexWrap:'wrap' }}>
             <div style={{ font: '700 26px var(--font)', letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace:'nowrap' }}>{fmtMin(j.arrive - j.depart)}</div>
             <div style={{ font: '500 13px "JetBrains Mono", ui-monospace, monospace', color: 'var(--text-dim)', whiteSpace:'nowrap' }}><LiveClock j={j} m={j.depart} d={first && first.dep} small/> {rtl ? '←' : '→'} <LiveClock j={j} m={j.arrive} d={last && last.arr} small/></div>
+            {/* the way back: swap From and To */}
+            {onSwap && <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} data-swap="" style={{
+              marginInlineStart: 'auto', alignSelf: 'center', width: 32, height: 32, borderRadius: 16, flexShrink: 0,
+              background: 'var(--surface)', border: '1px solid var(--chip-border)', cursor: 'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', padding: 0 }}>
+              <svg width="15" height="15" viewBox="0 0 18 18" fill="none" aria-hidden="true" style={{ transform: 'rotate(90deg)' }}>
+                <path d="M4 6h10M11 3l3 3-3 3M14 12H4M7 15l-3-3 3-3" stroke="var(--text)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 4, flexWrap:'wrap', font: '500 12px var(--font)', color: 'var(--text-dim)' }}>
             {j.legs.map((l, k) => (
@@ -812,6 +821,13 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   };
   // the page is let go once the keyboard has gone, so it doesn't move under the closing keyboard
   React.useEffect(() => { if (!kb && !searching) pageLock.release(); }, [kb, searching]);
+  // a trip found: the form goes away (route view), so typing is over even if a field was
+  // still focused when it went
+  React.useEffect(() => {
+    if (!hasTrip || !live.current.searching) return;
+    const a = document.activeElement; if (a && a.dataset && a.dataset.stationInput) a.blur();
+    setSearching(false); setSnap('rest');
+  }, [hasTrip]);
   // new stations: the trip card (once typing is over)
   const firstKey = React.useRef(true);
   React.useEffect(() => {
@@ -854,7 +870,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
         {journey && (
           <div data-trip-card="">
             <div ref={sumRef} style={{ overflow:'hidden', minHeight: 0 }}>
-              <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
+              <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length} onSwap={onSwap}
                 onPrev={() => go(-1)} onNext={() => go(1)}/>
             </div>
           </div>
@@ -868,8 +884,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           transition: dy === null ? `opacity 260ms ${ease}` : 'none' }}>
         <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0 }}>
         <div ref={contentRef}>
-          {/* Search card: [time wheel | From/To rows joined by a route line | swap] */}
-          <div style={{ padding: '4px 8px 2px' }}>
+          {/* Search card: [time wheel | From/To rows joined by a route line | swap]. Not in the
+              route view: there the trip card has the swap, and the X above the panel clears the
+              trip to come back here. */}
+          {!journey && <div style={{ padding: '4px 8px 2px' }}>
             {/* the panel's own colour, no border: its edge is a soft shadow */}
             <div style={{ position:'relative', display:'flex', alignItems:'center',
               background: 'var(--surface)', borderRadius: 16,
@@ -904,11 +922,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                 </svg>
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* the selected trip's timeline */}
           {journey && (
-            <div key={tripIndex} style={{ padding: '0 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
+            <div key={tripIndex} style={{ padding: '14px 16px 16px', animation: 'fadeIn 180ms ease-out' }}>
               <JourneyTimeline j={journey} live={!when} rt={rt}/>
               <TimetableNote borrowed={journey.borrowed}/>
             </div>
