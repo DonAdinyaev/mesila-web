@@ -155,12 +155,13 @@ test('swipes on the panel never scroll the page (the map)', async () => {
   await app.close();
 });
 
-test('station suggestions: a short list that scrolls', async () => {
+test('station suggestions: fill the panel down to its edge, the rest scrolls', async () => {
   const app = await openApp(browser, server.url);
-  await app.input('from').tap(); await app.page.keyboard.type('a'); await app.wait(400);
-  const [h, sh] = await app.page.locator('[data-suggestions]').evaluate(el => [el.clientHeight, el.scrollHeight]);
-  assert.ok(h <= 200, `list height ${h}`);
-  assert.ok(sh > h + 100, 'more matches than fit: it scrolls');
+  await app.input('from').tap(); await app.page.keyboard.type('a'); await app.wait(600);
+  const [h, sh, gap] = await app.page.locator('[data-suggestions]').evaluate(el => [el.clientHeight, el.scrollHeight,
+    Math.round(document.querySelector('[data-sheet]').getBoundingClientRect().bottom - el.getBoundingClientRect().bottom)]);
+  assert.ok(gap >= 8 && gap <= 24, `the list ends just above the panel's bottom edge (gap ${gap})`);
+  assert.ok(sh > h + 100, `more matches than fit: it scrolls (${h} of ${sh})`);
   await app.close();
 });
 

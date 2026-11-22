@@ -13,10 +13,13 @@ function fmtMin(m) {
 const FADE_LINE = (dir) => { const c = 'color-mix(in srgb, var(--text) 20%, transparent)';
   return `linear-gradient(${dir}, transparent, ${c} 25%, ${c} 75%, transparent)`; };
 
-function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, autoFocus, note, onLocate, locating }) {
+function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, autoFocus, note, onLocate, locating, slot }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
   const inputRef = React.useRef(null);
+  // where, inside the search card, the time column ends and the typed text starts (from the
+  // card's start edge): the suggestions line up with them
+  const [cols, setCols] = React.useState(null);
 
   React.useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -87,47 +90,84 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
           }} title={window.I18N.t('clear')} aria-label={window.I18N.t('clear')}>×</button>
         )}
       </div>
-      {results.length > 0 && (
-        // about four and a half rows tall, the rest scrolls (its touches are its own: they
-        // neither drag the panel nor scroll it)
-        <div data-own-scroll="true" data-suggestions=""
-          onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
-          style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
-          background: 'var(--surface)', borderRadius: 14,
-          boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
-          border: '1px solid var(--chip-border)',
-          maxHeight: 196, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
-          zIndex: 10,
-        }}>
-          {results.map(s => (
+      <SuggestCols slot={slot} inputRef={inputRef} show={results.length > 0} onCols={setCols}/>
+      {results.length > 0 && (() => {
+        // The list slides out from under the search card: as wide as the card, tucked under
+        // its bottom edge, with the card's rounded corners at the bottom (drawn into the
+        // card's slot, behind the card). As tall as the room left in the panel
+        // (SuggestCols), the rest scrolls;
+        // its touches are its own (they neither drag the panel nor scroll it).
+        const list = (
+          <div style={{
+            position: 'absolute', top: 'calc(100% - 16px)', left: 0, right: 0, zIndex: -1,
+            borderRadius: '0 0 16px 16px', overflow: 'hidden',
+          }}>
+          <div data-own-scroll="true" data-suggestions=""
+            onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
+            style={{ maxHeight: cols && cols.room ? cols.room : 200, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+          {results.map((s, i) => (
+            // a stack of layers: each row as wide as the card, rounded at the bottom like it,
+            // tucked under the one above (the card, for the first). The station's lines in the
+            // column under the time, the name starting where the typed text starts.
             <div
               key={s.id} data-suggestion={s.id}
               onMouseDown={(e) => { e.preventDefault(); onPick(s.id); setOpen(false); setQ(''); }}
               style={{
-                padding: '10px 14px', cursor: 'pointer',
-                borderBottom: '1px solid var(--chip-border)',
-                display:'flex', alignItems:'center', gap: 10,
+                position: 'relative', zIndex: results.length - i,
+                marginTop: i ? -16 : 0, padding: '28px 0 12px', borderRadius: '0 0 16px 16px', cursor: 'pointer',
+                background: 'var(--surface)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)',
+                display:'flex', alignItems:'center',
                 font: '500 14px var(--font)',
                 color: 'var(--text)',
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--chip-bg)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
             >
-              <span>{window.I18N.station(s.id)}</span>
-              {/* the station's lines, at the end of the row */}
-              <div style={{ display:'flex', gap: 3, marginInlineStart: 'auto', flexShrink: 0 }}>
+              <div style={{ width: cols ? cols.time : 74, flexShrink: 0, display:'flex', flexWrap:'wrap', justifyContent:'flex-start', gap: 2, paddingInlineStart: 8, boxSizing: 'border-box' }}>
                 {s.lines.map(l => {
                   const c = APP_LINES.find(x=>x.id===l)?.color;
-                  return <span key={l} style={{ width: 8, height: 8, borderRadius: 8, background: c }}/>;
+                  return <span key={l} style={{ width: 7, height: 7, borderRadius: 7, background: c }}/>;
                 })}
               </div>
+              <span style={{ marginInlineStart: cols ? cols.text - cols.time : 32, paddingInlineEnd: 12, minWidth: 0 }}>{window.I18N.station(s.id)}</span>
             </div>
           ))}
-        </div>
-      )}
+          <div style={{ height: 8 }}/>
+          </div>
+          </div>
+        );
+        return slot ? ReactDOM.createPortal(list, slot) : list;
+      })()}
     </div>
   );
+}
+
+// Measures, inside the search card (the suggestions' slot is in it), where the time column
+// ends and where this field's text starts, from the card's start edge (either direction)
+// and how tall the list may be: down to the panel's bottom edge (less a small gap), so it
+// fills the panel instead of leaving it empty below; kept up to date as the panel moves
+function SuggestCols({ slot, inputRef, show, onCols }) {
+  const measure = React.useCallback(() => {
+    const card = slot && slot.parentElement, input = inputRef.current, wheel = card && card.querySelector('[data-time-wheel]');
+    const sheet = card && card.closest('[data-sheet]');
+    if (!card || !input || !wheel || !sheet) return;
+    const c = card.getBoundingClientRect(), i = input.getBoundingClientRect(), w = wheel.getBoundingClientRect();
+    const rtl = getComputedStyle(card).direction === 'rtl';
+    const text = Math.round(rtl ? c.right - i.right : i.left - c.left), time = Math.round(rtl ? c.right - w.left : w.right - c.left);
+    // the list starts 16px up under the card; its scroller holds all of it
+    const room = Math.max(120, Math.round(sheet.getBoundingClientRect().bottom - (c.bottom - 16) - 14));
+    onCols(prev => prev && prev.text === text && prev.time === time && prev.room === room ? prev : { text, time, room });
+  }, [slot]);
+  React.useLayoutEffect(() => { if (show) measure(); });
+  React.useEffect(() => {
+    const sheet = slot && slot.parentElement && slot.parentElement.closest('[data-sheet]');
+    if (!show || !sheet) return;
+    const ro = new ResizeObserver(measure); ro.observe(sheet);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [show, slot]);
+  return null;
 }
 
 function LineBadge({ lineId, size = 22 }) {
@@ -471,7 +511,7 @@ function TimeWheel({ when, setWhen }) {
   };
   const stop = (e) => e.stopPropagation();   // the sheet's own swipe handling must not see wheel drags
   return (
-    <div style={{ position:'relative', width: 74, flexShrink: 0, alignSelf: 'stretch' }}>
+    <div data-time-wheel="" style={{ position:'relative', width: 74, flexShrink: 0, alignSelf: 'stretch' }}>
       {/* centre band */}
       <div aria-hidden="true" style={{ position:'absolute', left: 6, right: 6, top: '50%', height: ITEM_H, marginTop: -ITEM_H / 2,
         borderRadius: 8, background: 'var(--surface)', boxShadow: '0 0 0 1px var(--chip-border)' }}/>
@@ -731,6 +771,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const rt = useLiveDelays(journey);
   const [snap, setSnap] = React.useState('rest');
   const [searching, setSearching] = React.useState(false);
+  const [suggestSlot, setSuggestSlot] = React.useState(null);   // inside the search card
   const [dy, setDy] = React.useState(null);           // finger offset while dragging, else null
   const sheetRef = React.useRef(null), sumRef = React.useRef(null), bodyRef = React.useRef(null), contentRef = React.useRef(null);
   const snapRef = React.useRef(snap); snapRef.current = snap;
@@ -905,6 +946,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
             <div style={{ position:'relative', display:'flex', alignItems:'center',
               background: 'var(--surface)', borderRadius: 16,
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)' }}>
+              {/* where the station suggestions are drawn (StationAutocomplete), behind the card */}
+              <div ref={setSuggestSlot} style={{ display: 'contents' }}/>
               <TimeWheel when={when} setWhen={setWhen}/>
               <div aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', margin: '10px 0', background: FADE_LINE('to bottom') }}/>
               <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
@@ -917,11 +960,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   note={located && from === located.id ? T.t('kmAway', located.km) : null}
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
-                  onFocus={startSearch} onBlur={endSearch}
+                  onFocus={startSearch} onBlur={endSearch} slot={suggestSlot}
                   onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
                 <div style={{ height: 1, background: FADE_LINE('to right'), marginInlineStart: 34, marginInlineEnd: 4 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
-                  onFocus={startSearch} onBlur={endSearch}
+                  onFocus={startSearch} onBlur={endSearch} slot={suggestSlot}
                   onChange={onSetTo} onPick={pick(onSetTo, from)}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
