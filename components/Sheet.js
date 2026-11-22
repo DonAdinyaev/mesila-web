@@ -13,7 +13,7 @@ function fmtMin(m) {
 const FADE_LINE = (dir) => { const c = 'color-mix(in srgb, var(--text) 20%, transparent)';
   return `linear-gradient(${dir}, transparent, ${c} 25%, ${c} 75%, transparent)`; };
 
-function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, autoFocus, note, onLocate, locating, slot }) {
+function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFocus, onBlur, autoFocus, note, onLocate, locating, slot, room }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
   const inputRef = React.useRef(null);
@@ -95,7 +95,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
         // The list slides out from under the search card: as wide as the card, tucked under
         // its bottom edge, with the card's rounded corners at the bottom (drawn into the
         // card's slot, behind the card). As tall as the room left in the panel
-        // (SuggestCols), the rest scrolls;
+        // (`room`, from the panel's own target height), the rest scrolls;
         // its touches are its own (they neither drag the panel nor scroll it).
         const list = (
           <div style={{
@@ -104,7 +104,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
           }}>
           <div data-own-scroll="true" data-suggestions=""
             onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
-            style={{ maxHeight: cols && cols.room ? cols.room : 200, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+            style={{ maxHeight: room || 200, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
           {results.map((s, i) => (
             // a stack of layers: each row as wide as the card, rounded at the bottom like it,
             // tucked under the one above (the card, for the first). The station's lines in the
@@ -145,28 +145,16 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
 
 // Measures, inside the search card (the suggestions' slot is in it), where the time column
 // ends and where this field's text starts, from the card's start edge (either direction)
-// and how tall the list may be: down to the panel's bottom edge (less a small gap), so it
-// fills the panel instead of leaving it empty below; kept up to date as the panel moves
+// (only horizontal positions, which the list itself can't change)
 function SuggestCols({ slot, inputRef, show, onCols }) {
-  const measure = React.useCallback(() => {
+  React.useLayoutEffect(() => {
     const card = slot && slot.parentElement, input = inputRef.current, wheel = card && card.querySelector('[data-time-wheel]');
-    const sheet = card && card.closest('[data-sheet]');
-    if (!card || !input || !wheel || !sheet) return;
+    if (!show || !card || !input || !wheel) return;
     const c = card.getBoundingClientRect(), i = input.getBoundingClientRect(), w = wheel.getBoundingClientRect();
     const rtl = getComputedStyle(card).direction === 'rtl';
     const text = Math.round(rtl ? c.right - i.right : i.left - c.left), time = Math.round(rtl ? c.right - w.left : w.right - c.left);
-    // the list starts 16px up under the card; its scroller holds all of it
-    const room = Math.max(120, Math.round(sheet.getBoundingClientRect().bottom - (c.bottom - 16) - 14));
-    onCols(prev => prev && prev.text === text && prev.time === time && prev.room === room ? prev : { text, time, room });
-  }, [slot]);
-  React.useLayoutEffect(() => { if (show) measure(); });
-  React.useEffect(() => {
-    const sheet = slot && slot.parentElement && slot.parentElement.closest('[data-sheet]');
-    if (!show || !sheet) return;
-    const ro = new ResizeObserver(measure); ro.observe(sheet);
-    window.addEventListener('resize', measure);
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
-  }, [show, slot]);
+    onCols(prev => prev && prev.text === text && prev.time === time ? prev : { text, time });
+  });
   return null;
 }
 
@@ -808,6 +796,17 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const topSnap = hasTrip ? 'full' : 'half';
   // the card is the lowest the panel goes: a drag down stops there
   const height = dy === null ? H[snap] : Math.max(restH, Math.min(H[topSnap], H[snap] - dy));
+  // The suggestions' room: from under the search card down to the panel's bottom edge, at
+  // the height the panel is going to (not as drawn mid-movement), less a small gap. Worked
+  // out from fixed sizes only, so the list's own size can never feed back into it.
+  const cardRef = React.useRef(null);
+  const [cardBottom, setCardBottom] = React.useState(0);   // from the panel's top
+  React.useLayoutEffect(() => {
+    const el = cardRef.current; if (!el) return;
+    const upd = () => setCardBottom(el.offsetTop + el.offsetHeight);
+    upd(); const ro = new ResizeObserver(upd); ro.observe(el); return () => ro.disconnect();
+  }, [hasTrip]);
+  const suggestRoom = Math.max(120, H[snap] - (cardBottom - 16) - UI.PANEL_CHROME - 8);
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
   // with a trip, the details fade in as the panel rises above the card
   const bodyOpacity = hasTrip && !side ? clamp01((height - restH) / 80) : 1;
@@ -943,7 +942,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
               trip to come back here. */}
           {!journey && <div style={{ padding: '4px 8px 2px' }}>
             {/* the panel's own colour, no border: its edge is a soft shadow */}
-            <div style={{ position:'relative', display:'flex', alignItems:'center',
+            <div ref={cardRef} style={{ position:'relative', display:'flex', alignItems:'center',
               background: 'var(--surface)', borderRadius: 16,
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)' }}>
               {/* where the station suggestions are drawn (StationAutocomplete), behind the card */}
@@ -960,11 +959,11 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
                 <StationAutocomplete label="from" placeholder={T.t('from')} value={from}
                   note={located && from === located.id ? T.t('kmAway', located.km) : null}
                   onLocate={navigator.geolocation ? onLocate : null} locating={locating}
-                  onFocus={startSearch} onBlur={endSearch} slot={suggestSlot}
+                  onFocus={startSearch} onBlur={endSearch} slot={suggestSlot} room={suggestRoom}
                   onChange={onSetFrom} onPick={pick(onSetFrom, to)}/>
                 <div style={{ height: 1, background: FADE_LINE('to right'), marginInlineStart: 34, marginInlineEnd: 4 }}/>
                 <StationAutocomplete label="to" placeholder={T.t('to')} value={to}
-                  onFocus={startSearch} onBlur={endSearch} slot={suggestSlot}
+                  onFocus={startSearch} onBlur={endSearch} slot={suggestSlot} room={suggestRoom}
                   onChange={onSetTo} onPick={pick(onSetTo, from)}/>
               </div>
               <button onClick={onSwap} title={T.t('swap')} aria-label={T.t('swap')} style={{
