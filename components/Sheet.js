@@ -94,34 +94,37 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
       {results.length > 0 && (() => {
         // The list slides out from under the search card: as wide as the card, tucked under
         // its bottom edge, with the card's rounded corners at the bottom (drawn into the
-        // card's slot, behind the card). About four and a half rows tall, the rest scrolls;
+        // card's slot, behind the card). Four and a half rows tall (200px: a row is 57px,
+        // 41px of it showing under the one above), the rest scrolls;
         // its touches are its own (they neither drag the panel nor scroll it).
         const list = (
           <div style={{
             position: 'absolute', top: 'calc(100% - 16px)', left: 0, right: 0, zIndex: -1,
-            background: 'var(--surface)', borderRadius: '0 0 16px 16px', paddingTop: 16, overflow: 'hidden',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)',
+            borderRadius: '0 0 16px 16px', overflow: 'hidden',
           }}>
           <div data-own-scroll="true" data-suggestions=""
             onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
-            style={{ maxHeight: 196, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+            style={{ maxHeight: 200, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
           {results.map((s, i) => (
-            // a rounded row like the card; the station's lines in the column under the time,
-            // the name starting where the typed text starts
+            // a stack of layers: each row as wide as the card, rounded at the bottom like it,
+            // tucked under the one above (the card, for the first). The station's lines in the
+            // column under the time, the name starting where the typed text starts.
             <div
               key={s.id} data-suggestion={s.id}
               onMouseDown={(e) => { e.preventDefault(); onPick(s.id); setOpen(false); setQ(''); }}
               style={{
-                margin: `${i ? 4 : 6}px ${ROW_INSET}px 0`, padding: '10px 0', borderRadius: 16, cursor: 'pointer',
-                background: 'var(--chip-bg)',
+                position: 'relative', zIndex: results.length - i,
+                marginTop: i ? -16 : 0, padding: '28px 0 12px', borderRadius: '0 0 16px 16px', cursor: 'pointer',
+                background: 'var(--surface)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)',
                 display:'flex', alignItems:'center',
                 font: '500 14px var(--font)',
                 color: 'var(--text)',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--chip-border)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--chip-bg)'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--chip-bg)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
             >
-              <div style={{ width: (cols ? cols.time : 74) - ROW_INSET, flexShrink: 0, display:'flex', flexWrap:'wrap', justifyContent:'center', gap: 3 }}>
+              <div style={{ width: cols ? cols.time : 74, flexShrink: 0, display:'flex', flexWrap:'wrap', justifyContent:'center', gap: 3 }}>
                 {s.lines.map(l => {
                   const c = APP_LINES.find(x=>x.id===l)?.color;
                   return <span key={l} style={{ width: 7, height: 7, borderRadius: 7, background: c }}/>;
@@ -130,7 +133,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
               <span style={{ marginInlineStart: cols ? cols.text - cols.time : 32, paddingInlineEnd: 12, minWidth: 0 }}>{window.I18N.station(s.id)}</span>
             </div>
           ))}
-          <div style={{ height: 6 }}/>
+          <div style={{ height: 14 }}/>
           </div>
           </div>
         );
@@ -140,8 +143,6 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
   );
 }
 
-// the suggestion rows' inset from the card's sides
-const ROW_INSET = 6;
 // Measures, inside the search card (the suggestions' slot is in it), where the time column
 // ends and where this field's text starts, from the card's start edge (either direction)
 function SuggestCols({ slot, inputRef, show, onCols }) {
