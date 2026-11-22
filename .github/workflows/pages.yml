@@ -13,23 +13,42 @@ concurrency:
 jobs:
   test:
     uses: ./.github/workflows/tests.yml
-  deploy:
+  # Build the site once (dist/: JSX compiled, production React, ?v= = this commit) and
+  # upload it. A separate job from the deploy, so a failed deploy can be re-run on its own
+  # with the same upload (re-running a job that also uploads made two uploads, which the
+  # deploy step refuses).
+  build:
     needs: test                 # only a version that passes the tests is published
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # Cache-busting: every script's ?v=... becomes this commit's id, so phones always load
-      # the new files after a deploy (no need to bump the numbers in index.html by hand)
-      - name: Stamp script versions
-        run: sed -i -E "s/\?v=[A-Za-z0-9]+\"/?v=${GITHUB_SHA::8}\"/g" index.html && grep -o '?v=[A-Za-z0-9]*' index.html | sort | uniq -c
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/build.mjs "$GITHUB_SHA"
+      # the page loads React from unpkg with integrity hashes computed from node_modules:
+      # check unpkg serves exactly those files, or browsers would refuse to load them
+      - name: Check React's integrity hashes against unpkg
+        run: |
+          grep -o 'https://unpkg.com/[^"]*" integrity="[^"]*"' dist/index.html | while read -r line; do
+            url="${line%%\"*}"; want="${line##*integrity=\"}"; want="${want%\"}"
+            got="sha384-$(curl -sfL "$url" | openssl dgst -sha384 -binary | base64)"
+            echo "$url $got"; [ "$got" = "$want" ] || { echo "::error::integrity mismatch for $url"; exit 1; }
+          done
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4

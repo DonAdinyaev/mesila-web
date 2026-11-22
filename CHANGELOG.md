@@ -2,6 +2,9 @@
 
 ## 2026-11-22
 
+- **Faster first load:** the published site is now built ahead (`tools/build.mjs`): the JSX is compiled once at deploy instead of in the browser on every visit, Babel (about 3 MB) is no longer downloaded, and React's production builds replace the development ones. On a phone-speed CPU the app appears in about 2.7 s instead of 8 s. The tests run on the build too.
+- **Sturdier publishing:** building and publishing are separate jobs, so a publish that fails on GitHub's side can be re-run on its own (re-running it used to upload the site twice, which the publish step refused). The workflow also checks React's integrity hashes against unpkg before publishing.
+- **Relay health check:** a scheduled workflow asks the live-delays relay for today's Netanya → Tel Aviv Savidor trains every 6 hours and fails (GitHub emails the owner) if it doesn't answer or returns none on a day with service.
 - **Language button always top right** (it used to switch to the left in Hebrew).
 - **The X rides on the panel:** it stays just above the panel's top edge at every position, moving with it (the same transition, and with the finger while the panel is dragged).
 - **Route view without the form:** once a trip is shown, the panel holds the trip card and the timeline only. The trip card has a swap button (the way back), and an X above the panel on the left, level with the location button, clears the trip: back to the form, From refilled with the nearest station when known, no destination, the time back to "now", and the map without the route.
