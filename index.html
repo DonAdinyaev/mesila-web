@@ -143,7 +143,7 @@ function LangButton({ lang, onToggleLang }) {
   const T = window.I18N;
   return (
     <button onClick={onToggleLang} title={T.t('langTitle')} aria-label={T.t('langTitle')} lang={lang === 'he' ? 'en' : 'he'}
-      style={{ position: 'fixed', top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW}px)`, right: 12, zIndex: 7,   // the right corner in both languages
+      style={{ position: 'fixed', top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW}px)`, right: 'calc(env(safe-area-inset-right, 0px) + 12px)', zIndex: 7,   // the right corner in both languages
         minWidth: window.UI.BTN, height: window.UI.BTN, padding: '0 10px', borderRadius: 14, cursor: 'pointer',
         background: 'var(--surface)', border: '1px solid var(--chip-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         color: 'var(--text)', font: '600 14px var(--font)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -217,7 +217,9 @@ function App() {
   // phone layout: the page itself scrolls the map
   React.useEffect(() => { document.documentElement.classList.toggle('page-scroll', narrow); }, [narrow]);
   React.useEffect(() => { try { history.scrollRestoration = 'manual'; } catch (e) {} }, []);
-  React.useEffect(() => { const f = () => setNarrow(window.innerWidth < 600); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
+  // a phone held sideways: the panel is a column on the left (window.UI.isSide)
+  const [side, setSide] = React.useState(window.UI.isSide());
+  React.useEffect(() => { const f = () => { setNarrow(window.innerWidth < 600); setSide(window.UI.isSide()); }; window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
   React.useEffect(() => {
     T.setLang(lang);
     document.documentElement.lang = lang;
@@ -383,7 +385,7 @@ function App() {
       </div>
 
       <div style={{ position:'fixed', right: 12, top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.BELOW_TOP_ROW}px)`, zIndex: 4, display:'flex', flexDirection:'column', gap: 8 }}>
-        {!narrow && (
+        {!narrow && !side && (
         <div style={{ display:'flex', flexDirection:'column', background:'var(--surface)', border:'1px solid var(--chip-border)', borderRadius: 14, boxShadow:'0 4px 12px rgba(0,0,0,0.08)', overflow:'hidden' }}>
           <button onClick={() => zoom(1)} title={T.t('zoomIn')} aria-label={T.t('zoomIn')} style={{ width: 40, height: 40, border:'none', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
             <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
@@ -402,6 +404,9 @@ function App() {
       {journey && (
         <button data-clear-trip="" onClick={clearTrip} title={T.t('clearTrip')} aria-label={T.t('clearTrip')} style={{ position:'fixed', left: 12, zIndex: 4,
             bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP}px + var(--sheet-h, var(--sheet-rest, 140px)))`, transition: `bottom 300ms cubic-bezier(.2,.7,.2,1)`,
+            // sideways: at the top of the map, just right of the panel column
+            ...(side && { left: `calc(env(safe-area-inset-left, 0px) + ${window.UI.EDGE + window.UI.SIDE_W + 8}px)`, bottom: 'auto',
+              top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW}px)`, transition: 'none' }),
             width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
@@ -410,7 +415,7 @@ function App() {
       )}
 
       {/* show me / the trip / Tel Aviv */}
-      <button data-locate="" onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 12, zIndex: 4,
+      <button data-locate="" onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 'calc(env(safe-area-inset-right, 0px) + 12px)', zIndex: 4,
           // just above the panel at rest; it stays put while the panel is opened over it
           bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP}px + var(--sheet-rest, 140px))`, transition: `bottom 260ms cubic-bezier(.2,.7,.2,1)`,
           width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>

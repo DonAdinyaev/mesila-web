@@ -12,5 +12,9 @@ window.UI = (() => {
     LOCATE_GAP: 10,        // the location button's gap above the panel at rest
     HANDLE: 13,            // the panel's handle strip: 6 + 3 (bar) + 4
     PANEL_CHROME: 8,       // the panel's bottom padding (6) + border (2)
+    // A phone held sideways (wider than tall, and short): the panel is a column on the
+    // left, full height, instead of a sheet at the bottom
+    SIDE_W: 340,           // the side panel's width
+    isSide: () => window.innerWidth > window.innerHeight && window.innerHeight < 500,
   };
 })();

@@ -162,6 +162,13 @@ const LAYOUT_M = { mobile: true, STATIONS: STATIONS_M, BY_ID: BY_ID_M, AXIS_OVER
 // The active layout; MapSVG picks it from the screen width before each render
 let LY = LAYOUT_D;
 const MOBILE_MAX = 600; // px of map width below which the phone layout is used
+// What the trip panel covers: a sheet at the bottom covers from its top edge down; the side
+// column (a phone held sideways) covers the screen's left part up to its right edge
+const sheetCover = () => {
+  const s = document.querySelector('[data-sheet]'); if (!s) return { left: 0, bottom: 0 };
+  const r = s.getBoundingClientRect();
+  return s.hasAttribute('data-side') ? { left: Math.max(0, r.right), bottom: 0 } : { left: 0, bottom: Math.max(0, innerHeight - r.top) };
+};
 
 function buildGeometry(visible, W, GAP, ms) {
   const weight = {}, axis = {}, slot = {};
@@ -476,9 +483,10 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
     // map's edges may be pulled up to those UI edges (not just the screen edges); that
     // lets every part of the network be scrolled into view on small screens.
     const r = svg.getBoundingClientRect();
-    const sheet = document.querySelector('[data-sheet]');
-    const topUI = Math.min(window.UI.MAP_TOP_PAD + (window.safeTop ? window.safeTop() : 0), r.height * 0.25), botUI = sheet ? Math.min(Math.max(0, innerHeight - sheet.getBoundingClientRect().top), r.height * 0.6) : 0;
-    const a = toUser(r.left, r.top + topUI), b = toUser(r.right, r.bottom - botUI);
+    const cov = sheetCover();
+    const topUI = Math.min(window.UI.MAP_TOP_PAD + (window.safeTop ? window.safeTop() : 0), r.height * 0.25), botUI = Math.min(cov.bottom, r.height * 0.6);
+    const leftUI = Math.min(cov.left, r.width * 0.6);
+    const a = toUser(r.left + leftUI, r.top + topUI), b = toUser(r.right, r.bottom - botUI);
     const ax = (lo, hi, pos, vlo, vhi, k = v.k) => {
       const s = (hi - lo) * k;
       if (s <= vhi - vlo) return (vlo + vhi) / 2 - (lo + hi) / 2 * k;
@@ -526,7 +534,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   const [sheetH, setSheetH] = React.useState(0);
   React.useEffect(() => {
     const sh = document.querySelector('[data-sheet]'); if (!sh) return;
-    const upd = () => setSheetH(Math.round(Math.max(0, innerHeight - sh.getBoundingClientRect().top)));   // covered from its top edge down
+    const upd = () => setSheetH(Math.round(sheetCover().bottom));   // covered from its top edge down
     upd(); const ro = new ResizeObserver(upd); ro.observe(sh); return () => ro.disconnect();
   }, []);
 
@@ -639,14 +647,13 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
   };
   const visibleBox = () => {
     if (LY.mobile) {
-      const sheet = document.querySelector('[data-sheet]'), sh = sheet ? Math.max(0, innerHeight - sheet.getBoundingClientRect().top) : 0;
+      const sh = sheetCover().bottom;
       const a = toUser(16, window.UI.MAP_TOP_PAD + (window.safeTop ? window.safeTop() : 0)), b = toUser(innerWidth - 64, innerHeight - sh - 16);
       return { x: a.x, y: a.y, w: Math.max(50, b.x - a.x), h: Math.max(50, b.y - a.y) };
     }
     const rect = svgRef.current.getBoundingClientRect();
-    const sheet = document.querySelector('[data-sheet]');
-    const sh = sheet ? Math.max(0, innerHeight - sheet.getBoundingClientRect().top) : 0;
-    const a = toUser(rect.left + 16, rect.top + window.UI.MAP_TOP_PAD + (window.safeTop ? window.safeTop() : 0)), b = toUser(rect.right - 64, rect.bottom - sh - 16);
+    const cov = sheetCover(), sh = cov.bottom;
+    const a = toUser(rect.left + cov.left + 16, rect.top + window.UI.MAP_TOP_PAD + (window.safeTop ? window.safeTop() : 0)), b = toUser(rect.right - 64, rect.bottom - sh - 16);
     return { x: a.x, y: a.y, w: Math.max(50, b.x - a.x), h: Math.max(50, b.y - a.y) };
   };
   const fitBox = (bx) => {

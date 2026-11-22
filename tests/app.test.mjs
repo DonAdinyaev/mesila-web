@@ -188,3 +188,28 @@ test('picking the second station closes the keyboard and the map shows the route
   assert.deepEqual(app.errors, []);
   await app.close();
 });
+
+test('phone held sideways: the panel is a full-height column on the left, the map beside it', async () => {
+  for (const lang of ['en', 'he']) {
+    const app = await openApp(browser, server.url, { landscape: true, lang });
+    const { page } = app;
+    const W = await page.evaluate(() => innerWidth), H = await page.evaluate(() => innerHeight);
+    const p = await app.panel();
+    assert.ok(p.x < 20 && p.width < W / 2 && p.y < 20 && p.y + p.height > H - 20, `a full-height column on the left ${JSON.stringify(p)}`);
+    assert.equal(await page.locator('[data-handle]').isVisible(), false, 'no handle: nothing to drag');
+    assert.equal(await page.locator('[aria-label="Zoom in"], [aria-label="הגדלה"]').count(), 0, 'no zoom buttons (pinch)');
+    const lb = await page.locator('[data-locate]').boundingBox();
+    assert.ok(lb.x > W - 70 && lb.y > H - 80, 'the location button in the bottom right corner');
+    await app.choose('to', lang === 'he' ? 'סביד' : 'Savid', 'savidor');
+    await app.choose('from', lang === 'he' ? 'נהרי' : 'Nahar', 'nahariya');
+    await app.wait(1200);
+    const xb = await page.locator('[data-clear-trip]').boundingBox();
+    assert.ok(xb.x > p.x + p.width && xb.x < p.x + p.width + 30 && xb.y < 30, 'the X at the top of the map, beside the panel');
+    // the trip is fitted beside the panel, not under it
+    const names = lang === 'he' ? ['נהריה', 'סבידור מרכז'] : ['Nahariya', 'Savidor Center'];
+    const xs = await page.evaluate((names) => names.map(n => { const t = [...document.querySelectorAll('svg text')].find(x => x.textContent === n); return t ? Math.round(t.getBoundingClientRect().left) : null; }), names);
+    assert.ok(xs.every(x => x !== null && x > p.x + p.width), `both ends of the trip right of the panel ${xs}`);
+    assert.deepEqual(app.errors, []);
+    await app.close();
+  }
+});

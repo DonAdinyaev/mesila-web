@@ -724,6 +724,9 @@ function useTouchGuard(sheetRef, bodyRef, snapRef) {
 function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, onLocate, journey, when, setWhen, trips = [], tripIndex = 0, onSelectTrip, stationsKey }) {
   const T = window.I18N, UI = window.UI;
   const phone = window.innerWidth < 600;
+  // a phone held sideways: a column on the left, always full height (no positions to drag)
+  const [side, setSide] = React.useState(UI.isSide());
+  React.useEffect(() => { const f = () => setSide(UI.isSide()); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
   const hasTrip = !!journey;
   const rt = useLiveDelays(journey);
   const [snap, setSnap] = React.useState('rest');
@@ -766,9 +769,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const height = dy === null ? H[snap] : Math.max(restH, Math.min(H[topSnap], H[snap] - dy));
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
   // with a trip, the details fade in as the panel rises above the card
-  const bodyOpacity = hasTrip ? clamp01((height - restH) / 80) : 1;
+  const bodyOpacity = hasTrip && !side ? clamp01((height - restH) / 80) : 1;
   // the resting height, for what floats just above the panel (the location button)
-  React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-rest', restH + 'px'); }, [restH]);
+  React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-rest', (side ? 0 : restH) + 'px'); }, [restH, side]);
   // its current height and whether a finger is dragging it, for what rides on its top edge
   // (the X that clears the trip)
   React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-h', height + 'px'); }, [height]);
@@ -803,10 +806,12 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
     else t = order.reduce((b, k) => Math.abs(H[k] - h) < Math.abs(H[b] - h) ? k : b, 'rest');
     goSnap(t);
   };
-  const stripSwipe = useSwipe({ onDrag: (d) => setDy(d), onEnd: (g) => onEnd(g, false) });
+  // the side column doesn't move: only its sideways swipes (trips) count
+  const sideEnd = (g) => { if (g.axis === 'x') onEnd(g, false); else setDy(null); };
+  const stripSwipe = useSwipe({ onDrag: (d) => { if (!side) setDy(d); }, onEnd: (g) => side ? sideEnd(g) : onEnd(g, false) });
   // on the details: below 'full' any vertical drag moves the panel; at 'full' only a pull
   // down from the top does (otherwise it scrolls)
-  const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => { if (snap !== 'full' || (top && d > 0)) setDy(d); }, onEnd: (g) => onEnd(g, true) });
+  const bodySwipe = useSwipe({ scrollRef: bodyRef, onDrag: (d, top) => { if (!side && (snap !== 'full' || (top && d > 0))) setDy(d); }, onEnd: (g) => side ? sideEnd(g) : onEnd(g, true) });
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tripIndex, snap, searching]);
 
   // ---- typing a station (phones)
@@ -863,10 +868,14 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
       boxShadow: '0 -6px 14px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.08)', border: '1px solid var(--chip-border)',
       paddingBottom: 6,
       zIndex: snap === 'full' || dy !== null ? 6 : 5,   // above the map buttons when up
-    }}>
+      // a phone held sideways: a full-height column on the left (clear of the notch)
+      ...(side && { left: `calc(env(safe-area-inset-left, 0px) + ${UI.EDGE}px)`, right: 'auto', width: UI.SIDE_W,
+        top: `calc(env(safe-area-inset-top, 0px) + ${UI.EDGE}px)`, bottom: `calc(env(safe-area-inset-bottom, 0px) + ${UI.EDGE}px)`,
+        height: 'auto', transition: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.08)', zIndex: 5 }),
+    }} data-side={side ? '' : undefined}>
       {/* Top strip: handle + trip card. Drag up/down to move the panel, swipe sideways to change trip. */}
       <div {...stripSwipe} style={{ flexShrink: 0, touchAction: 'none' }}>
-        <div style={{ display:'flex', justifyContent:'center', padding: '6px 0 4px', cursor: 'pointer' }}
+        <div style={{ display: side ? 'none' : 'flex', justifyContent:'center', padding: '6px 0 4px', cursor: 'pointer' }}
           onClick={tapHandle} role="button" data-handle=""
           aria-label={T.t(snap === 'rest' ? 'expand' : 'collapse')} aria-expanded={snap === 'full'}>
           <div style={{ width: 32, height: 3, borderRadius: 3, background: '#D7D4CC' }}/>
