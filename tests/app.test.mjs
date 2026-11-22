@@ -70,24 +70,30 @@ test('no route yet: opening the panel starts typing, no higher than half; closin
   await app.close();
 });
 
-test('choosing both stations shows the trip card; editing a station opens full, closing returns to the card', async () => {
+test('route view: no form; the trip card swaps; the X above the panel clears the trip back to the form', async () => {
   const app = await withRoute();
+  const { page } = app;
   const card = await app.panelTop();
   assert.ok(card > 400, 'the trip card, folded');
-  await app.handle().click(); await app.handle().click(); await app.wait(500);       // up to full, where the fields show
-  const cardAtFull = await app.page.locator('[data-trip-card]').boundingBox();
-  await app.input('to').tap(); await app.wait(500);
-  assert.ok(near(await app.panelTop(), FULL_TOP), 'typing with a route: full');
-  // the same unroll as from the handle: the trip card stays where it was, fully shown
-  const cardTyping = await app.page.locator('[data-trip-card]').boundingBox();
-  assert.ok(near(cardTyping.y, cardAtFull.y) && near(cardTyping.height, cardAtFull.height), 'trip card unchanged while typing');
-  assert.equal(await app.page.locator('[data-trip-card]').evaluate(el => getComputedStyle(el).opacity), '1');
-  await app.blur(); await app.wait(600);
-  assert.ok(near(await app.panelTop(), card), 'keyboard closed: the card');
+  await app.handle().click(); await app.handle().click(); await app.wait(500);       // full
+  assert.equal(await app.input('from').count(), 0, 'no form in the route view');
+  assert.equal(await page.locator('[data-trip-card]').evaluate(el => getComputedStyle(el).opacity), '1');
+  // swap: the way back
+  const first = await page.locator('[data-trip-card]').textContent();
+  await page.locator('[data-swap]').click(); await app.wait(600);
+  assert.notEqual(await page.locator('[data-trip-card]').textContent(), first, 'swapped: another trip');
+  // the X: back to the form, nothing planned
+  const x = page.locator('[data-clear-trip]');
+  const xb = await x.boundingBox(), lb = await page.locator('[data-locate]').boundingBox();
+  assert.ok(xb.x < 60 && lb.x > 300 && near(xb.y, lb.y), 'the X on the left, level with the location button');
+  await x.click(); await app.wait(700);
+  assert.equal(await page.locator('[data-trip-card]').count(), 0, 'no trip');
+  assert.equal(await x.count(), 0, 'the X goes away with the trip');
+  assert.equal(await app.input('from').count(), 1, 'the form is back');
+  assert.equal(await app.input('to').inputValue(), '', 'no destination');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
-
 test('keyboard (iPhone): the panel fits above it, the map does not move, all is restored after', async () => {
   const app = await openApp(browser, server.url, { keyboard: true });
   const { page } = app;

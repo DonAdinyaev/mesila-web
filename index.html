@@ -357,6 +357,9 @@ function App() {
 
 
   const onSwap = () => { setFrom(to); setTo(from); };
+  // the X above the panel in the route view: back to the form, as when the app opens
+  // (From = the nearest station if known, no destination, "now")
+  const clearTrip = () => { setTo(null); setFrom(located ? located.id : null); setWhen(null); setPopup(null); };
 
   return (
     <div style={narrow ? { position:'relative' } : { position:'absolute', inset: 0 }} data-screen-label="Mesila Map">
@@ -390,6 +393,17 @@ function App() {
         </div>
         )}
       </div>
+
+      {/* route view: clear the trip (back to the form); on the other side from the location button */}
+      {journey && (
+        <button data-clear-trip="" onClick={clearTrip} title={T.t('clearTrip')} aria-label={T.t('clearTrip')} style={{ position:'fixed', left: 12, zIndex: 4,
+            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP}px + var(--sheet-rest, 140px))`, transition: `bottom 260ms cubic-bezier(.2,.7,.2,1)`,
+            width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+          </svg>
+        </button>
+      )}
 
       {/* show me / the trip / Tel Aviv */}
       <button data-locate="" onClick={() => setFocusTick(t=>t+1)} title={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} aria-label={T.t(route ? 'showTrip' : here ? 'showMe' : narrow ? 'showTelAviv' : 'whole')} style={{ position:'fixed', right: 12, zIndex: 4,

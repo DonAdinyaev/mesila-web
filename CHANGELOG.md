@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-22
+
+- **Route view without the form:** once a trip is shown, the panel holds the trip card and the timeline only. The trip card has a swap button (the way back), and an X above the panel on the left, level with the location button, clears the trip: back to the form, From refilled with the nearest station when known, no destination, the time back to "now", and the map without the route.
+
 ## 2026-11-21
 
 - **Trip timeline closer together:** the time column is now exactly as wide as the widest time in the trip (measured as drawn), so the line sits right beside the times, also when they carry a weekday (Hebrew used a fixed 100px). The line badges (HS, 1, ...) sit next to the line instead of at the column's far edge.
