@@ -211,3 +211,24 @@ test('phone held sideways: the panel is a full-height column on the left, the ma
     await app.close();
   }
 });
+
+test('tapping a station name on the map picks the station, like its marker', async () => {
+  for (const lang of ['en', 'he']) {
+    const app = await openApp(browser, server.url, { lang });
+    const { page } = app;
+    // a label's far end, away from its marker: the end of the text furthest from the line
+    const pt = await page.evaluate(() => {
+      const panelTop = document.querySelector('[data-sheet]').getBoundingClientRect().top;
+      const t = [...document.querySelectorAll('text[data-label-id]')].find(x => { const r = x.getBoundingClientRect(); return r.width > 80 && r.top > 80 && r.bottom < panelTop - 20; });
+      const r = t.getBoundingClientRect(), mid = r.left + r.width / 2;
+      // the marker is at the anchor side; tap the other end
+      const a = t.getAttribute('text-anchor'), x = a === 'end' ? r.left + 6 : a === 'start' ? r.right - 6 : mid;
+      return { id: t.getAttribute('data-label-id'), name: t.textContent, x, y: r.top + r.height / 2 };
+    });
+    await page.touchscreen.tap(pt.x, pt.y); await app.wait(500);
+    const full = await page.evaluate((id) => window.I18N.station(id), pt.id);
+    assert.equal(await app.input('from').inputValue(), full, `${lang}: tapping "${pt.name}" sets From`);
+    assert.deepEqual(app.errors, []);
+    await app.close();
+  }
+});

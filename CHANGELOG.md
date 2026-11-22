@@ -2,6 +2,7 @@
 
 ## 2026-11-22
 
+- **Station names on the map are tappable:** a tap on a station's name picks it, like a tap on its marker (a marker or line closer to the tap still wins).
 - **One bubble:** the search form sits straight in the panel (no inner card with its own shadow and rounded corners, no margins around it); the suggestions still stack under it.
 - **No swap button on the trip card** (the route view): the X goes back to the form, where the swap is.
 - **Station suggestions slide out from under the search card:** the list is now exactly as wide as the card, tucked under its bottom edge, with the card's rounded corners at the bottom, like one tab behind another. The suggestions are a stack of layers: each as wide as the card, rounded at the bottom like it, with its own soft shadow, tucked under the one above, filling the panel down to its bottom edge (the rest scrolls; the room is worked out from the panel's target height, not measured from the screen, which could feed back on slow phones and lose the list); the station's line dots sit in the column under the time, from its start edge (in line with the Now button), and its name starts exactly where the typed text starts.
