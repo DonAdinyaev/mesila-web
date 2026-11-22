@@ -23,6 +23,10 @@ test('loads on a phone and a computer, in English and Hebrew, without errors', a
   for (const opts of [{}, { lang: 'he' }, { phone: false }, { phone: false, lang: 'he' }]) {
     const app = await openApp(browser, server.url, opts);
     assert.equal(await app.page.locator('[data-locate]').count(), 1, 'location button');
+    // the language button: the top right corner in both languages
+    const lb = await app.page.locator('button', { hasText: /^(EN|עב)$/ }).boundingBox();
+    const W = await app.page.evaluate(() => innerWidth);
+    assert.ok(lb && lb.x + lb.width > W - 20, 'language button at the right ' + JSON.stringify(opts));
     assert.deepEqual(app.errors, [], JSON.stringify(opts));
     await app.close();
   }
@@ -75,7 +79,14 @@ test('route view: no form; the trip card swaps; the X above the panel clears the
   const { page } = app;
   const card = await app.panelTop();
   assert.ok(card > 400, 'the trip card, folded');
-  await app.handle().click(); await app.handle().click(); await app.wait(500);       // full
+  // the X rides just above the panel's top edge at every position, and while dragged
+  const xGap = async () => { const xb = await page.locator('[data-clear-trip]').boundingBox(); return (await app.panelTop()) - (xb.y + xb.height); };
+  const gap0 = await xGap();
+  assert.ok(gap0 > 0 && gap0 < 20, `X just above the card (${gap0})`);
+  await app.handle().click(); await app.wait(500);                                   // half
+  assert.ok(near(await xGap(), gap0), 'X follows the panel up to half');
+  await app.handle().click(); await app.wait(500);                                   // full
+  assert.ok(near(await xGap(), gap0), 'X follows the panel up to full');
   assert.equal(await app.input('from').count(), 0, 'no form in the route view');
   assert.equal(await page.locator('[data-trip-card]').evaluate(el => getComputedStyle(el).opacity), '1');
   // swap: the way back
@@ -86,6 +97,7 @@ test('route view: no form; the trip card swaps; the X above the panel clears the
   const x = page.locator('[data-clear-trip]');
   const xb = await x.boundingBox(), lb = await page.locator('[data-locate]').boundingBox();
   assert.ok(xb.x < 60 && lb.x > 300 && near(xb.y, lb.y), 'the X on the left, level with the location button');
+  await app.handle().click(); await app.wait(600);                                   // back to the card
   await x.click(); await app.wait(700);
   assert.equal(await page.locator('[data-trip-card]').count(), 0, 'no trip');
   assert.equal(await x.count(), 0, 'the X goes away with the trip');

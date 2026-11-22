@@ -2,6 +2,8 @@
 
 ## 2026-11-22
 
+- **Language button always top right** (it used to switch to the left in Hebrew).
+- **The X rides on the panel:** it stays just above the panel's top edge at every position, moving with it (the same transition, and with the finger while the panel is dragged).
 - **Route view without the form:** once a trip is shown, the panel holds the trip card and the timeline only. The trip card has a swap button (the way back), and an X above the panel on the left, level with the location button, clears the trip: back to the form, From refilled with the nearest station when known, no destination, the time back to "now", and the map without the route.
 
 ## 2026-11-21
