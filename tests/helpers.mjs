@@ -38,9 +38,9 @@ const FAKE_KEYBOARD = () => {
   window.__kb = (top, h) => { fake.offsetTop = top; fake.height = h; fake.dispatchEvent(new Event('resize')); };
 };
 
-export async function openApp(browser, base, { lang = 'en', phone = true, keyboard = false } = {}) {
+export async function openApp(browser, base, { lang = 'en', phone = true, keyboard = false, landscape = false } = {}) {
   const ctx = await browser.newContext(phone
-    ? { ...devices['iPhone 13'], timezoneId: 'Asia/Jerusalem' }
+    ? { ...devices[landscape ? 'iPhone 13 landscape' : 'iPhone 13'], timezoneId: 'Asia/Jerusalem' }
     : { viewport: { width: 1280, height: 860 }, timezoneId: 'Asia/Jerusalem' });
   await ctx.route('https://unpkg.com/**', (r) => {
     const m = new URL(r.request().url()).pathname.match(/^\/(@?[^@]+)@[^/]+\/(.*)$/);

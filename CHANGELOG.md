@@ -2,6 +2,7 @@
 
 ## 2026-11-22
 
+- **Landscape on phones:** a phone held sideways used to get the computer layout (a full-width panel over half the short screen, the map in a thin strip, zoom buttons over the location button). Now the panel is a full-height column on the left (340px, clear of the notch; its content scrolls inside), and the map fills the rest: trips are fitted beside the panel. The X sits at the top of the map next to the panel, the location button in the bottom right corner, and the zoom buttons are hidden (pinch to zoom). The language and location buttons also keep clear of a notch on the right.
 - **Faster first load:** the published site is now built ahead (`tools/build.mjs`): the JSX is compiled once at deploy instead of in the browser on every visit, Babel (about 3 MB) is no longer downloaded, and React's production builds replace the development ones. On a phone-speed CPU the app appears in about 2.7 s instead of 8 s. The tests run on the build too.
 - **Sturdier publishing:** building and publishing are separate jobs, so a publish that fails on GitHub's side can be re-run on its own (re-running it used to upload the site twice, which the publish step refused). The workflow also checks React's integrity hashes against unpkg before publishing.
 - **Relay health check:** a scheduled workflow asks the live-delays relay for today's Netanya → Tel Aviv Savidor trains every 6 hours and fails (GitHub emails the owner) if it doesn't answer or returns none on a day with service.
