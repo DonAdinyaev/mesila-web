@@ -74,7 +74,7 @@ test('no route yet: opening the panel starts typing, no higher than half; closin
   await app.close();
 });
 
-test('route view: no form; the trip card swaps; the X above the panel clears the trip back to the form', async () => {
+test('route view: no form, no swap; the X above the panel clears the trip back to the form', async () => {
   const app = await withRoute();
   const { page } = app;
   const card = await app.panelTop();
@@ -89,15 +89,12 @@ test('route view: no form; the trip card swaps; the X above the panel clears the
   assert.ok(near(await xGap(), gap0), 'X follows the panel up to full');
   assert.equal(await app.input('from').count(), 0, 'no form in the route view');
   assert.equal(await page.locator('[data-trip-card]').evaluate(el => getComputedStyle(el).opacity), '1');
-  // swap: the way back
-  const first = await page.locator('[data-trip-card]').textContent();
-  await page.locator('[data-swap]').click(); await app.wait(600);
-  assert.notEqual(await page.locator('[data-trip-card]').textContent(), first, 'swapped: another trip');
+  assert.equal(await page.locator('[data-swap]').count(), 0, 'no swap button on the trip card');
   // the X: back to the form, nothing planned
+  await app.handle().click(); await app.wait(600);                                   // back to the card
   const x = page.locator('[data-clear-trip]');
   const xb = await x.boundingBox(), lb = await page.locator('[data-locate]').boundingBox();
-  assert.ok(xb.x < 60 && lb.x > 300 && near(xb.y, lb.y), 'the X on the left, level with the location button');
-  await app.handle().click(); await app.wait(600);                                   // back to the card
+  assert.ok(xb.x < 60 && lb.x > 300 && near(xb.y, lb.y), 'at the card: the X on the left, level with the location button');
   await x.click(); await app.wait(700);
   assert.equal(await page.locator('[data-trip-card]').count(), 0, 'no trip');
   assert.equal(await x.count(), 0, 'the X goes away with the trip');

@@ -923,7 +923,7 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
         {journey && (
           <div data-trip-card="">
             <div ref={sumRef} style={{ overflow:'hidden', minHeight: 0 }}>
-              <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length} onSwap={onSwap}
+              <TripSummary j={journey} live={!when} rt={rt} index={tripIndex} count={trips.length}
                 onPrev={() => go(-1)} onNext={() => go(1)}/>
             </div>
           </div>
