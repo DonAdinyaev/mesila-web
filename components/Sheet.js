@@ -940,11 +940,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           {/* Search card: [time wheel | From/To rows joined by a route line | swap]. Not in the
               route view: there the trip card has the swap, and the X above the panel clears the
               trip to come back here. */}
-          {!journey && <div style={{ padding: '4px 8px 2px' }}>
-            {/* the panel's own colour, no border: its edge is a soft shadow */}
+          {!journey && <div>
+            {/* straight in the panel (the panel is the only bubble): no card edge or margins */}
             <div ref={cardRef} style={{ position:'relative', display:'flex', alignItems:'center',
-              background: 'var(--surface)', borderRadius: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.07)' }}>
+              background: 'var(--surface)' }}>
               {/* where the station suggestions are drawn (StationAutocomplete), behind the card */}
               <div ref={setSuggestSlot} style={{ display: 'contents' }}/>
               <TimeWheel when={when} setWhen={setWhen}/>
