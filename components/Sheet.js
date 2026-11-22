@@ -94,8 +94,8 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
       {results.length > 0 && (() => {
         // The list slides out from under the search card: as wide as the card, tucked under
         // its bottom edge, with the card's rounded corners at the bottom (drawn into the
-        // card's slot, behind the card). Four and a half rows tall (200px: a row is 57px,
-        // 41px of it showing under the one above), the rest scrolls;
+        // card's slot, behind the card). As tall as the room left in the panel
+        // (SuggestCols), the rest scrolls;
         // its touches are its own (they neither drag the panel nor scroll it).
         const list = (
           <div style={{
@@ -104,7 +104,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
           }}>
           <div data-own-scroll="true" data-suggestions=""
             onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
-            style={{ maxHeight: 200, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+            style={{ maxHeight: cols && cols.room ? cols.room : 200, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
           {results.map((s, i) => (
             // a stack of layers: each row as wide as the card, rounded at the bottom like it,
             // tucked under the one above (the card, for the first). The station's lines in the
@@ -133,7 +133,7 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
               <span style={{ marginInlineStart: cols ? cols.text - cols.time : 32, paddingInlineEnd: 12, minWidth: 0 }}>{window.I18N.station(s.id)}</span>
             </div>
           ))}
-          <div style={{ height: 14 }}/>
+          <div style={{ height: 8 }}/>
           </div>
           </div>
         );
@@ -145,15 +145,28 @@ function StationAutocomplete({ label, placeholder, value, onChange, onPick, onFo
 
 // Measures, inside the search card (the suggestions' slot is in it), where the time column
 // ends and where this field's text starts, from the card's start edge (either direction)
+// and how tall the list may be: down to the panel's bottom edge (less a small gap), so it
+// fills the panel instead of leaving it empty below; kept up to date as the panel moves
 function SuggestCols({ slot, inputRef, show, onCols }) {
-  React.useLayoutEffect(() => {
+  const measure = React.useCallback(() => {
     const card = slot && slot.parentElement, input = inputRef.current, wheel = card && card.querySelector('[data-time-wheel]');
-    if (!show || !card || !input || !wheel) return;
+    const sheet = card && card.closest('[data-sheet]');
+    if (!card || !input || !wheel || !sheet) return;
     const c = card.getBoundingClientRect(), i = input.getBoundingClientRect(), w = wheel.getBoundingClientRect();
     const rtl = getComputedStyle(card).direction === 'rtl';
     const text = Math.round(rtl ? c.right - i.right : i.left - c.left), time = Math.round(rtl ? c.right - w.left : w.right - c.left);
-    onCols(prev => prev && prev.text === text && prev.time === time ? prev : { text, time });
-  });
+    // the list starts 16px up under the card; its scroller holds all of it
+    const room = Math.max(120, Math.round(sheet.getBoundingClientRect().bottom - (c.bottom - 16) - 14));
+    onCols(prev => prev && prev.text === text && prev.time === time && prev.room === room ? prev : { text, time, room });
+  }, [slot]);
+  React.useLayoutEffect(() => { if (show) measure(); });
+  React.useEffect(() => {
+    const sheet = slot && slot.parentElement && slot.parentElement.closest('[data-sheet]');
+    if (!show || !sheet) return;
+    const ro = new ResizeObserver(measure); ro.observe(sheet);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [show, slot]);
   return null;
 }
 
