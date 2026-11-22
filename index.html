@@ -60,6 +60,8 @@
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   input, textarea { -webkit-user-select: text; user-select: text; }
+  /* the X above the panel follows a finger dragging the panel without lag */
+  html.sheet-drag [data-clear-trip] { transition: none !important; }
   @keyframes mesilaPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px);} to { opacity: 1; transform:none; } }
   button:active { transform: scale(0.98); }
@@ -141,7 +143,7 @@ function LangButton({ lang, onToggleLang }) {
   const T = window.I18N;
   return (
     <button onClick={onToggleLang} title={T.t('langTitle')} aria-label={T.t('langTitle')} lang={lang === 'he' ? 'en' : 'he'}
-      style={{ position: 'fixed', top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW}px)`, insetInlineEnd: 12, zIndex: 7,
+      style={{ position: 'fixed', top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW}px)`, right: 12, zIndex: 7,   // the right corner in both languages
         minWidth: window.UI.BTN, height: window.UI.BTN, padding: '0 10px', borderRadius: 14, cursor: 'pointer',
         background: 'var(--surface)', border: '1px solid var(--chip-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         color: 'var(--text)', font: '600 14px var(--font)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -394,10 +396,12 @@ function App() {
         )}
       </div>
 
-      {/* route view: clear the trip (back to the form); on the other side from the location button */}
+      {/* route view: clear the trip (back to the form); on the other side from the location button.
+          It rides on the panel's top edge (--sheet-h, kept by the panel), moving with it the way
+          the panel moves (same transition; none while a finger drags it, see the CSS) */}
       {journey && (
         <button data-clear-trip="" onClick={clearTrip} title={T.t('clearTrip')} aria-label={T.t('clearTrip')} style={{ position:'fixed', left: 12, zIndex: 4,
-            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP}px + var(--sheet-rest, 140px))`, transition: `bottom 260ms cubic-bezier(.2,.7,.2,1)`,
+            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP}px + var(--sheet-h, var(--sheet-rest, 140px)))`, transition: `bottom 300ms cubic-bezier(.2,.7,.2,1)`,
             width: 40, height: 40, borderRadius: 14, background:'var(--surface)', border:'1px solid var(--chip-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text)' }}>
           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>

@@ -769,6 +769,10 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const bodyOpacity = hasTrip ? clamp01((height - restH) / 80) : 1;
   // the resting height, for what floats just above the panel (the location button)
   React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-rest', restH + 'px'); }, [restH]);
+  // its current height and whether a finger is dragging it, for what rides on its top edge
+  // (the X that clears the trip)
+  React.useLayoutEffect(() => { document.documentElement.style.setProperty('--sheet-h', height + 'px'); }, [height]);
+  React.useLayoutEffect(() => { document.documentElement.classList.toggle('sheet-drag', dy !== null); }, [dy !== null]);
 
   // ---- moving between positions
   const goSnap = (t) => {
