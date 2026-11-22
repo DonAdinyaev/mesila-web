@@ -39,11 +39,17 @@ Then open <http://localhost:8000>. Opening `index.html` straight from disk (`fil
 
 ## Deploy
 
-Every push to `main` is tested and then published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml); a version that fails the tests is not published. The deploy also stamps every script's `?v=` in `index.html` with the commit id, so phones load the new files (no need to bump those numbers by hand). No configuration is needed beyond enabling Pages ("GitHub Actions" as the source) in the repository settings.
+Every push to `main` is tested and then published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml); a version that fails the tests is not published. What is published is a build of the site, [`tools/build.mjs`](tools/build.mjs) (`npm run build`, into `dist/`):
+
+- the JSX is compiled once there (with exactly the options the browser used), so the page no longer loads Babel (about 3 MB) or compiles in the browser;
+- React's production builds replace the development ones (the workflow checks their integrity hashes against unpkg before publishing);
+- every script's `?v=` becomes the commit id, so phones load the new files.
+
+On a phone-speed CPU the app appears in about 2.7 s instead of 8 s. Building and publishing are separate jobs, so a publish that fails on GitHub's side can be re-run on its own. No configuration is needed beyond enabling Pages ("GitHub Actions" as the source) in the repository settings.
 
 ## Tests
 
-Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) cover the trip panel: its positions and gestures (drags, flicks, the handle), typing a station with and without a route, the iPhone keyboard handling (with a simulated visual viewport: the panel fits above the keyboard, the map doesn't move, all is restored after), that swipes on the panel never scroll the map, and that the app loads cleanly on a phone and a computer in both languages. They run offline: React and Babel come from `node_modules` instead of the CDN, fonts are stubbed and the live-delays relay is blocked.
+Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) cover the trip panel: its positions and gestures (drags, flicks, the handle), typing a station with and without a route, the iPhone keyboard handling (with a simulated visual viewport: the panel fits above the keyboard, the map doesn't move, all is restored after), that swipes on the panel never scroll the map, and that the app loads cleanly on a phone and a computer in both languages. They run offline: React and Babel come from `node_modules` instead of the CDN, fonts are stubbed and the live-delays relay is blocked. `npm run test:dist` builds the site and runs the same tests on the build (what is published).
 
 ```bash
 npm install                      # once
@@ -51,7 +57,7 @@ npx playwright install chromium  # once, if Playwright has no browser yet
 npm test                         # or PW_CHANNEL=chrome npm test, to use an installed Google Chrome
 ```
 
-[`.github/workflows/tests.yml`](.github/workflows/tests.yml) runs them on every push to a branch and on pull requests.
+[`.github/workflows/tests.yml`](.github/workflows/tests.yml) runs them, on the repository and on the build, on every push to a branch and on pull requests.
 
 ## Update the timetable
 
@@ -80,7 +86,7 @@ curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scri
   -F 'worker.js=@relay/worker.js;type=application/javascript+module'
 ```
 
-If the relay or the API is down, the app simply shows the planned times.
+If the relay or the API is down, the app simply shows the planned times. [`.github/workflows/relay-health.yml`](.github/workflows/relay-health.yml) checks the relay every 6 hours (Netanya → Tel Aviv Savidor, today): it fails, and GitHub emails the repository owner, if the relay doesn't answer or returns no trains on a day with service.
 
 ## Project layout
 
@@ -98,10 +104,11 @@ components/MapSVG.js    Map renderer: track layout, bends, markers, labels, pan/
 components/Sheet.js     The trip panel: positions and gestures, From/To search, trip card and timeline
 tests/                  Browser tests (npm test)
 assets/                 Logo files (light icon, dark icon, transparent mark), favicon and iPhone home-screen PNGs
-.github/workflows/      Tests; GitHub Pages deployment (after the tests pass); twice-weekly timetable refresh
+tools/build.mjs         Builds the published site into dist/ (JSX compiled, production React)
+.github/workflows/      Tests; build and GitHub Pages deployment (after the tests pass); twice-weekly timetable refresh; relay health check
 ```
 
-React 18 and Babel are loaded from a CDN and the JSX is compiled in the browser, so editing a file and refreshing is the whole development loop.
+In the repository, React 18 and Babel are loaded from a CDN and the JSX is compiled in the browser, so editing a file and refreshing is the whole development loop; the published site is compiled ahead (see Deploy).
 
 ## More
 

@@ -27,3 +27,7 @@ jobs:
       - run: npm test
         env:
           PW_CHANNEL: chrome
+      # and the same tests on the built site (what is published: JSX compiled, production React)
+      - run: npm run test:dist
+        env:
+          PW_CHANNEL: chrome

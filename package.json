@@ -1,9 +1,11 @@
 {
   "name": "mesila-web",
   "private": true,
-  "description": "Mesila: Israel Railways map and trip planner (static site). npm is only used for the browser tests.",
+  "description": "Mesila: Israel Railways map and trip planner (static site). npm is used for the browser tests and to build the published site (dist/).",
   "scripts": {
-    "test": "node --test --test-concurrency=1 tests/*.test.mjs"
+    "build": "node tools/build.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "test:dist": "npm run build && SITE=dist node --test --test-concurrency=1 tests/*.test.mjs"
   },
   "devDependencies": {
     "@babel/standalone": "7.29.0",

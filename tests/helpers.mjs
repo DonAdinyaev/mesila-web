@@ -9,14 +9,16 @@ import { fileURLToPath } from 'node:url';
 import { chromium, devices } from 'playwright';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// the site served: the repository as it is, or with SITE=dist the built site (npm run build)
+const SITE = process.env.SITE ? path.resolve(ROOT, process.env.SITE) : ROOT;
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png',
   '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 
 export function startServer() {
   const server = http.createServer((req, res) => {
     const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    let f = path.join(ROOT, u.endsWith('/') ? u + 'index.html' : u);
-    if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
+    let f = path.join(SITE, u.endsWith('/') ? u + 'index.html' : u);
+    if (!f.startsWith(SITE) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' });
     fs.createReadStream(f).pipe(res);
   });
