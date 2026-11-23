@@ -1,9 +1,5 @@
 # Changelog
 
-## 2026-11-23
-
-- **No white bars while typing (iPhone):** with the keyboard up, the strips behind Safari's status bar and just above the keyboard showed the near-white page backdrop, because the page is pinned while you type and Safari doesn't draw a pinned page there. The backdrop now takes the map's colour while you type.
-
 ## 2026-11-22
 
 - **Station names on the map are tappable:** a tap on a station's name picks it, like a tap on its marker (a marker or line closer to the tap still wins).

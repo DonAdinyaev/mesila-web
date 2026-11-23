@@ -679,15 +679,11 @@ function usePageLock() {
     if (saved.current != null) return;
     saved.current = window.scrollY;
     Object.assign(document.body.style, { position: 'fixed', top: -saved.current + 'px', left: '0', right: '0', width: '100%' });
-    // Safari doesn't draw a fixed body behind its status bar or above the keyboard: those
-    // strips show the page backdrop, so it takes the map's colour instead of white
-    document.documentElement.classList.add('page-locked');
   }, []);
   const release = React.useCallback(() => {
     if (saved.current == null) return;
     const y = saved.current; saved.current = null;
     Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '' });
-    document.documentElement.classList.remove('page-locked');
     window.scrollTo(0, y);
     // the map couldn't move while the page was held (e.g. to show a new route): it can now
     window.dispatchEvent(new Event('mesila:pagefree'));
