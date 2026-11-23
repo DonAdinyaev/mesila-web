@@ -755,6 +755,12 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
       if (d < bd) { bd = d; best = s.id; }
     }
     if (best && bd * ek < 22) return { station: best };
+    // a station's name counts as the station (its label as drawn, a few px of slack)
+    const svg = svgRef.current;
+    if (svg) for (const t of svg.querySelectorAll('text[data-label-id]')) {
+      const r = t.getBoundingClientRect();
+      if (cx >= r.left - 4 && cx <= r.right + 4 && cy >= r.top - 4 && cy <= r.bottom + 4) return { station: t.getAttribute('data-label-id') };
+    }
     let bl = null, bld = Infinity;
     for (const id in geo.lines) {
       const poly = geo.lines[id].poly;
@@ -1214,7 +1220,7 @@ function MapSVG({ route, from, to, onPickStation, visibleLines, focusTick, zoomC
         {/* Station labels (drawn above all markers) */}
         <g pointerEvents="none" style={{ fontFamily:'var(--font)' }}>
           {placeLabels().map(L => (
-            <text key={L.id} x={L.x} y={L.y} textAnchor={L.anchor}
+            <text key={L.id} data-label-id={L.id} x={L.x} y={L.y} textAnchor={L.anchor}
               fontSize={L.size} fontWeight={L.weight}
               fill="var(--text)" opacity={L.active ? 1 : 0.35} style={halo}>{L.name}</text>
           ))}

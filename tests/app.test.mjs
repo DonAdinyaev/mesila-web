@@ -74,7 +74,7 @@ test('no route yet: opening the panel starts typing, no higher than half; closin
   await app.close();
 });
 
-test('route view: no form; the trip card swaps; the X above the panel clears the trip back to the form', async () => {
+test('route view: no form, no swap; the X above the panel clears the trip back to the form', async () => {
   const app = await withRoute();
   const { page } = app;
   const card = await app.panelTop();
@@ -89,15 +89,12 @@ test('route view: no form; the trip card swaps; the X above the panel clears the
   assert.ok(near(await xGap(), gap0), 'X follows the panel up to full');
   assert.equal(await app.input('from').count(), 0, 'no form in the route view');
   assert.equal(await page.locator('[data-trip-card]').evaluate(el => getComputedStyle(el).opacity), '1');
-  // swap: the way back
-  const first = await page.locator('[data-trip-card]').textContent();
-  await page.locator('[data-swap]').click(); await app.wait(600);
-  assert.notEqual(await page.locator('[data-trip-card]').textContent(), first, 'swapped: another trip');
+  assert.equal(await page.locator('[data-swap]').count(), 0, 'no swap button on the trip card');
   // the X: back to the form, nothing planned
+  await app.handle().click(); await app.wait(600);                                   // back to the card
   const x = page.locator('[data-clear-trip]');
   const xb = await x.boundingBox(), lb = await page.locator('[data-locate]').boundingBox();
-  assert.ok(xb.x < 60 && lb.x > 300 && near(xb.y, lb.y), 'the X on the left, level with the location button');
-  await app.handle().click(); await app.wait(600);                                   // back to the card
+  assert.ok(xb.x < 60 && lb.x > 300 && near(xb.y, lb.y), 'at the card: the X on the left, level with the location button');
   await x.click(); await app.wait(700);
   assert.equal(await page.locator('[data-trip-card]').count(), 0, 'no trip');
   assert.equal(await x.count(), 0, 'the X goes away with the trip');
@@ -210,6 +207,27 @@ test('phone held sideways: the panel is a full-height column on the left, the ma
     const names = lang === 'he' ? ['נהריה', 'סבידור מרכז'] : ['Nahariya', 'Savidor Center'];
     const xs = await page.evaluate((names) => names.map(n => { const t = [...document.querySelectorAll('svg text')].find(x => x.textContent === n); return t ? Math.round(t.getBoundingClientRect().left) : null; }), names);
     assert.ok(xs.every(x => x !== null && x > p.x + p.width), `both ends of the trip right of the panel ${xs}`);
+    assert.deepEqual(app.errors, []);
+    await app.close();
+  }
+});
+
+test('tapping a station name on the map picks the station, like its marker', async () => {
+  for (const lang of ['en', 'he']) {
+    const app = await openApp(browser, server.url, { lang });
+    const { page } = app;
+    // a label's far end, away from its marker: the end of the text furthest from the line
+    const pt = await page.evaluate(() => {
+      const panelTop = document.querySelector('[data-sheet]').getBoundingClientRect().top;
+      const t = [...document.querySelectorAll('text[data-label-id]')].find(x => { const r = x.getBoundingClientRect(); return r.width > 80 && r.top > 80 && r.bottom < panelTop - 20; });
+      const r = t.getBoundingClientRect(), mid = r.left + r.width / 2;
+      // the marker is at the anchor side; tap the other end
+      const a = t.getAttribute('text-anchor'), x = a === 'end' ? r.left + 6 : a === 'start' ? r.right - 6 : mid;
+      return { id: t.getAttribute('data-label-id'), name: t.textContent, x, y: r.top + r.height / 2 };
+    });
+    await page.touchscreen.tap(pt.x, pt.y); await app.wait(500);
+    const full = await page.evaluate((id) => window.I18N.station(id), pt.id);
+    assert.equal(await app.input('from').inputValue(), full, `${lang}: tapping "${pt.name}" sets From`);
     assert.deepEqual(app.errors, []);
     await app.close();
   }
