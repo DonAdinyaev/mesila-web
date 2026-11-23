@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23
+
+- **Map stays edge to edge while typing (iPhone):** opening the keyboard on a station field turned the top of the screen, the sides of the panel and the bottom white; the map showed only in the middle. The page was held still by pinning it as a fixed layer, which Safari doesn't draw behind its bars. Now scrolling is switched off instead (and any scroll that still happens, such as a flick still gliding, is put straight back), so the map keeps filling the screen.
+
 ## 2026-11-22
 
 - **Station names on the map are tappable:** a tap on a station's name picks it, like a tap on its marker (a marker or line closer to the tap still wins).

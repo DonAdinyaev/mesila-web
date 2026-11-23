@@ -669,22 +669,31 @@ function useVisualViewport(enabled) {
   return vv;
 }
 
-// Holds the page still: the usual iOS scroll lock (the body fixed at its current offset).
-// On phones the page is the map, and Safari scrolls the page to bring a focused field into
-// view; while locked it has nothing to scroll. release() puts the body back at the same
-// place, so nothing moves. Always released when the panel goes away.
+// Holds the page still while a station is typed. On phones the page is the map, and Safari
+// scrolls the page to bring a focused field into view. The page is not pinned as a fixed
+// layer (the usual iOS scroll lock): Safari crops fixed layers to the space between its
+// status bar and toolbar, so the map went white above and below while the keyboard was up.
+// Instead scrolling is switched off (html.page-held, see index.html), and any scroll that
+// still happens (Safari revealing the field, or a flick still gliding when the field was
+// tapped) is put straight back. release() lets the page go at the same place.
 function usePageLock() {
   const saved = React.useRef(null);
+  const onScroll = React.useCallback(() => {
+    if (saved.current != null && window.scrollY !== saved.current) window.scrollTo(0, saved.current);
+  }, []);
   const lock = React.useCallback(() => {
     if (saved.current != null) return;
     saved.current = window.scrollY;
-    Object.assign(document.body.style, { position: 'fixed', top: -saved.current + 'px', left: '0', right: '0', width: '100%' });
+    document.documentElement.classList.add('page-held');
+    window.scrollTo(0, saved.current);          // stops a flick that is still gliding
+    window.addEventListener('scroll', onScroll);
   }, []);
   const release = React.useCallback(() => {
     if (saved.current == null) return;
     const y = saved.current; saved.current = null;
-    Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '' });
-    window.scrollTo(0, y);
+    window.removeEventListener('scroll', onScroll);
+    document.documentElement.classList.remove('page-held');
+    if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
     // the map couldn't move while the page was held (e.g. to show a new route): it can now
     window.dispatchEvent(new Event('mesila:pagefree'));
   }, []);

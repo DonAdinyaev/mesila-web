@@ -115,6 +115,8 @@ test('keyboard (iPhone): the panel fits above it, the map does not move, all is 
   await page.evaluate(() => window.scrollBy(0, 400));     // what Safari does to reveal the field
   await app.wait(200);
   assert.equal(await app.mapTop(), map0, 'the map stays put while typing');
+  // the page is not pinned as a fixed layer (Safari wouldn't draw it behind its bars)
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'static', 'body not fixed');
   await page.keyboard.type('Netan');
   await page.locator('[data-suggestion="netanya"]').dispatchEvent('mousedown');
   await app.blur();
@@ -123,7 +125,7 @@ test('keyboard (iPhone): the panel fits above it, the map does not move, all is 
   await app.wait(700);
   assert.equal(await app.mapTop(), map0, 'the map is where it was');
   assert.equal(await page.evaluate(() => scrollY), scroll0, 'page scroll restored');
-  assert.equal(await page.evaluate(() => document.body.style.position), '', 'scroll lock released');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'page released');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
@@ -182,7 +184,7 @@ test('picking the second station closes the keyboard and the map shows the route
     const r = t.getBoundingClientRect(); return r.top >= 0 && r.bottom <= panelTop;
   }), panelTop);
   assert.deepEqual(inView, [true, true], 'both stations on screen, above the panel');
-  assert.equal(await page.evaluate(() => document.body.style.position), '', 'page free again');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'page free again');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
