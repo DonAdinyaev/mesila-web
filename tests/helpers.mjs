@@ -38,10 +38,13 @@ const FAKE_KEYBOARD = () => {
   window.__kb = (top, h) => { fake.offsetTop = top; fake.height = h; fake.dispatchEvent(new Event('resize')); };
 };
 
-export async function openApp(browser, base, { lang = 'en', phone = true, keyboard = false, landscape = false } = {}) {
+// The service worker (offline, sw.js) is off unless a test asks for it (`offline: true`), so the
+// other tests always load the files as they are.
+export async function openApp(browser, base, { lang = 'en', phone = true, keyboard = false, landscape = false, offline = false } = {}) {
+  const serviceWorkers = offline ? 'allow' : 'block';
   const ctx = await browser.newContext(phone
-    ? { ...devices[landscape ? 'iPhone 13 landscape' : 'iPhone 13'], timezoneId: 'Asia/Jerusalem' }
-    : { viewport: { width: 1280, height: 860 }, timezoneId: 'Asia/Jerusalem' });
+    ? { ...devices[landscape ? 'iPhone 13 landscape' : 'iPhone 13'], timezoneId: 'Asia/Jerusalem', serviceWorkers }
+    : { viewport: { width: 1280, height: 860 }, timezoneId: 'Asia/Jerusalem', serviceWorkers });
   await ctx.route('https://unpkg.com/**', (r) => {
     const m = new URL(r.request().url()).pathname.match(/^\/(@?[^@]+)@[^/]+\/(.*)$/);
     r.fulfill({ path: path.join(ROOT, 'node_modules', m[1], m[2]), contentType: 'application/javascript' });

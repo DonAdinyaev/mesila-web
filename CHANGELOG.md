@@ -2,6 +2,8 @@
 
 ## 2026-11-24
 
+- **Works offline, installs like an app:** once Mesila has been opened, the map and the planned timetable work without a connection, so trips can be planned underground or on a train with no signal (live delays come back when the connection does). The app can be installed: from the browser menu on Android and computers, or Share → Add to Home Screen on iPhone, with its own icon. Online, new versions still show straight away.
+- **Docs:** PROJECT.md is up to date (live delays and platforms, the built site, the trip panel, offline).
 - **Tapping a station suggestion picks it again (phones):** since the list was drawn tucked under the search card, a tap on a suggestion landed on the panel behind it and nothing was picked. The list now sits above the panel (still under the card), and a new test taps a suggestion like a finger does.
 
 ## 2026-11-23

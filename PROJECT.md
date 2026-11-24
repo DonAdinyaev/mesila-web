@@ -25,7 +25,7 @@ Non-goals for now: train positions on the map, ticketing, and accounts.
 | Published site built ahead (no Babel in the browser) | Done |
 | Browser tests (run on every push) | Done |
 | Real timetables (planned, GTFS) | Done |
-| Offline / installable (PWA) | Not started |
+| Offline / installable (PWA) | Done |
 
 ## How it works
 
@@ -69,6 +69,16 @@ Israel Railways' own API (the one behind rail.co.il, unofficial) only answers br
 
 `data/live.js` maps our station ids to Israel Railways' station numbers. The Eastern line's Hadera East, Shomron and Tira have no number yet, so legs there get no live data.
 
+### Offline and home screen (`sw.js`, `manifest.webmanifest`)
+
+The manifest makes the app installable (Android and computers offer to install it; on iPhone, Share → Add to Home Screen), with its icons in `assets/` (`icon-maskable-512.png` keeps the logo inside the circle Android may crop to). The service worker keeps the app usable offline:
+
+- the page and our own files (scripts, timetable, icons) come from the network first, so a new version shows as soon as you're online; the saved copy is used only when the network fails. Copies are found whatever their `?v=`, and older copies of a file are dropped;
+- React (unpkg) and the fonts are saved once and served from the saved copy (their addresses never change content);
+- live delays are never saved.
+
+When it installs it reads the page and saves everything it loads, so there is no file list to maintain. Its cache is named `mesila-v1`; change the name only to throw every saved copy away.
+
 ### Trip panel (`components/Sheet.js`)
 
 On phones the panel is a floating island at the bottom with three positions (the trip card, half, full), moved by dragging, flicking or tapping its handle; a sideways swipe on the trip card changes trip. Typing a station raises it above the on-screen keyboard. iOS Safari doesn't shrink the page for the keyboard, it slides the visible area over it, so the panel follows `window.visualViewport`, and the page (the map) is held still while typing by switching scrolling off (not by pinning the body as a fixed layer, which Safari doesn't draw behind its status bar and toolbar). On a phone held sideways (a short, wide screen) the panel is a full-height column on the left instead.
@@ -95,11 +105,10 @@ Panning follows common platform conventions for inertia: release speed from the 
 - The feed covers about a month ahead. For a date outside it, the planner uses the same weekday from inside the feed and says so.
 - Some real services stop at stations their line on the map doesn't serve (for example Hadera – Netanya – Jerusalem trains, or Nahariya – Be'er Sheva trains calling at Atlit and Binyamina). They are shown in the colour of the closest map line.
 - Network data was transcribed by hand from the official line map (November 2026) and may lag behind service changes.
-- React loads from a CDN (unpkg) and fonts from Google Fonts, so the app needs a network connection; it doesn't work offline yet.
+- **Offline only after a first visit.** The app works offline once it has been opened online (the service worker saves it then). Offline, trips show planned times only, and a timetable older than the feed's month runs out like it does online.
 
 ## Roadmap ideas
 
-- Installable PWA with offline map and planned timetable
 - Live data for the Eastern line (Israel Railways numbers for Hadera East, Shomron, Tira)
 - Accessibility pass: keyboard navigation, screen-reader station list
 - Russian and Arabic interface

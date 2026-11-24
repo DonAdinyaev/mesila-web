@@ -248,3 +248,20 @@ test('tapping a station name on the map picks the station, like its marker', asy
     await app.close();
   }
 });
+
+test('offline: once opened, the app loads and plans trips without a connection', async () => {
+  const app = await openApp(browser, server.url, { offline: true });
+  const { page, ctx } = app;
+  // the service worker has saved the app (installing it saves everything the page loads)
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 15000 });
+  await ctx.setOffline(true);
+  await page.reload();
+  await page.waitForSelector('[data-sheet]', { timeout: 30000 });
+  await page.waitForSelector('#loader', { state: 'detached', timeout: 10000 });
+  await app.choose('from', 'Netan', 'netanya');
+  await app.choose('to', 'Savid', 'savidor');
+  await page.waitForSelector('[data-trip-card]', { timeout: 5000 });
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
+

@@ -9,6 +9,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"/>
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png"/>
 <meta name="apple-mobile-web-app-title" content="Mesila"/>
+<!-- installable (home screen) and usable offline: see sw.js -->
+<link rel="manifest" href="manifest.webmanifest"/>
 <!-- colour of the browser's own bars (iPhone status bar area): the map's land colour, kept in sync with the theme -->
 <meta name="theme-color" id="theme-color" content="#FDFCFA"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -96,6 +98,10 @@
     </svg>
   </div>
 
+<script>
+// offline: the service worker keeps the app and the timetable (see sw.js)
+if ('serviceWorker' in navigator) addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+</script>
 <script>window.safeTop = () => { const p = document.getElementById('sat-probe'); return p ? p.offsetHeight : 0; };
 window.safeBottom = () => { const p = document.getElementById('sab-probe'); return p ? p.offsetHeight : 0; };</script>
 <!-- measures env(safe-area-inset-top) for code that positions things below the status bar -->

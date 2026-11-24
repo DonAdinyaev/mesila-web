@@ -21,6 +21,7 @@
   - **Phone (under 600 px wide):** a tall, narrow version that scrolls only up and down, so every station is reachable with one finger.
 - **English and Hebrew:** switch with the עב / EN button. Station names, line names and the whole interface are translated, and Hebrew runs right to left.
 - **Night trains:** the overnight service runs as part of line 3 (Nahariya – Modi'in) and the high-speed line (Herzliya – Jerusalem) with fewer stops. It's always included in trip planning and marked with a moon.
+- **Works offline and installs like an app:** once opened, the map and the planned timetable work without a connection (live delays need one). Install it from the browser menu, or on iPhone with Share → Add to Home Screen.
 - **Light and dark themes**, plus a choice of English and Hebrew fonts.
 
 > Trips are planned from the **planned Israel Railways timetable** (Ministry of Transport open data, GTFS), refreshed twice a week. For trains running now, live delays and platforms are added on top (see [Platforms and live delays](#platforms-and-live-delays)); cancellations and last-minute changes are not shown. See [PROJECT.md](PROJECT.md#timetable).
@@ -49,7 +50,7 @@ On a phone-speed CPU the app appears in about 2.7 s instead of 8 s. Building and
 
 ## Tests
 
-Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) cover the trip panel: its positions and gestures (drags, flicks, the handle), typing a station with and without a route, the iPhone keyboard handling (with a simulated visual viewport: the panel fits above the keyboard, the map doesn't move, all is restored after), that swipes on the panel never scroll the map, and that the app loads cleanly on a phone and a computer in both languages. They run offline: React and Babel come from `node_modules` instead of the CDN, fonts are stubbed and the live-delays relay is blocked. `npm run test:dist` builds the site and runs the same tests on the build (what is published).
+Browser tests in [`tests/`](tests/) (Node's test runner + Playwright, Chromium) cover the trip panel: its positions and gestures (drags, flicks, the handle), typing a station with and without a route, the iPhone keyboard handling (with a simulated visual viewport: the panel fits above the keyboard, the map doesn't move, all is restored after), that swipes on the panel never scroll the map, that the app loads cleanly on a phone and a computer in both languages, and that once opened it loads and plans a trip offline (the service worker is off in the other tests). They run offline: React and Babel come from `node_modules` instead of the CDN, fonts are stubbed and the live-delays relay is blocked. `npm run test:dist` builds the site and runs the same tests on the build (what is published).
 
 ```bash
 npm install                      # once
@@ -92,6 +93,8 @@ If the relay or the API is down, the app simply shows the planned times. [`.gith
 
 ```
 index.html              App shell: loading screen, language switch, map buttons, Tweaks panel, fonts, theme
+sw.js                   Service worker: the app and timetable work offline after a first visit
+manifest.webmanifest    Name, colours and icons for installing the app
 data/ui.js              Shared screen layout sizes (button row, gaps, panel handle) used by the shell, map and panel
 data/network.js         Lines, stations, desktop + phone coordinates
 data/timetable.js       Planned Israel Railways timetable (GENERATED from GTFS, don't edit)

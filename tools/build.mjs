@@ -34,6 +34,8 @@ const sri = (file) => 'sha384-' + crypto.createHash('sha384').update(fs.readFile
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT);
 for (const dir of ['assets', 'data']) fs.cpSync(path.join(ROOT, dir), path.join(OUT, dir), { recursive: true });
+// offline and home screen: the service worker and the manifest, as they are
+for (const f of ['sw.js', 'manifest.webmanifest']) fs.copyFileSync(path.join(ROOT, f), path.join(OUT, f));
 
 // components: compiled
 fs.mkdirSync(path.join(OUT, 'components'));
