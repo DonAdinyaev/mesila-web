@@ -7,9 +7,9 @@ Mesila (מסילה, "railway") is a map-first trip planner for the Israel Railwa
 1. **Readable schematic map:** a diagram, not a geographic map. Lines run straight, bend only at 45° or 90°, and keep their order through shared corridors, so you can follow any line by eye.
 2. **Works on a phone:** a dedicated narrow layout that scrolls only vertically, with no pinch-zooming to find a station.
 3. **Bilingual from the start:** Hebrew and English are both first-class, including right-to-left layout.
-4. **Zero-install, zero-build:** static files that run anywhere, including GitHub Pages.
+4. **Zero-install, no build to develop:** static files that run straight from the repository (the JSX compiles in the browser). The published site is compiled ahead for speed (`tools/build.mjs`), but nothing else is needed to host it, including GitHub Pages.
 
-Non-goals for now: live train positions, ticketing, and accounts.
+Non-goals for now: train positions on the map, ticketing, and accounts.
 
 ## Status
 
@@ -19,10 +19,12 @@ Non-goals for now: live train positions, ticketing, and accounts.
 | Desktop map | Done |
 | Phone map (vertical scroll) | Done |
 | Trip planner | Done (planned timetable) |
+| Platforms and live delays | Done (all lines except the Eastern line) |
 | English / Hebrew | Done |
 | Logo and app icons | Done |
+| Published site built ahead (no Babel in the browser) | Done |
+| Browser tests (run on every push) | Done |
 | Real timetables (planned, GTFS) | Done |
-| Live delays | Not started |
 | Offline / installable (PWA) | Not started |
 
 ## How it works
@@ -47,10 +49,6 @@ The renderer turns station coordinates into a metro-style diagram in a few passe
 
 Desktop and phone share all of this. They differ only in coordinates and a small set of per-layout tweaks (`LAYOUT_D`, `LAYOUT_M`).
 
-### Trip planner (`route()` in `data/network.js`)
-
-A shortest-path search over (station, line) pairs. Distance is the cost, and every change of line adds a fixed transfer penalty, so the planner prefers fewer changes unless a change saves real distance. Every line is always shown, so every leg it suggests is drawn.
-
 ### Timetable
 
 **Source.** The Israel Ministry of Transport publishes every operator's planned timetable as GTFS at <https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip>. Israel Railways is agency `2`; each GTFS "route" is a single train number, and the feed has no line numbers.
@@ -63,7 +61,17 @@ A shortest-path search over (station, line) pairs. Distance is the cost, and eve
 
 The map highlight is built from the planned trains. A hop between stations that the train's map line doesn't serve is drawn on another line that does.
 
-If `data/timetable.js` fails to load, the app falls back to the old distance-based route with simulated times.
+Trip planning needs `data/timetable.js`: there is no fallback planner any more (the old distance-based route with simulated times was removed).
+
+### Platforms and live delays (`data/live.js`, `relay/worker.js`)
+
+Israel Railways' own API (the one behind rail.co.il, unofficial) only answers browsers on its own site, so the app asks a small relay: a Cloudflare Worker (`relay/worker.js`, `mesila-live.mesila.workers.dev`) that holds the API key, caches each answer for 30 seconds and only answers this site. For each leg of the trip on screen, `data/live.js` asks for the trains between its first and last station that day and matches the train by number. That gives the departure and arrival platform of every train of the day, and, for trains running now, the delay at each station still ahead. The trip card and timeline then show "x min late" or "On time", the live times (planned ones struck through) and a warning when a change is likely to be missed; they refresh every 30 seconds while the trip is on screen. Planned times stay the base: without an answer (relay down, train not running yet) the trip shows as planned.
+
+`data/live.js` maps our station ids to Israel Railways' station numbers. The Eastern line's Hadera East, Shomron and Tira have no number yet, so legs there get no live data.
+
+### Trip panel (`components/Sheet.js`)
+
+On phones the panel is a floating island at the bottom with three positions (the trip card, half, full), moved by dragging, flicking or tapping its handle; a sideways swipe on the trip card changes trip. Typing a station raises it above the on-screen keyboard. iOS Safari doesn't shrink the page for the keyboard, it slides the visible area over it, so the panel follows `window.visualViewport`, and the page (the map) is held still while typing by switching scrolling off (not by pinning the body as a fixed layer, which Safari doesn't draw behind its status bar and toolbar). On a phone held sideways (a short, wide screen) the panel is a full-height column on the left instead.
 
 ### Languages (`data/i18n.js`)
 
@@ -82,18 +90,18 @@ Panning follows common platform conventions for inertia: release speed from the 
 
 ## Known limitations
 
-- **Planned times only.** The timetable is what Israel Railways publishes in advance. Delays, cancellations and short-notice changes are not shown.
+- **Live data only for trains running now.** Delays show once a train is on its way; cancellations and short-notice timetable changes are not shown, and the Eastern line has no live data yet.
+- **The live data is unofficial.** It comes from the API behind rail.co.il through our relay, and could stop working if Israel Railways changes it. The app then shows planned times only.
 - The feed covers about a month ahead. For a date outside it, the planner uses the same weekday from inside the feed and says so.
 - Some real services stop at stations their line on the map doesn't serve (for example Hadera – Netanya – Jerusalem trains, or Nahariya – Be'er Sheva trains calling at Atlit and Binyamina). They are shown in the colour of the closest map line.
 - Network data was transcribed by hand from the official line map (November 2026) and may lag behind service changes.
-- React and Babel load from a CDN at runtime, so the first load needs a network connection and is slower than a pre-built bundle would be.
+- React loads from a CDN (unpkg) and fonts from Google Fonts, so the app needs a network connection; it doesn't work offline yet.
 
 ## Roadmap ideas
 
-- Live delays (Israel Railways real-time data / GTFS-RT)
-- Installable PWA with offline map
+- Installable PWA with offline map and planned timetable
+- Live data for the Eastern line (Israel Railways numbers for Hadera East, Shomron, Tira)
 - Accessibility pass: keyboard navigation, screen-reader station list
-- Pre-built bundle (drop in-browser Babel) for faster first load
 - Russian and Arabic interface
 
 ## Credits

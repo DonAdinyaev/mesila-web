@@ -23,7 +23,7 @@
 - **Night trains:** the overnight service runs as part of line 3 (Nahariya – Modi'in) and the high-speed line (Herzliya – Jerusalem) with fewer stops. It's always included in trip planning and marked with a moon.
 - **Light and dark themes**, plus a choice of English and Hebrew fonts.
 
-> Times come from the **planned Israel Railways timetable** (Ministry of Transport open data, GTFS), refreshed twice a week. They are not live: delays and last-minute changes are not shown. See [PROJECT.md](PROJECT.md#timetable).
+> Trips are planned from the **planned Israel Railways timetable** (Ministry of Transport open data, GTFS), refreshed twice a week. For trains running now, live delays and platforms are added on top (see [Platforms and live delays](#platforms-and-live-delays)); cancellations and last-minute changes are not shown. See [PROJECT.md](PROJECT.md#timetable).
 
 ## Run it locally
 
