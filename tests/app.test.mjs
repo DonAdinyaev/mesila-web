@@ -130,6 +130,20 @@ test('keyboard (iPhone): the panel fits above it, the map does not move, all is 
   await app.close();
 });
 
+test('tapping a suggestion picks the station (the tap reaches the row, not the panel behind it)', async () => {
+  const app = await openApp(browser, server.url, { keyboard: true });
+  const { page } = app;
+  await app.input('from').tap();
+  await page.evaluate(() => window.__kb(200, 330)); await app.wait(500);
+  await page.keyboard.type('Netan'); await app.wait(400);
+  const r = await page.locator('[data-suggestion="netanya"]').boundingBox();
+  await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height - 10);   // a real tap, hit-tested by the browser
+  await app.wait(400);
+  assert.equal(await app.input('from').inputValue(), 'Netanya');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
+
 test('closing the keyboard moves the panel down in one movement (no jumps back up)', async () => {
   const app = await openApp(browser, server.url, { keyboard: true });
   const { page } = app;
