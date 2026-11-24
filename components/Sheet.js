@@ -812,7 +812,8 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
   const [cardBottom, setCardBottom] = React.useState(0);   // from the panel's top
   React.useLayoutEffect(() => {
     const el = cardRef.current; if (!el) return;
-    const upd = () => setCardBottom(el.offsetTop + el.offsetHeight);
+    // offsetTop is from the details area (positioned, see below), so add where it starts in the panel
+    const upd = () => setCardBottom((bodyRef.current ? bodyRef.current.offsetTop : 0) + el.offsetTop + el.offsetHeight);
     upd(); const ro = new ResizeObserver(upd); ro.observe(el); return () => ro.disconnect();
   }, [hasTrip]);
   const suggestRoom = Math.max(120, H[snap] - (cardBottom - 16) - UI.PANEL_CHROME - 8);
@@ -944,7 +945,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
           borderTop: hasTrip ? '1px solid var(--chip-border)' : 'none',
           opacity: bodyOpacity, pointerEvents: bodyOpacity < 0.5 ? 'none' : 'auto',
           transition: dy === null ? `opacity 260ms ${ease}` : 'none' }}>
-        <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0 }}>
+        {/* positioned with its own stacking order, so the suggestions (drawn behind the search
+            card, z-index -1) still sit above this area: otherwise a tap on one lands here */}
+        <div ref={bodyRef} {...bodySwipe} style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, position: 'relative', zIndex: 0 }}>
         <div ref={contentRef}>
           {/* Search card: [time wheel | From/To rows joined by a route line | swap]. Not in the
               route view: there the trip card has the swap, and the X above the panel clears the
