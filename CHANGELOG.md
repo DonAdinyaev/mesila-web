@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-27
+
+- **No trains: a message above the panel.** When there is no train between the chosen stations, a thin one-line message ("No trains in the next 30 hours") floats just above the panel, riding on its top edge at any height (with a phone held sideways: at the top of the map, beside the panel); it used to be a line of text inside the panel.
+
 ## 2026-11-22
 
 - **Station names on the map are tappable:** a tap on a station's name picks it, like a tap on its marker (a marker or line closer to the tap still wins).

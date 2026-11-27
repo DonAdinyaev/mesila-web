@@ -61,7 +61,7 @@
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   input, textarea { -webkit-user-select: text; user-select: text; }
   /* the X above the panel follows a finger dragging the panel without lag */
-  html.sheet-drag [data-clear-trip] { transition: none !important; }
+  html.sheet-drag [data-clear-trip], html.sheet-drag [data-no-trains] { transition: none !important; }
   @keyframes mesilaPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px);} to { opacity: 1; transform:none; } }
   button:active { transform: scale(0.98); }
@@ -397,6 +397,21 @@ function App() {
         </div>
         )}
       </div>
+
+      {/* No trains for the chosen stations: a thin message riding just above the panel's top
+          edge, like the X (--sheet-h), so it stays above the panel at any height. Sideways: at
+          the top of the map, beside the panel column. */}
+      {from && to && from !== to && !journey && (
+        <div data-no-trains="" role="status" style={{ position:'fixed', zIndex: 7, pointerEvents:'none', display:'flex', justifyContent:'center',
+            left: `calc(env(safe-area-inset-left, 0px) + ${side ? window.UI.EDGE + window.UI.SIDE_W + 8 : 60}px)`, right: 'calc(env(safe-area-inset-right, 0px) + 60px)',
+            ...(side ? { top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW + 6}px)` }
+              : { bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP + 6}px + var(--sheet-h, var(--sheet-rest, 140px)))`,
+                  transition: `bottom 300ms cubic-bezier(.2,.7,.2,1)` }) }}>
+          <div style={{ padding: '6px 14px', borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--chip-border)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)', font: '500 13px var(--font)', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+              animation: 'fadeIn 180ms ease-out' }}>{T.t('noTrains')}</div>
+        </div>
+      )}
 
       {/* route view: clear the trip (back to the form); on the other side from the location button.
           It rides on the panel's top edge (--sheet-h, kept by the panel), moving with it the way

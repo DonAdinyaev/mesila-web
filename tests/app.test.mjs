@@ -232,3 +232,22 @@ test('tapping a station name on the map picks the station, like its marker', asy
     await app.close();
   }
 });
+
+test('no trains: a thin message just above the panel, at any panel height', async () => {
+  const app = await openApp(browser, server.url);
+  const { page } = app;
+  await app.choose('from', 'Nahar', 'nahariya');
+  await app.choose('to', 'Sapir', 'sapir');                  // no trains between these two
+  const msg = page.locator('[data-no-trains]');
+  assert.equal(await msg.count(), 1, 'the message shows');
+  const gap = async () => { const m = await msg.locator('div').boundingBox(); return (await app.panelTop()) - (m.y + m.height); };
+  const g0 = await gap();
+  assert.ok(g0 > 0 && g0 < 30, `just above the panel (${g0})`);
+  await app.drag(-300); await app.wait(400);                 // pull the panel up
+  const g1 = await gap();
+  assert.ok(near(g1, g0), `still just above it (${g1})`);
+  await app.choose('to', 'Savid', 'savidor');                // a station with trains: the message goes
+  assert.equal(await msg.count(), 0, 'gone with a trip');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
