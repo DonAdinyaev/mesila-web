@@ -38,10 +38,10 @@ const FAKE_KEYBOARD = () => {
   window.__kb = (top, h) => { fake.offsetTop = top; fake.height = h; fake.dispatchEvent(new Event('resize')); };
 };
 
-export async function openApp(browser, base, { lang = 'en', phone = true, keyboard = false, landscape = false } = {}) {
+export async function openApp(browser, base, { lang = 'en', phone = true, keyboard = false, landscape = false, viewport = { width: 1280, height: 860 } } = {}) {
   const ctx = await browser.newContext(phone
     ? { ...devices[landscape ? 'iPhone 13 landscape' : 'iPhone 13'], timezoneId: 'Asia/Jerusalem' }
-    : { viewport: { width: 1280, height: 860 }, timezoneId: 'Asia/Jerusalem' });
+    : { viewport, timezoneId: 'Asia/Jerusalem' });
   await ctx.route('https://unpkg.com/**', (r) => {
     const m = new URL(r.request().url()).pathname.match(/^\/(@?[^@]+)@[^/]+\/(.*)$/);
     r.fulfill({ path: path.join(ROOT, 'node_modules', m[1], m[2]), contentType: 'application/javascript' });
@@ -54,7 +54,7 @@ export async function openApp(browser, base, { lang = 'en', phone = true, keyboa
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(base);
-  await page.waitForSelector('[data-sheet]', { timeout: 30000 });
+  await page.waitForSelector('[data-sheet]', { state: 'attached', timeout: 30000 });
   await page.waitForSelector('#loader', { state: 'detached', timeout: 10000 });
   const cdp = phone ? await ctx.newCDPSession(page) : null;
   const app = {
