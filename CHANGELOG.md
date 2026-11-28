@@ -5,6 +5,14 @@
 - **Portrait only on phones:** a phone held sideways now gets a full-screen notice, a phone icon turning upright with "Turn your phone upright" and one line, in the app's language and theme (the animation stops with "reduce motion"). It is decided in CSS (touch-only, wider than tall, under 500px tall), so it shows the moment the phone turns and never on tablets or computers. A website can't lock the orientation on iPhone, hence a notice. The app stays loaded underneath, hidden, so turning back restores it exactly. The sideways side-panel layout remains for short computer windows.
 - **No trains: a message above the panel.** When there is no train between the chosen stations, a thin one-line message ("No trains in the next 30 hours") floats just above the panel, riding on its top edge at any height (with a phone held sideways: at the top of the map, beside the panel); it used to be a line of text inside the panel.
 
+## 2026-11-24
+
+- **Tapping a station suggestion picks it again (phones):** since the list was drawn tucked under the search card, a tap on a suggestion landed on the panel behind it and nothing was picked. The list now sits above the panel (still under the card), and a new test taps a suggestion like a finger does.
+
+## 2026-11-23
+
+- **Map stays edge to edge while typing (iPhone):** opening the keyboard on a station field turned the top of the screen, the sides of the panel and the bottom white; the map showed only in the middle. The page was held still by pinning it as a fixed layer, which Safari doesn't draw behind its bars. Now scrolling is switched off instead (and any scroll that still happens, such as a flick still gliding, is put straight back), so the map keeps filling the screen.
+
 ## 2026-11-22
 
 - **Station names on the map are tappable:** a tap on a station's name picks it, like a tap on its marker (a marker or line closer to the tap still wins).

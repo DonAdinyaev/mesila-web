@@ -56,6 +56,8 @@
      overlays on top of it. */
   html.page-scroll, html.page-scroll body { height: auto; overflow-x: hidden; overflow-y: auto; }
   html.page-scroll #root { position: relative; height: auto; min-height: 100vh; }
+  /* held still while a station is typed (the map doesn't scroll under the keyboard) */
+  html.page-scroll.page-held, html.page-scroll.page-held body { overflow: hidden; }
   @keyframes mesilaFade { from { opacity: 0; } to { opacity: 1; } }
   /* No text selection anywhere (taps and drags on the map shouldn't highlight); inputs stay editable */
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
@@ -121,7 +123,7 @@ window.safeBottom = () => { const p = document.getElementById('sab-probe'); retu
 <script src="data/ui.js?v=1"></script>
 <script src="data/network.js?v=58"></script>
 <script src="data/i18n.js?v=20"></script>
-<script src="data/timetable.js?v=20261122"></script>
+<script src="data/timetable.js?v=20261125"></script>
 <script src="data/schedule.js?v=7"></script>
 <script src="data/live.js?v=2"></script>
 <script type="text/babel" src="components/MapSVG.js?v=107"></script>

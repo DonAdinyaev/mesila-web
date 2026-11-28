@@ -115,6 +115,8 @@ test('keyboard (iPhone): the panel fits above it, the map does not move, all is 
   await page.evaluate(() => window.scrollBy(0, 400));     // what Safari does to reveal the field
   await app.wait(200);
   assert.equal(await app.mapTop(), map0, 'the map stays put while typing');
+  // the page is not pinned as a fixed layer (Safari wouldn't draw it behind its bars)
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'static', 'body not fixed');
   await page.keyboard.type('Netan');
   await page.locator('[data-suggestion="netanya"]').dispatchEvent('mousedown');
   await app.blur();
@@ -123,7 +125,21 @@ test('keyboard (iPhone): the panel fits above it, the map does not move, all is 
   await app.wait(700);
   assert.equal(await app.mapTop(), map0, 'the map is where it was');
   assert.equal(await page.evaluate(() => scrollY), scroll0, 'page scroll restored');
-  assert.equal(await page.evaluate(() => document.body.style.position), '', 'scroll lock released');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'page released');
+  assert.deepEqual(app.errors, []);
+  await app.close();
+});
+
+test('tapping a suggestion picks the station (the tap reaches the row, not the panel behind it)', async () => {
+  const app = await openApp(browser, server.url, { keyboard: true });
+  const { page } = app;
+  await app.input('from').tap();
+  await page.evaluate(() => window.__kb(200, 330)); await app.wait(500);
+  await page.keyboard.type('Netan'); await app.wait(400);
+  const r = await page.locator('[data-suggestion="netanya"]').boundingBox();
+  await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height - 10);   // a real tap, hit-tested by the browser
+  await app.wait(400);
+  assert.equal(await app.input('from').inputValue(), 'Netanya');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
@@ -182,7 +198,7 @@ test('picking the second station closes the keyboard and the map shows the route
     const r = t.getBoundingClientRect(); return r.top >= 0 && r.bottom <= panelTop;
   }), panelTop);
   assert.deepEqual(inView, [true, true], 'both stations on screen, above the panel');
-  assert.equal(await page.evaluate(() => document.body.style.position), '', 'page free again');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('page-held')), false, 'page free again');
   assert.deepEqual(app.errors, []);
   await app.close();
 });
@@ -260,8 +276,10 @@ test('tapping a station name on the map picks the station, like its marker', asy
 test('no trains: a thin message just above the panel, at any panel height', async () => {
   const app = await openApp(browser, server.url);
   const { page } = app;
+  // no trains (whatever the timetable holds today): the planner finds none
+  await page.evaluate(() => { window.__plan = window.SCHEDULE.alternatives; window.SCHEDULE.alternatives = () => ({ list: [], index: 0 }); });
   await app.choose('from', 'Nahar', 'nahariya');
-  await app.choose('to', 'Sapir', 'sapir');                  // no trains between these two
+  await app.choose('to', 'Sapir', 'sapir');
   const msg = page.locator('[data-no-trains]');
   assert.equal(await msg.count(), 1, 'the message shows');
   const gap = async () => { const m = await msg.locator('div').boundingBox(); return (await app.panelTop()) - (m.y + m.height); };
@@ -270,7 +288,8 @@ test('no trains: a thin message just above the panel, at any panel height', asyn
   await app.drag(-300); await app.wait(400);                 // pull the panel up
   const g1 = await gap();
   assert.ok(near(g1, g0), `still just above it (${g1})`);
-  await app.choose('to', 'Savid', 'savidor');                // a station with trains: the message goes
+  await page.evaluate(() => { window.SCHEDULE.alternatives = window.__plan; });   // trains again
+  await app.choose('to', 'Savid', 'savidor');                // a trip: the message goes
   assert.equal(await msg.count(), 0, 'gone with a trip');
   assert.deepEqual(app.errors, []);
   await app.close();
