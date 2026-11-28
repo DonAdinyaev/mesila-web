@@ -203,9 +203,9 @@ test('picking the second station closes the keyboard and the map shows the route
   await app.close();
 });
 
-test('phone held sideways: the panel is a full-height column on the left, the map beside it', async () => {
+test('a short, wide window (no touch): the panel is a full-height column on the left, the map beside it', async () => {
   for (const lang of ['en', 'he']) {
-    const app = await openApp(browser, server.url, { landscape: true, lang });
+    const app = await openApp(browser, server.url, { phone: false, viewport: { width: 750, height: 342 }, lang });
     const { page } = app;
     const W = await page.evaluate(() => innerWidth), H = await page.evaluate(() => innerHeight);
     const p = await app.panel();
@@ -214,8 +214,8 @@ test('phone held sideways: the panel is a full-height column on the left, the ma
     assert.equal(await page.locator('[aria-label="Zoom in"], [aria-label="הגדלה"]').count(), 0, 'no zoom buttons (pinch)');
     const lb = await page.locator('[data-locate]').boundingBox();
     assert.ok(lb.x > W - 70 && lb.y > H - 80, 'the location button in the bottom right corner');
-    await app.choose('to', lang === 'he' ? 'סביד' : 'Savid', 'savidor');
-    await app.choose('from', lang === 'he' ? 'נהרי' : 'Nahar', 'nahariya');
+    await page.locator('[data-station-input="to"]').click(); await page.keyboard.type(lang === 'he' ? 'סביד' : 'Savid'); await page.locator('[data-suggestion="savidor"]').dispatchEvent('mousedown'); await app.blur(); await app.wait(500);
+    await page.locator('[data-station-input="from"]').click(); await page.keyboard.type(lang === 'he' ? 'נהרי' : 'Nahar'); await page.locator('[data-suggestion="nahariya"]').dispatchEvent('mousedown'); await app.blur(); await app.wait(500);
     await app.wait(1200);
     const xb = await page.locator('[data-clear-trip]').boundingBox();
     assert.ok(xb.x > p.x + p.width && xb.x < p.x + p.width + 30 && xb.y < 30, 'the X at the top of the map, beside the panel');
@@ -226,6 +226,30 @@ test('phone held sideways: the panel is a full-height column on the left, the ma
     assert.deepEqual(app.errors, []);
     await app.close();
   }
+});
+
+test('phone held sideways: a full-screen notice to turn it upright; the app is kept underneath', async () => {
+  for (const lang of ['en', 'he']) {
+    const app = await openApp(browser, server.url, { landscape: true, lang });
+    const { page } = app;
+    const n = page.locator('.rotate-notice');
+    assert.ok(await n.isVisible(), 'the notice shows');
+    const b = await n.boundingBox(), W = await page.evaluate(() => innerWidth), H = await page.evaluate(() => innerHeight);
+    assert.ok(b.x <= 0 && b.y <= 0 && b.width >= W && b.height >= H, 'full screen');
+    assert.equal(await page.locator('#root').evaluate(el => getComputedStyle(el).visibility), 'hidden', 'the app hidden underneath');
+    const text = await n.textContent();
+    assert.ok(text.includes(await page.evaluate(() => window.I18N.t('rotateTitle'))), 'headline in the app language');
+    // turned upright: the app is back as it was
+    await page.setViewportSize({ width: 390, height: 664 }); await app.wait(300);
+    assert.equal(await n.isVisible(), false, 'gone in portrait');
+    assert.equal(await page.locator('#root').evaluate(el => getComputedStyle(el).visibility), 'visible');
+    assert.deepEqual(app.errors, []);
+    await app.close();
+  }
+  // a computer's short window never gets it
+  const app = await openApp(browser, server.url, { phone: false, viewport: { width: 750, height: 342 } });
+  assert.equal(await app.page.locator('.rotate-notice').isVisible(), false, 'not on a computer');
+  await app.close();
 });
 
 test('tapping a station name on the map picks the station, like its marker', async () => {
@@ -247,4 +271,26 @@ test('tapping a station name on the map picks the station, like its marker', asy
     assert.deepEqual(app.errors, []);
     await app.close();
   }
+});
+
+test('no trains: a thin message just above the panel, at any panel height', async () => {
+  const app = await openApp(browser, server.url);
+  const { page } = app;
+  // no trains (whatever the timetable holds today): the planner finds none
+  await page.evaluate(() => { window.__plan = window.SCHEDULE.alternatives; window.SCHEDULE.alternatives = () => ({ list: [], index: 0 }); });
+  await app.choose('from', 'Nahar', 'nahariya');
+  await app.choose('to', 'Sapir', 'sapir');
+  const msg = page.locator('[data-no-trains]');
+  assert.equal(await msg.count(), 1, 'the message shows');
+  const gap = async () => { const m = await msg.locator('div').boundingBox(); return (await app.panelTop()) - (m.y + m.height); };
+  const g0 = await gap();
+  assert.ok(g0 > 0 && g0 < 30, `just above the panel (${g0})`);
+  await app.drag(-300); await app.wait(400);                 // pull the panel up
+  const g1 = await gap();
+  assert.ok(near(g1, g0), `still just above it (${g1})`);
+  await page.evaluate(() => { window.SCHEDULE.alternatives = window.__plan; });   // trains again
+  await app.choose('to', 'Savid', 'savidor');                // a trip: the message goes
+  assert.equal(await msg.count(), 0, 'gone with a trip');
+  assert.deepEqual(app.errors, []);
+  await app.close();
 });

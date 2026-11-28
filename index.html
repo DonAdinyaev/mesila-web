@@ -63,7 +63,21 @@
   html, body, * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   input, textarea { -webkit-user-select: text; user-select: text; }
   /* the X above the panel follows a finger dragging the panel without lag */
-  html.sheet-drag [data-clear-trip] { transition: none !important; }
+  html.sheet-drag [data-clear-trip], html.sheet-drag [data-no-trains] { transition: none !important; }
+  /* A phone held sideways: the app works in portrait only (a website can't lock the
+     orientation on iPhone), so a full-screen notice asks to turn the phone upright. Decided
+     here, in CSS, so it shows the moment the phone turns: touch-only, wider than tall and
+     short (tablets and computers never get it). The app stays loaded underneath, hidden, so
+     turning back restores it exactly as it was. */
+  .rotate-notice { display: none; }
+  @media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
+    .rotate-notice { display: flex; }
+    #root { visibility: hidden; }
+    html, body { background: var(--surface); }
+  }
+  .rotate-notice .phone { animation: rotateUpright 2.4s cubic-bezier(.45,0,.2,1) infinite; transform-box: view-box; transform-origin: 40px 42px; }
+  @keyframes rotateUpright { 0%, 15% { transform: rotate(-90deg); } 55%, 100% { transform: rotate(0deg); } }
+  @media (prefers-reduced-motion: reduce) { .rotate-notice .phone { animation: none; } }
   @keyframes mesilaPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px);} to { opacity: 1; transform:none; } }
   button:active { transform: scale(0.98); }
@@ -141,6 +155,29 @@ const { LINES: ALL_LINES } = window.MESILA;
 
 // Language switch: a lone button at the top corner where the old top bar's switch sat
 // (right in English, left in Hebrew), level with the hint pill
+// Full screen, over everything, while a phone is held sideways (shown by CSS, see the
+// .rotate-notice rules): a phone turning upright, a headline and one line. On the page
+// itself (not inside the app), so it stays visible while the app underneath is hidden.
+function RotateNotice() {
+  const T = window.I18N;
+  return ReactDOM.createPortal(
+    <div className="rotate-notice" role="alert" dir={T.dir} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--surface)',
+        flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '24px 32px', textAlign: 'center' }}>
+      <svg width="84" height="84" viewBox="0 0 80 80" fill="none" aria-hidden="true">
+        {/* the way it turns: an arc around the phone's centre (40, 42), clear of it sideways and upright */}
+        <path d="M11.8 31.7 A30 30 0 0 1 50.3 13.8" stroke="var(--text-dim)" strokeWidth="2.2" strokeLinecap="round"/>
+        <path d="M43.3 15.6 L50.3 13.8 L46.1 8" stroke="var(--text-dim)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+        {/* the phone, turning upright */}
+        <g className="phone">
+          <rect x="31" y="23" width="18" height="38" rx="4.5" stroke="var(--text)" strokeWidth="2.6"/>
+          <line x1="37" y1="55" x2="43" y2="55" stroke="var(--text)" strokeWidth="2.6" strokeLinecap="round"/>
+        </g>
+      </svg>
+      <div style={{ font: '700 20px var(--font)', color: 'var(--text)', letterSpacing: '-0.01em' }}>{T.t('rotateTitle')}</div>
+      <div style={{ font: '500 14px/1.45 var(--font)', color: 'var(--text-dim)', maxWidth: 320, textWrap: 'balance' }}>{T.t('rotateText')}</div>
+    </div>, document.body);
+}
+
 function LangButton({ lang, onToggleLang }) {
   const T = window.I18N;
   return (
@@ -370,6 +407,7 @@ function App() {
   return (
     <div style={narrow ? { position:'relative' } : { position:'absolute', inset: 0 }} data-screen-label="Mesila Map">
       <LangButton lang={lang} onToggleLang={toggleLang}/>
+      <RotateNotice/>
 
       <div style={narrow ? { position:'relative' } : { position:'absolute', inset: 0 }}>
         <window.MapSVG
@@ -399,6 +437,21 @@ function App() {
         </div>
         )}
       </div>
+
+      {/* No trains for the chosen stations: a thin message riding just above the panel's top
+          edge, like the X (--sheet-h), so it stays above the panel at any height. Sideways: at
+          the top of the map, beside the panel column. */}
+      {from && to && from !== to && !journey && (
+        <div data-no-trains="" role="status" style={{ position:'fixed', zIndex: 7, pointerEvents:'none', display:'flex', justifyContent:'center',
+            left: `calc(env(safe-area-inset-left, 0px) + ${side ? window.UI.EDGE + window.UI.SIDE_W + 8 : 60}px)`, right: 'calc(env(safe-area-inset-right, 0px) + 60px)',
+            ...(side ? { top: `calc(env(safe-area-inset-top, 0px) + ${window.UI.TOP_ROW + 6}px)` }
+              : { bottom: `calc(env(safe-area-inset-bottom, 0px) + ${window.UI.EDGE + window.UI.LOCATE_GAP + 6}px + var(--sheet-h, var(--sheet-rest, 140px)))`,
+                  transition: `bottom 300ms cubic-bezier(.2,.7,.2,1)` }) }}>
+          <div style={{ padding: '6px 14px', borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--chip-border)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)', font: '500 13px var(--font)', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+              animation: 'fadeIn 180ms ease-out' }}>{T.t('noTrains')}</div>
+        </div>
+      )}
 
       {/* route view: clear the trip (back to the form); on the other side from the location button.
           It rides on the panel's top edge (--sheet-h, kept by the panel), moving with it the way

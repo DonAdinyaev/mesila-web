@@ -997,9 +997,9 @@ function BottomSheet({ from, to, onSetFrom, onSetTo, onSwap, located, locating, 
               <TimetableNote borrowed={journey.borrowed}/>
             </div>
           )}
+          {/* no trains: the message floats above the panel (index.html); the data note stays here */}
           {from && to && from !== to && !journey && (
             <div style={{ padding: '4px 16px 20px', color: 'var(--text-dim)', font: '500 13px var(--font)' }}>
-              {T.t('noTrains')}
               <TimetableNote/>
             </div>
           )}
